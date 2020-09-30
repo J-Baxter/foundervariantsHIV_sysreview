@@ -9,54 +9,88 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 
+formatDF <- function(df, covar){
+  if (is.null(covar)){
+    df_grouped <- df %>% 
+      group_by(publication) %>%
+      summarise(subjects = n(), multiplefounders = sum(df$founderclass))
+  }else{
+    df_grouped <- df %>% 
+      group_by(publication,covar) %>%
+      summarise(subjects = n(), multiplefounders = sum(df$founderclass))}
+  
+  return(df_grouped)
+}
+
+MetaAll <- function(agregated_df) {
+  meta::metaprop(multiplefounders,
+           subjects,
+           studlab = publication,
+           data = agregated_df,
+           subset = NULL,
+           exclude = NULL,
+           method = 'Inverse', #Inverse variance method to pool
+           sm = "PLN", #log transform proportions
+           incr = gs("incr"),#A numeric which is added to event number and sample size of studies with zero or all events, i.e., studies with an event probability of either 0 or 1
+           allincr = gs("allincr"),#A logical indicating if incr is considered for all studies if at least one study has either zero or all events. If FALSE (default), incr is considered only in studies with zero or all events
+           addincr = gs("addincr"),#A logical indicating if incr is used for all studies irrespective of number of events
+           method.ci = "NAsm",
+           level = gs("level"),#The level used to calculate confidence intervals for individual studies
+           level.comb = gs("level.comb"),#he level used to calculate confidence intervals for pooled estimates
+           comb.fixed = FALSE,
+           comb.random = TRUE,
+           overall = comb.fixed | comb.random,
+           overall.hetstat = comb.fixed | comb.random,
+           hakn = gs("hakn"), 
+           adhoc.hakn = "se",
+           method.tau = 'ML', #Maximum likelihood estimation of Tau
+           method.tau.ci = "QP", #Q-Profile method (Viechtbauer, 2007)
+           tau.preset = NULL,
+           TE.tau = NULL,#Overall treatment effect used to estimate the between-study variance tau-squared
+           prediction = gs("prediction"),#A logical indicating whether a prediction interval should be printed
+           level.predict = gs("level.predict"),#The level used to calculate prediction interval for a new study.
+           null.effect = NA,#A numeric value specifying the effect under the null hypothesis.
+           method.bias = gs("method.bias"), #A character string indicating which test is to be used. Either "rank", "linreg", or "mm", can be abbreviated. 
+  
+           #presentation
+           backtransf = TRUE,
+           pscale = 1,
+           title = gs("title"),
+           complab = gs("complab"),
+           outclab = "",
+           print.byvar = gs("print.byvar"),
+           byseparator = gs("byseparator"),
+           keepdata = TRUE,
+           warn = TRUE, 
+           control = NULL)
+  }
+
+##START##  
 #import dataset
 principle <- read.csv('sysreview_indivi')
 
-#format dataframe for meta-analysis
+#define subgroups
+subgroups <- list(NULL, 'subtype' , 'exposure' , 'seroconversion' , 'method')
+
+#format dataframes for meta-analysis
 df_labelled <- unite(df, "publication", c(df$FAU , df$YOP), sep = '_')
 
-df_agg <- df_labelled %>% 
-  group_by(publication) %>%
-  summarise(N = n(), prop.multiplefounders = mean(df$founderclass, na.rm = TRUE), sd = sd(df$founderclass)) %>%
-  mutate(se = sd / sqrt(N),
-         lower.ci = prop.multiplefounders - qt(1 - (0.05 / 2), N - 1) * se,
-         upper.ci = prop.multiplefounders + qt(1 - (0.05 / 2), N - 1) * se,)
-
-#calculate log odds
-log_odds <- mapply(qlogis , df_agg$prop.multiplefounders)
-
-df_lgodds <- cbind.data.frame(df_agg , log_odds)
+data <- lapply(subgroups , function(x) formatDF(df_labelled,x))
+  
+names(data) <- c('df_master' , 'df_subtype',  'df_seroconversion' , 'df_method')
 
 #pool effect size
-metagen(TE = log_odds , seTE = se , studlab = publication , method.tau = 'REML' , sm = '' , data = df_logodds , hakn = TRUE , )
+meta_init <- lapply(data , MetaAll)
 
- wrapperfunction <- function(df, covar){
-  #dependencies
-  require(metafor)
-  library(dplyr)
-  library(tidyr)
+#presentation of initial 'main' meta-analysis (no subgrouping)
+#visualisation ideas: forest plots, posterior probaility distributions, l'abbe, GOSH, funnel
 
-  #group by publication, split by covar (if covar is present...)
-  if (is.null(covar)){
-    
-    #group by publication ony
-    df_comp <- df_labelled %>% group_by(publication) %>%
-      summarise(mean_size = mean(df$founderclass, na.rm = TRUE), n = n())
-    
-    }else{
-    
-    #group by publication, subgroup covar
-      df_comp <- df_labelled %>% group_by(publication,covar) %>%
-        summarise(mean_size = mean(df$founderclass, na.rm = TRUE), n = n())
-  }
-  
-  #scale
-  df_OR <- escalc(measure="OR", ... , data = df_comp)
-  
-  #output dataframe
-  return(df_OR)
-}
 
-principle_OR <- CalcOddsRatio(principle)
+#ascertainment of publication bias
 
-#
+
+#subgroup analysis of principle dataset
+metabins4subanalysis <- meta_init[[2:5]]
+
+#presenting subgroup analyses
+
