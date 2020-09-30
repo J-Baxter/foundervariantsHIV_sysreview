@@ -8,6 +8,7 @@ library(metafor)
 library(ggplot2)
 library(dplyr)
 library(tidyr)
+library(dmetar)
 
 formatDF <- function(df, covar){
   if (is.null(covar)){
@@ -77,7 +78,7 @@ df_labelled <- unite(df, "publication", c(df$FAU , df$YOP), sep = '_')
 
 data <- lapply(subgroups , function(x) formatDF(df_labelled,x))
   
-names(data) <- c('df_master' , 'df_subtype',  'df_seroconversion' , 'df_method')
+names(data) <- c('df_master' , 'df_subtype', 'df_exposure' , 'df_seroconversion' , 'df_method')
 
 #pool effect size
 meta_init <- lapply(data , MetaAll)
@@ -90,7 +91,21 @@ meta_init <- lapply(data , MetaAll)
 
 
 #subgroup analysis of principle dataset
-metabins4subanalysis <- meta_init[[2:5]]
+metas4subanalysis <- meta_init[[2:5]]
+modeltype <- c('random' , 'fixed' , 'fixed' , 'random')
 
 #presenting subgroup analyses
 
+##END##
+
+##alternative ?
+principle <- read.csv('sysreview_indivi')
+df_labelled <- unite(df, "publication", c(df$FAU , df$YOP), sep = '_')
+
+df_grouped <- df %>% 
+  group_by(publication,subtype,exposure,seroconversion,method) %>%
+  summarise(subjects = n(), multiplefounders = sum(df$founderclass))
+
+meta_alt <- metaALL(df_grouped)
+
+alt_exposure <- update.meta(meta_alt, byvar = subtype, comb.random = TRUE)
