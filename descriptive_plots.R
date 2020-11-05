@@ -4,11 +4,31 @@
 
 library(ggplot2)
 library(ggsci)
+library(dplyr)
+library(forcats)
+library(tidyr
+        )
 #set wd
 setwd("./data/")
 
 #import data
-df <- read.csv("data_master.csv")
+df <- read.csv("data_master.csv", na.strings = "NA")
+
+#function for stacking categories and calculating summary frequencies
+stacked_categories <- function(x, catnames){
+  characters <- as.character(x)
+  split_list <- strsplit(characters , '[:]')
+  split_df <- do.call(rbind.data.frame, split_list)
+  
+  freq <- split_df %>%
+    group_by(split_df[,1] , split_df[,2]) %>%
+    summarise(frequency = n())
+  
+  colnames(freq) <- catnames
+  return(freq)
+}
+
+#remove NAs from founder.multiplicity column
 
 #method
 p1 <- ggplot(df, aes(grouped.method))+
@@ -23,8 +43,12 @@ p1 <- ggplot(df, aes(grouped.method))+
 p1
 
 #Risk
-p2 <- ggplot(df, aes(reported.exposure))+
-  geom_bar()+
+names <- c('reported.exposure' , 'sub.exposure' , 'frequency')
+exposures_df <- stacked_categories(df$reported.exposure, names)
+
+
+p2 <- ggplot(exposures_df, aes(x = reported.exposure , y = frequency))+
+  geom_bar(stat = 'identity' , aes(fill = sub.exposure, colour = sub.exposure), position = 'stack')+
   scale_color_npg()+
   scale_fill_npg()+
   theme_classic()+
