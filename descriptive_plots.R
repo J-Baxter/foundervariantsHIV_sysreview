@@ -5,13 +5,13 @@
 library(ggplot2)
 library(ggsci)
 #set wd
-setwd("/Users/s1506888/Documents/PhD1/1y_review/")
+setwd("./data/")
 
 #import data
-df <- read.csv("publist.csv")
+df <- read.csv("data_master.csv")
 
 #method
-p1 <- ggplot(df, aes(Grouped.Method))+
+p1 <- ggplot(df, aes(grouped.method))+
   geom_bar()+
   scale_color_npg()+
   scale_fill_npg()+
@@ -23,7 +23,7 @@ p1 <- ggplot(df, aes(Grouped.Method))+
 p1
 
 #Risk
-p2 <- ggplot(df, aes(Grouped.Risk))+
+p2 <- ggplot(df, aes(reported.exposure))+
   geom_bar()+
   scale_color_npg()+
   scale_fill_npg()+
@@ -35,7 +35,7 @@ p2 <- ggplot(df, aes(Grouped.Risk))+
 p2
 
 #Seroconversion
-p3 <- ggplot(df, aes(Seroconverted))+
+p3 <- ggplot(df, aes(participant.seropositivity))+ 
   geom_bar()+
   scale_color_npg()+
   scale_fill_npg()+
@@ -47,7 +47,7 @@ p3 <- ggplot(df, aes(Seroconverted))+
 p3
 
 #multiplicity
-p4 <- ggplot(df, aes(HIV.Subtype))+
+p4 <- ggplot(df, aes(grouped.subtype))+
   geom_bar()+
   scale_color_npg()+
   scale_fill_npg()+
@@ -57,7 +57,7 @@ p4 <- ggplot(df, aes(HIV.Subtype))+
   ylab('Count')
 
 p4
-library(ggoubr)
+library(ggpubr)
 ggarrange(p1,p2,p3,p4,
           ncol = 2 , nrow = 2 , labels = "AUTO")
 
