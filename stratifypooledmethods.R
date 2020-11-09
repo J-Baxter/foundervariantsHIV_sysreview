@@ -17,12 +17,20 @@ groupbycols <- function(df, split){
 }
 
 
-assignclassification <- function(){
+labeldfs <- function(list, groups){
+  covar = df$participant
+  measures = groups[-1]
+  
+  cbind.data.frame( , grouped_dfs$distance)
+  
+}
+
+assignclassification <- function(grouped , threshold){
   
 }
 
 
-stratifypooledmethods <- function(df, strata, thresholds){
+stratifypooledmethods <- function(...){
   grouped_dfs <- groupbycols(df , strata)
   
 }
@@ -31,7 +39,7 @@ stratifypooledmethods <- function(df, strata, thresholds){
 #import data and set groups
 keele_combined <- read_csv("keele_combined.csv")
 groups <- c('participant', 'distance', 'beast', 'poisson')
-thresholds <- data.frame()
+thresholds_df <- data.frame()
 
 #run script
 grouped_dfs <- stratifypooledmethods(keele_combined, groups, thresholds)
