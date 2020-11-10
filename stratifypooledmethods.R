@@ -48,19 +48,60 @@ labeldfs <- function(listofdfs){
   return(output)
 }
 
- 
-assignclassification <- function(grouped , threshold){
-  #Distance
+
+#group
+classify <- function(df, criteria){
+  require(dplyr)
+  require(stats)
   
+  multiple <- do.call(dplyr::filter_, list(df, criteria[[1]])) %>% cbind(founder.multiplicity = 'multiple') 
+  
+  single <- do.call(dplyr::filter_, list(df, criteria[[2]]))  %>% cbind(founder.multiplicity = 'single') 
+
+  nomeasure <- do.call(dplyr::filter_, list(df, criteria[[3]]))  %>% cbind(founder.multiplicity = 'NA') 
+  
+  classified <- rbind.data.frame(single, multiple, nomeasure)
+  stopifnot(nrow(df)==nrow(classified))
+  
+  return(classified)
+  }
+
+
+#assign multiple/single founder classification according to a constant threshold value
+assignclassificationfixed <- function(listofdfs, threshold){
+  stopifnot(length(threshold)-1 == length(listofdfs))
+  
+  #Distance
+  distance_df <-  listofdfs$distance
+  DISTANCE <- threshold[[1]]
+  criteria_d <- c(~ distance.meanpercent >= DISTANCE, ~ distance.meanpercent < DISTANCE, ~ is.na(DISTANCE))
+  
+  distance_classified <- classify(d, criteria_d)
   
   #Poisson
+  poisson_df <- listofdfs$poisson
+  POISSON <- threshold[[2]]
+  criteria_p <- c(~ poisson.GOF >= POISSON, ~ poisson.GOF < POISSON, ~ is.na(poisson.GOF))
+  
+  poisson_classified <- classify(poisson_df, criteria_p)
+  stopifnot(nrow(poisson_classified) == nrow(distance_classified))
+  
+  output <- list(distance_classified, poisson_classified)
+
+  return(output)
 }
 
 
-stratifypooledmethods <- function(data, varnames, thresholds){
-  grouped_dfs <- groupbycols(data , varnames)
-  labelled_dfs <- labeldfs(grouped_dfs, varnames)
-  classified_dfs <- assignclassification(labelled_dfs, thresholds)
+stratifypooledmethods <- function(data, thresholds){
+
+  labelled_dfs <- groupbycols(keele_combined) %>%
+    labeldfs()
+  
+  #classification for constant values
+  classified_dfs <- assignclassification(labelled_dfs[-2], thresholds) #note exclusion
+  
+  #classification for keele et al TMRCA (relative to particpant.feibig)
+  
   
   #write output csv(s) to file
   yymmdd <- format(Sys.Date(), '%Y-%b-%d')
@@ -82,9 +123,10 @@ THRESHOLDS <- c(0.86,0.05)
 names(THRESHOLDS) <- c('DISTANCE','POISSON') 
 
 
+
 #BEAST TMRCA threshold relative to fiebig stage (ie not a constant)
 
 #run script
-stratifypooledmethods(keele_combined, groups, thresholds = THRESHOLDS)
+stratifypooledmethods(keele_combined, thresholds = THRESHOLDS)
 
 #END#
