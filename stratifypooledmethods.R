@@ -21,9 +21,16 @@ labeldfs <- function(listofdfs, varnames){
   covar = listofdfs[[1]]
   measures = listofdfs[-1]
   
-  output <- lapply(measures, function(x) cbind.data.frame(covar, x))
-  names(output) <- varnames[-1]
+  withparticipant <- lapply(measures, function(x) cbind.data.frame(covar, x))
   
+  output <- list()
+  for (i in 1:length(withparticipant)){
+    df <- cbind.data.frame(withparticipant[[i]] , varnames[i+1])
+    names(df)[ncol(df)] <- 'method'
+    output[[i]] <- df
+  }
+  
+  names(output) <- varnames[-1]
   return(output)
 }
 
