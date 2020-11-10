@@ -58,25 +58,34 @@ classify <- function(df, criteria){
   
   single <- do.call(dplyr::filter_, list(df, criteria[[2]]))  %>% cbind(founder.multiplicity = 'single') 
 
-  nomeasure <- do.call(dplyr::filter_, list(df, criteria[[3]]))  %>% cbind(founder.multiplicity = 'NA') 
+  nomeasure <- do.call(dplyr::filter_, list(df, criteria[[3]])) 
   
-  classified <- rbind.data.frame(single, multiple, nomeasure)
+  if (nrow(nomeasure) > 0){
+    nomeasure_na <- cbind.data.frame(nomeasure, founder.multiplicity = 'NA')
+    classified <- rbind.data.frame(single, multiple, nomeasure_na)
+    
+  }else{
+    classified <- rbind.data.frame(single, multiple)}
+  
+  
   stopifnot(nrow(df)==nrow(classified))
   
   return(classified)
-  }
+}
+
+##
 
 
 #assign multiple/single founder classification according to a constant threshold value
 assignclassificationfixed <- function(listofdfs, threshold){
-  stopifnot(length(threshold)-1 == length(listofdfs))
+  stopifnot(length(threshold) == length(listofdfs))
   
   #Distance
   distance_df <-  listofdfs$distance
   DISTANCE <- threshold[[1]]
-  criteria_d <- c(~ distance.meanpercent >= DISTANCE, ~ distance.meanpercent < DISTANCE, ~ is.na(DISTANCE))
+  criteria_d <- c(~ distance.meanpercent >= DISTANCE, ~ distance.meanpercent < DISTANCE, ~ is.na(distance.meanpercent))
   
-  distance_classified <- classify(d, criteria_d)
+  distance_classified <- classify(distance_df, criteria_d)
   
   #Poisson
   poisson_df <- listofdfs$poisson
@@ -84,9 +93,11 @@ assignclassificationfixed <- function(listofdfs, threshold){
   criteria_p <- c(~ poisson.GOF >= POISSON, ~ poisson.GOF < POISSON, ~ is.na(poisson.GOF))
   
   poisson_classified <- classify(poisson_df, criteria_p)
+  
   stopifnot(nrow(poisson_classified) == nrow(distance_classified))
   
   output <- list(distance_classified, poisson_classified)
+  names(output) <- names(listofdfs)
 
   return(output)
 }
@@ -98,8 +109,8 @@ stratifypooledmethods <- function(data, thresholds){
     labeldfs()
   
   #classification for constant values
-  classified_dfs <- assignclassification(labelled_dfs[-2], thresholds) #note exclusion
-  
+  classified_dfs <- assignclassificationfixed(labelled_dfs[-2], THRESHOLDS) #note exclusion
+
   #classification for keele et al TMRCA (relative to particpant.feibig)
   
   
@@ -127,6 +138,6 @@ names(THRESHOLDS) <- c('DISTANCE','POISSON')
 #BEAST TMRCA threshold relative to fiebig stage (ie not a constant)
 
 #run script
-stratifypooledmethods(keele_combined, thresholds = THRESHOLDS)
+stratifypooledmethods(keele_combined, THRESHOLDS)
 
 #END#
