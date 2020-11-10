@@ -3,6 +3,9 @@
 #102 participants included
 #methods include model, distance, phylogenetic and haplotype(ish) categories
 
+
+#define functions required in script
+#split methods into independent dataframes
 groupbycols <- function(df, split){
   col_names = names(df)
   selected = list()
@@ -17,6 +20,7 @@ groupbycols <- function(df, split){
 }
 
 
+#create labelled dataframes with individual methods
 labeldfs <- function(listofdfs, varnames){
   covar = listofdfs[[1]]
   measures = listofdfs[-1]
@@ -59,19 +63,14 @@ stratifypooledmethods <- function(data, varnames, thresholds){
 #import data and set groups
 keele_combined <- read_csv("keele_combined.csv")
 groups <- c('participant', 'distance', 'beast', 'poisson')
-thresholds_df <- data.frame()
+
+#define thresholds as stipulated in keele et al 2008
+DISTANCE <- 0.86
+POISSON <-  0.05
+THRESHOLDS <- c(DISTANCE, POISSON)
+#BEAST TMRCA threshold relative to fiebig stage (ie not a constant)
 
 #run script
-stratifypooledmethods(keele_combined, groups, thresholds)
+stratifypooledmethods(keele_combined, groups, thresholds = THRESHOLDS)
 
 #END#
-
-#create labelled dataframes with individual methods
-distance_df <- cbind.data.frame(grouped_dfs$participant , grouped_dfs$distance)
-
-phylo_df <- cbind.data.frame(grouped_dfs$participant , grouped_dfs$beast)
-
-model_df <- cbind.data.frame(grouped_dfs$participant , grouped_dfs$poisson)
-
-#group dataframes according to thresholds in keele 2008
-
