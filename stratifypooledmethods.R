@@ -17,21 +17,26 @@ groupbycols <- function(df, split){
 }
 
 
-labeldfs <- function(list, groups){
-  covar = df$participant
-  measures = groups[-1]
+labeldfs <- function(listofdfs, varnames){
+  covar = listofdfs[[1]]
+  measures = listofdfs[-1]
   
-  cbind.data.frame( , grouped_dfs$distance)
+  output <- lapply(measures, function(x) cbind.data.frame(covar, x))
+  names(output) <- varnames[-1]
   
+  return(output)
 }
+
 
 assignclassification <- function(grouped , threshold){
   
 }
 
 
-stratifypooledmethods <- function(...){
-  grouped_dfs <- groupbycols(df , strata)
+stratifypooledmethods <- function(data, varnames, thresholds){
+  grouped_dfs <- groupbycols(data , varnames)
+  labelled_dfs <- labeldfs(grouped_dfs, varnames)
+  classified_dfs <- assignclassification(labelled_dfs, thresholds)
   
 }
 
