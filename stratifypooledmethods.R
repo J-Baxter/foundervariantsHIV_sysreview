@@ -5,16 +5,29 @@
 
 
 #define functions required in script
+
+getsplits <- function(cols) {
+  splitted <- strsplit(cols, '[.]')
+  first_element <- unlist(splitted)[1]
+  return(first_element)
+  }
+
+
 #split methods into independent dataframes
-groupbycols <- function(df, split){
-  col_names = names(df)
-  selected = list()
+groupbycols <- function(df){
   
+  stopifnot(is(df , 'data.frame'))
+  col_names = names(df)
+  
+  split <- lapply(col_names, getsplits)
+  split <- split[!duplicated(split)] #would prefer to use pipe operator here
+  
+  selected = list()
   for (i in 1:length(split)){
     
     selected[[i]] = df[ , grepl(split[i], col_names) ]
-    
   }
+  
   names(selected) <- split
   return(selected)
 }
@@ -29,6 +42,7 @@ labeldfs <- function(listofdfs, varnames){
   
   output <- list()
   for (i in 1:length(withparticipant)){
+    
     df <- cbind.data.frame(withparticipant[[i]] , varnames[i+1])
     names(df)[ncol(df)] <- 'method'
     output[[i]] <- df
@@ -40,7 +54,10 @@ labeldfs <- function(listofdfs, varnames){
 
  
 assignclassification <- function(grouped , threshold){
+  #Distance
   
+  
+  #Poisson
 }
 
 
@@ -65,9 +82,10 @@ keele_combined <- read_csv("keele_combined.csv")
 groups <- c('participant', 'distance', 'beast', 'poisson')
 
 #define thresholds as stipulated in keele et al 2008
-DISTANCE <- 0.86
-POISSON <-  0.05
-THRESHOLDS <- c(DISTANCE, POISSON)
+THRESHOLDS <- c(0.86,0.05)
+names(THRESHOLDS) <- c('DISTANCE','POISSON') 
+
+
 #BEAST TMRCA threshold relative to fiebig stage (ie not a constant)
 
 #run script
