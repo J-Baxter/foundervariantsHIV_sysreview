@@ -5,7 +5,6 @@
 
 
 #define functions required in script
-
 getsplits <- function(cols) {
   splitted <- strsplit(cols, '[.]')
   first_element <- unlist(splitted)[1]
@@ -22,12 +21,8 @@ groupbycols <- function(df){
   split <- lapply(col_names, getsplits)
   split <- split[!duplicated(split)] #would prefer to use pipe operator here
   
-  selected = list()
-  for (i in 1:length(split)){
-    
-    selected[[i]] = df[ , grepl(split[i], col_names) ]
-  }
-  
+  selected <- lapply(split , function(x) df[ , grepl(x, col_names) ])
+
   names(selected) <- split
   return(selected)
 }
