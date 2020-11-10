@@ -34,7 +34,7 @@ labeldfs <- function(listofdfs, varnames){
   return(output)
 }
 
-
+ 
 assignclassification <- function(grouped , threshold){
   
 }
@@ -45,6 +45,14 @@ stratifypooledmethods <- function(data, varnames, thresholds){
   labelled_dfs <- labeldfs(grouped_dfs, varnames)
   classified_dfs <- assignclassification(labelled_dfs, thresholds)
   
+  #write output csv(s) to file
+  yymmdd <- format(Sys.Date(), '%Y-%b-%d')
+  filenames <- lapply(names(classified_dfs) , function(x) paste0('keele', '_', x , '_', yymmdd, '.csv'))
+  names(classified_dfs) <- filenames
+  
+  for (filename in filenames){
+    write.csv(filename, file = filename)
+  }
 }
 
 
@@ -54,7 +62,7 @@ groups <- c('participant', 'distance', 'beast', 'poisson')
 thresholds_df <- data.frame()
 
 #run script
-grouped_dfs <- stratifypooledmethods(keele_combined, groups, thresholds)
+stratifypooledmethods(keele_combined, groups, thresholds)
 
 #END#
 
