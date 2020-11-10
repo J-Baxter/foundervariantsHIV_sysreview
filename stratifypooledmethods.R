@@ -6,6 +6,7 @@
 
 
 #define functions required in script
+#split column names about '.'
 getsplits <- function(cols) {
   splitted <- strsplit(cols, '[.]')
   first_element <- unlist(splitted)[1]
@@ -49,7 +50,7 @@ labeldfs <- function(listofdfs){
 }
 
 
-#group
+#classification according to generalised threshold
 classify <- function(df, criteria){
   require(dplyr)
   require(stats)
@@ -77,6 +78,9 @@ classify <- function(df, criteria){
 
 
 #assign multiple/single founder classification according to a constant threshold value
+#currently written for poisson and distance only
+#must edit threshold, df name and criteria to adapt to other vars (not generalisable at present)
+
 assignclassificationfixed <- function(listofdfs, threshold){
   stopifnot(length(threshold) == length(listofdfs))
   
@@ -103,6 +107,11 @@ assignclassificationfixed <- function(listofdfs, threshold){
 }
 
 
+#keele et al classification for BEAST TMRCA (relative to particpant.feibig)
+
+
+
+#wrapper function for script.
 stratifypooledmethods <- function(data, thresholds){
 
   labelled_dfs <- groupbycols(keele_combined) %>%
@@ -111,7 +120,7 @@ stratifypooledmethods <- function(data, thresholds){
   #classification for constant values
   classified_dfs <- assignclassificationfixed(labelled_dfs[-2], THRESHOLDS) #note exclusion
 
-  #classification for keele et al TMRCA (relative to particpant.feibig)
+  #classification for keele et al TMRCA 
   
   
   #write output csv(s) to file
@@ -125,19 +134,17 @@ stratifypooledmethods <- function(data, thresholds){
 }
 
 
+###############################
+##START##
 #import data and set groups
 keele_combined <- read_csv("keele_combined.csv")
-
 
 #define thresholds as stipulated in keele et al 2008
 THRESHOLDS <- c(0.86,0.05)
 names(THRESHOLDS) <- c('DISTANCE','POISSON') 
 
-
-
-#BEAST TMRCA threshold relative to fiebig stage (ie not a constant)
-
 #run script
 stratifypooledmethods(keele_combined, THRESHOLDS)
 
 #END#
+###############################
