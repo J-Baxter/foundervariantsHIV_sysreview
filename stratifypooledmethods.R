@@ -71,13 +71,18 @@ classifyfixed <- function(df, criteria){
 }
 
 
-#keele et al classification for BEAST TMRCA (relative to particpant.feibig)
-
-classifyrelative <- function(df, criteria){
+#keele et al classification for BEAST lower bound tmrca (relative to particpant.fiebig)
+classifyrelative <- function(df){
+  EDI <- data.frame(fiebig.stage = c('I', 'II', 'III', 'IV', 'V'), EDI.upperbound = c(8, 34, 37, 43, 154)) 
   
-}
+  coord <- which(EDI$fiebig.stage %in% df$participant.feibig)
+  
+  criteria_b <- c(~ beast.lower > EDI[coord,2], ~ beast.lower <= EDI[coord,2], ~ is.na(beast.lower)) #is "VI" force NA
 
-classifyrelative <- function(df, criteria)
+  classified <- classifyfixed(fiebig_split$III, criteria_b)
+  
+  return(classified)
+}
 
 
 #assign multiple/single founder classification according to a constant threshold value
@@ -85,9 +90,6 @@ classifyrelative <- function(df, criteria)
 #must edit threshold, df name and criteria to adapt to other vars (not generalisable at present)
 
 assignclassification<- function(listofdfs, threshold){
-
-  stopifnot(length(threshold) == length(listofdfs)-1)
-
   stopifnot(length(threshold) == length(listofdfs))
 
   #Distance
@@ -95,38 +97,37 @@ assignclassification<- function(listofdfs, threshold){
   DISTANCE <- threshold[[1]]
   criteria_d <- c(~ distance.meanpercent >= DISTANCE, ~ distance.meanpercent < DISTANCE, ~ is.na(distance.meanpercent))
   distance_classified <- classifyfixed(distance_df, criteria_d)
+  stopifnot(nrow(distance_df) == nrow(distance_classified))
   
   #Poisson
   poisson_df <- listofdfs$poisson
   POISSON <- threshold[[2]]
   criteria_p <- c(~ poisson.GOF >= POISSON, ~ poisson.GOF < POISSON, ~ is.na(poisson.GOF))
   poisson_classified <- classifyfixed(poisson_df, criteria_p)
+  stopifnot(nrow(poisson_df) == nrow(poisson_classified))
   
   #BEAST TMRCA
-
   beast_df <- listofdfs$beast
-  criteria_b <- c(~ poisson.GOF >= POISSON, ~ poisson.GOF < POISSON, ~ is.na(poisson.GOF))#Change
-  beast_classified <- classifyrelative(beast_df, criteria_b)
-
-  
-
+  fiebig_split <- split.data.frame(beast_df , beast_df$participant.feibig)
+  beast_classified <- lapply(fiebig_split , classifyrelative) %>% do.call(what =rbind.data.frame)
+  stopifnot(nrow(beast_df) == nrow(beast_classified))
   
   #out
-  stopifnot(nrow(poisson_classified) == nrow(distance_classified))
-  output <- list(distance_classified, poisson_classified)
+  stopifnot(nrow(poisson_classified) == nrow(distance_classified) == nrow(beast_classified))
+  output <- list(distance_classified, poisson_classified, beast_classified)
   names(output) <- names(listofdfs)
   return(output)
 }
 
 
 #wrapper function for script.
-stratifypooledmethods <- function(data, thresholds){
+stratifypooledmethods <- function(data, thresholds, doi){
 
   labelled_dfs <- groupbycols(keele_combined) %>%
     labeldfs()
   
   #classification
-  classified_dfs <- assignclassification(labelled_dfs[-2], THRESHOLDS) #note exclusion
+  classified_dfs <- assignclassification(labelled_dfs, THRESHOLDS, EDI) #note exclusion
   
   #write output csv(s) to file
   yymmdd <- format(Sys.Date(), '%Y-%b-%d')
@@ -147,7 +148,7 @@ keele_combined <- read_csv("keele_combined.csv")
 #define thresholds as stipulated in keele et al 2008
 THRESHOLDS <- c(0.86,0.05)
 names(THRESHOLDS) <- c('DISTANCE','POISSON') 
-EDI <- data.frame(fiebig.stage = c('I', 'II', 'III', 'IV', 'V', 'VI'), EDI.upperbound = c(8, 34, 37, 43, 154, NA)) 
+
 #stage VI is open ended so cannot place an upper bound of time to infection with any confidence
 #estimates obtained from Lee et al Theoretical Bio 2009
 
