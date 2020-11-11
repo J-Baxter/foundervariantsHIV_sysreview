@@ -55,17 +55,11 @@ classifyfixed <- function(df, criteria){
   require(dplyr)
   require(stats)
   
-  multiple <- do.call(dplyr::filter_, list(df, criteria[[1]])) %>% cbind(founder.multiplicity = 'multiple') 
-  single <- do.call(dplyr::filter_, list(df, criteria[[2]]))  %>% cbind(founder.multiplicity = 'single') 
-  nomeasure <- do.call(dplyr::filter_, list(df, criteria[[3]])) 
+  multiple <- do.call(dplyr::filter_, list(df, criteria[[1]])) %>% {if(nrow(.)>0) cbind(.,founder.multiplicity = 'multiple')}
+  single <- do.call(dplyr::filter_, list(df, criteria[[2]]))  %>% {if(nrow(.)>0) cbind(.,founder.multiplicity = 'single')}
+  nomeasure <- do.call(dplyr::filter_, list(df, criteria[[3]])) %>% {if(nrow(.)>0) cbind(.,founder.multiplicity = NA)}
+  classified <- rbind.data.frame(single, multiple, nomeasure)
   
-  if (nrow(nomeasure) > 0){
-     nomeasure_na <- cbind.data.frame(nomeasure, founder.multiplicity = 'NA')
-    classified <- rbind.data.frame(single, multiple, nomeasure_na)
-  }else{
-    classified <- rbind.data.frame(single, multiple)
-    }
-
   stopifnot(nrow(df)==nrow(classified))
   return(classified)
 }
@@ -74,13 +68,23 @@ classifyfixed <- function(df, criteria){
 #keele et al classification for BEAST lower bound tmrca (relative to particpant.fiebig)
 classifyrelative <- function(df){
   EDI <- data.frame(fiebig.stage = c('I', 'II', 'III', 'IV', 'V'), EDI.upperbound = c(8, 34, 37, 43, 154)) 
-  
+
+  if (any(EDI$fiebig.stage %in% df$participant.feibig)){
   coord <- which(EDI$fiebig.stage %in% df$participant.feibig)
   
   criteria_b <- c(~ beast.lower > EDI[coord,2], ~ beast.lower <= EDI[coord,2], ~ is.na(beast.lower)) #is "VI" force NA
-
-  classified <- classifyfixed(fiebig_split$III, criteria_b)
   
+  classified <- classifyfixed(df, criteria_b)
+  
+  }else if ('VI' %in% df$participant.feibig){
+    classified <- cbind(df,founder.multiplicity = NA)
+    
+  }else{
+    classified <- cbind(df,founder.multiplicity = NA)
+    
+    }
+  
+  stopifnot(nrow(classified)==nrow(df))
   return(classified)
 }
 
@@ -90,7 +94,7 @@ classifyrelative <- function(df){
 #must edit threshold, df name and criteria to adapt to other vars (not generalisable at present)
 
 assignclassification<- function(listofdfs, threshold){
-  stopifnot(length(threshold) == length(listofdfs))
+  stopifnot(length(threshold) == (length(listofdfs))-1)
 
   #Distance
   distance_df <-  listofdfs$distance
@@ -113,7 +117,6 @@ assignclassification<- function(listofdfs, threshold){
   stopifnot(nrow(beast_df) == nrow(beast_classified))
   
   #out
-  stopifnot(nrow(poisson_classified) == nrow(distance_classified) == nrow(beast_classified))
   output <- list(distance_classified, poisson_classified, beast_classified)
   names(output) <- names(listofdfs)
   return(output)
@@ -121,13 +124,13 @@ assignclassification<- function(listofdfs, threshold){
 
 
 #wrapper function for script.
-stratifypooledmethods <- function(data, thresholds, doi){
+stratifypooledmethods <- function(data, thresholds){
 
   labelled_dfs <- groupbycols(keele_combined) %>%
     labeldfs()
   
   #classification
-  classified_dfs <- assignclassification(labelled_dfs, THRESHOLDS, EDI) #note exclusion
+  classified_dfs <- assignclassification(labelled_dfs, THRESHOLDS) #note exclusion
   
   #write output csv(s) to file
   yymmdd <- format(Sys.Date(), '%Y-%b-%d')
