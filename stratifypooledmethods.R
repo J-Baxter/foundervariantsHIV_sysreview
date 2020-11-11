@@ -10,13 +10,13 @@
 getsplits <- function(cols) {
   splitted <- strsplit(cols, '[.]')
   first_element <- unlist(splitted)[1]
+  
   return(first_element)
   }
 
 
 #split methods into independent dataframes
 groupbycols <- function(df){
-  
   stopifnot(is(df , 'data.frame'))
   col_names = names(df)
   split <- lapply(col_names, getsplits) %>% unique()
@@ -37,11 +37,9 @@ labeldfs <- function(listofdfs){
   
   output <- list()
   for (i in 1:length(withparticipant)){
-    
     df <- cbind.data.frame(withparticipant[[i]] , varnames[i])
     names(df)[ncol(df)] <- 'method'
     output[[i]] <- df
-    
   }
   
   names(output) <- varnames
@@ -50,7 +48,7 @@ labeldfs <- function(listofdfs){
 
 
 #classification according to generalised threshold
-classify <- function(df, criteria){
+classifyfixed <- function(df, criteria){
   require(dplyr)
   require(stats)
   
@@ -59,10 +57,8 @@ classify <- function(df, criteria){
   nomeasure <- do.call(dplyr::filter_, list(df, criteria[[3]])) 
   
   if (nrow(nomeasure) > 0){
-    
-    nomeasure_na <- cbind.data.frame(nomeasure, founder.multiplicity = 'NA')
+     nomeasure_na <- cbind.data.frame(nomeasure, founder.multiplicity = 'NA')
     classified <- rbind.data.frame(single, multiple, nomeasure_na)
-    
   }else{
     classified <- rbind.data.frame(single, multiple)
     }
@@ -72,35 +68,38 @@ classify <- function(df, criteria){
 }
 
 
+#keele et al classification for BEAST TMRCA (relative to particpant.feibig)
+classifyrelative <- function(df, criteria)
+
+
 #assign multiple/single founder classification according to a constant threshold value
 #currently written for poisson and distance only
 #must edit threshold, df name and criteria to adapt to other vars (not generalisable at present)
 
-assignclassificationfixed <- function(listofdfs, threshold){
+assignclassification<- function(listofdfs, threshold){
   stopifnot(length(threshold) == length(listofdfs))
   
   #Distance
   distance_df <-  listofdfs$distance
   DISTANCE <- threshold[[1]]
   criteria_d <- c(~ distance.meanpercent >= DISTANCE, ~ distance.meanpercent < DISTANCE, ~ is.na(distance.meanpercent))
-  distance_classified <- classify(distance_df, criteria_d)
+  distance_classified <- classifyfixed(distance_df, criteria_d)
   
   #Poisson
   poisson_df <- listofdfs$poisson
   POISSON <- threshold[[2]]
   criteria_p <- c(~ poisson.GOF >= POISSON, ~ poisson.GOF < POISSON, ~ is.na(poisson.GOF))
-  poisson_classified <- classify(poisson_df, criteria_p)
+  poisson_classified <- classifyfixed(poisson_df, criteria_p)
   
+  #BEAST TMRCA
+  
+  
+  #out
   stopifnot(nrow(poisson_classified) == nrow(distance_classified))
   output <- list(distance_classified, poisson_classified)
-  
   names(output) <- names(listofdfs)
   return(output)
 }
-
-
-#keele et al classification for BEAST TMRCA (relative to particpant.feibig)
-
 
 
 #wrapper function for script.
@@ -109,11 +108,8 @@ stratifypooledmethods <- function(data, thresholds){
   labelled_dfs <- groupbycols(keele_combined) %>%
     labeldfs()
   
-  #classification for constant values
-  classified_dfs <- assignclassificationfixed(labelled_dfs[-2], THRESHOLDS) #note exclusion
-
-  #classification for keele et al TMRCA 
-  
+  #classification
+  classified_dfs <- assignclassification(labelled_dfs[-2], THRESHOLDS) #note exclusion
   
   #write output csv(s) to file
   yymmdd <- format(Sys.Date(), '%Y-%b-%d')
