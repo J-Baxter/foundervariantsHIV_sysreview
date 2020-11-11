@@ -4,6 +4,9 @@
 #methods include model, distance, phylogenetic and haplotype(ish) categories
 #requires csv with column names in the format as follows: participant.var, method1.results, method2.results
 
+#dependencies
+library(dpylr)
+library(stats)
 
 #define functions required in script
 #split column names about '.'
