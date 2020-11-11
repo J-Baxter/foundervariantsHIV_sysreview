@@ -19,11 +19,9 @@ groupbycols <- function(df){
   
   stopifnot(is(df , 'data.frame'))
   col_names = names(df)
-  
   split <- lapply(col_names, getsplits) %>% unique()
-  
   selected <- lapply(split , function(x) df[ , grepl(x, col_names) ])
-
+  
   names(selected) <- split
   return(selected)
 }
@@ -43,6 +41,7 @@ labeldfs <- function(listofdfs){
     df <- cbind.data.frame(withparticipant[[i]] , varnames[i])
     names(df)[ncol(df)] <- 'method'
     output[[i]] <- df
+    
   }
   
   names(output) <- varnames
@@ -56,25 +55,21 @@ classify <- function(df, criteria){
   require(stats)
   
   multiple <- do.call(dplyr::filter_, list(df, criteria[[1]])) %>% cbind(founder.multiplicity = 'multiple') 
-  
   single <- do.call(dplyr::filter_, list(df, criteria[[2]]))  %>% cbind(founder.multiplicity = 'single') 
-
   nomeasure <- do.call(dplyr::filter_, list(df, criteria[[3]])) 
   
   if (nrow(nomeasure) > 0){
+    
     nomeasure_na <- cbind.data.frame(nomeasure, founder.multiplicity = 'NA')
     classified <- rbind.data.frame(single, multiple, nomeasure_na)
     
   }else{
-    classified <- rbind.data.frame(single, multiple)}
-  
-  
+    classified <- rbind.data.frame(single, multiple)
+    }
+
   stopifnot(nrow(df)==nrow(classified))
-  
   return(classified)
 }
-
-##
 
 
 #assign multiple/single founder classification according to a constant threshold value
@@ -88,21 +83,18 @@ assignclassificationfixed <- function(listofdfs, threshold){
   distance_df <-  listofdfs$distance
   DISTANCE <- threshold[[1]]
   criteria_d <- c(~ distance.meanpercent >= DISTANCE, ~ distance.meanpercent < DISTANCE, ~ is.na(distance.meanpercent))
-  
   distance_classified <- classify(distance_df, criteria_d)
   
   #Poisson
   poisson_df <- listofdfs$poisson
   POISSON <- threshold[[2]]
   criteria_p <- c(~ poisson.GOF >= POISSON, ~ poisson.GOF < POISSON, ~ is.na(poisson.GOF))
-  
   poisson_classified <- classify(poisson_df, criteria_p)
   
   stopifnot(nrow(poisson_classified) == nrow(distance_classified))
-  
   output <- list(distance_classified, poisson_classified)
+  
   names(output) <- names(listofdfs)
-
   return(output)
 }
 
