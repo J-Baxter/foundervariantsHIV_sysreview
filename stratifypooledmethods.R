@@ -72,7 +72,9 @@ classifyfixed <- function(df, criteria){
 
 
 #keele et al classification for BEAST TMRCA (relative to particpant.feibig)
-classifyrelative <- function(df, criteria)
+classifyrelative <- function(df, criteria){
+  
+}
 
 
 #assign multiple/single founder classification according to a constant threshold value
@@ -80,7 +82,7 @@ classifyrelative <- function(df, criteria)
 #must edit threshold, df name and criteria to adapt to other vars (not generalisable at present)
 
 assignclassification<- function(listofdfs, threshold){
-  stopifnot(length(threshold) == length(listofdfs))
+  stopifnot(length(threshold) == length(listofdfs)-1)
   
   #Distance
   distance_df <-  listofdfs$distance
@@ -95,7 +97,9 @@ assignclassification<- function(listofdfs, threshold){
   poisson_classified <- classifyfixed(poisson_df, criteria_p)
   
   #BEAST TMRCA
-  
+  beast_df <- listofdfs$beast
+  criteria_b <- c(~ poisson.GOF >= POISSON, ~ poisson.GOF < POISSON, ~ is.na(poisson.GOF))#Change
+  beast_classified <- classifyrelative(beast_df, criteria_b)
   
   #out
   stopifnot(nrow(poisson_classified) == nrow(distance_classified))
@@ -133,6 +137,9 @@ keele_combined <- read_csv("keele_combined.csv")
 #define thresholds as stipulated in keele et al 2008
 THRESHOLDS <- c(0.86,0.05)
 names(THRESHOLDS) <- c('DISTANCE','POISSON') 
+EDI <- data.frame(fiebig.stage = c('I', 'II', 'III', 'IV', 'V', 'VI'), EDI.upperbound = c(8, 34, 37, 43, 154, NA)) 
+#stage VI is open ended so cannot place an upper bound of time to infection with any confidence
+#estimates obtained from Lee et al Theoretical Bio 2009
 
 #run script
 stratifypooledmethods(keele_combined, THRESHOLDS)
