@@ -72,9 +72,12 @@ classifyfixed <- function(df, criteria){
 
 
 #keele et al classification for BEAST TMRCA (relative to particpant.feibig)
+
 classifyrelative <- function(df, criteria){
   
 }
+
+classifyrelative <- function(df, criteria)
 
 
 #assign multiple/single founder classification according to a constant threshold value
@@ -82,8 +85,11 @@ classifyrelative <- function(df, criteria){
 #must edit threshold, df name and criteria to adapt to other vars (not generalisable at present)
 
 assignclassification<- function(listofdfs, threshold){
+
   stopifnot(length(threshold) == length(listofdfs)-1)
-  
+
+  stopifnot(length(threshold) == length(listofdfs))
+
   #Distance
   distance_df <-  listofdfs$distance
   DISTANCE <- threshold[[1]]
@@ -97,9 +103,13 @@ assignclassification<- function(listofdfs, threshold){
   poisson_classified <- classifyfixed(poisson_df, criteria_p)
   
   #BEAST TMRCA
+
   beast_df <- listofdfs$beast
   criteria_b <- c(~ poisson.GOF >= POISSON, ~ poisson.GOF < POISSON, ~ is.na(poisson.GOF))#Change
   beast_classified <- classifyrelative(beast_df, criteria_b)
+
+  
+
   
   #out
   stopifnot(nrow(poisson_classified) == nrow(distance_classified))
