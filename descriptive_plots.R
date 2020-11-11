@@ -85,29 +85,6 @@ library(ggpubr)
 ggarrange(p1,p2,p3,p4,
           ncol = 2 , nrow = 2 , labels = "AUTO")
 
-#poisson plot
-x<- 0:15
-y <-  dpois(x, lambda=0.90)
-df <- cbind.data.frame(x,y )
-p5 <- ggplot(df , aes(x,y))+
-  geom_line(colour = 'red' , size = 2)+
-  geom_bar(stat = 'identity', colour = 'black',fill = NA)+
-  theme_classic()+
-  xlab('Hamming Distance')+
-  ylab('')
-
-x <- 0:15
-y <-  runif(16,max = 0.4, min = 0)
-fail.df <- cbind.data.frame(x,y)
-p6 <- ggplot(fail.df , aes(x,y))+
-  geom_bar(stat = 'identity', colour = 'black',fill = NA)+
-  geom_line(data = df, color = "red", size = 2)+
-  theme_classic()+
-  xlab('Hamming Distance')+
-  ylab('')
-
-ggarrange(p5,p6,
-          ncol = 1 , nrow = 2 , labels = "AUTO")
 
 
 
@@ -122,8 +99,8 @@ colnames(df.yrs) <- 'Year.of.Publication'
 p1 <- ggplot(df.yrs, aes(Year.of.Publication ))+
   geom_bar(fill = '#000066')+
   geom_vline(xintercept = as.numeric(dates[58]),linetype=2, colour="red" )+
-  scale_color_npg()+
-  scale_fill_npg()+
+  scale_color_brewer(palette = 'RdBu')+
+  scale_fill_brewer(palette = 'RdBu')+
   theme_classic()+
   ylab('')+
   xlab('Year of Publication')+scale_x_date(date_labels = "%Y", date_breaks = '1 year' , limits = c(start,end))+
