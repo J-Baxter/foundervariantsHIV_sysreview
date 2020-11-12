@@ -5,8 +5,9 @@
 #requires csv with column names in the format as follows: participant.var, method1.results, method2.results
 
 #dependencies
-library(dpylr)
+library(dplyr)
 library(stats)
+library(readr)
 
 #define functions required in script
 #split column names about '.'
@@ -116,7 +117,7 @@ assignclassification<- function(listofdfs, threshold){
   stopifnot(nrow(beast_df) == nrow(beast_classified))
   
   #out
-  output <- list(distance_classified, poisson_classified, beast_classified)
+  output <- list(distance_classified, beast_classified,  poisson_classified)
   names(output) <- names(listofdfs)
   return(output)
 }
@@ -125,27 +126,28 @@ assignclassification<- function(listofdfs, threshold){
 #wrapper function for script.
 stratifypooledmethods <- function(data, thresholds){
 
-  labelled_dfs <- groupbycols(keele_combined) %>%
+  labelled_dfs <- groupbycols(data) %>%
     labeldfs()
   
   #classification
-  classified_dfs <- assignclassification(labelled_dfs, THRESHOLDS) #note exclusion
+  classified_dfs <- assignclassification(labelled_dfs, THRESHOLDS)
   
   #write output csv(s) to file
   yymmdd <- format(Sys.Date(), '%Y-%b-%d')
   filenames <- lapply(names(classified_dfs) , function(x) paste0('keele', '_', x , '_', yymmdd, '.csv'))
   names(classified_dfs) <- filenames
+  mapply(write.csv, x=classified_dfs, file= filenames)
   
-  for (filename in filenames){
-    write.csv(filename, file = filename)
-  }
 }
 
 
 ###############################
 ##START##
+#set working directory
+setwd("./data/")
+
 #import data and set groups
-keele_combined <- read_csv("keele_combined.csv")
+keele_combined <- readr::read_csv("keele_combined.csv")
 
 #define thresholds as stipulated in keele et al 2008
 THRESHOLDS <- c(0.86,0.05)
