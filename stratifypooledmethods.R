@@ -71,13 +71,13 @@ classifyrelative <- function(df){
   #estimates obtained from Lee et al Theoretical Bio 2009 (follow-up paper to keele et al.)
   EDI <- data.frame(fiebig.stage = c('I', 'II', 'III', 'IV', 'V'), EDI.upperbound = c(8, 34, 37, 43, 154)) 
 
-  if (any(EDI$fiebig.stage %in% df$participant.feibig)){
-  coord <- which(EDI$fiebig.stage %in% df$participant.feibig)
+  if (any(EDI$fiebig.stage %in% df$participant.fiebig)){
+  coord <- which(EDI$fiebig.stage %in% df$participant.fiebig)
   criteria_b <- c(~ beast.lower > EDI[coord,2], ~ beast.lower <= EDI[coord,2], ~ is.na(beast.lower)) #is "VI" force NA
   classified <- classifyfixed(df, criteria_b)
   
   #stage VI is open ended so cannot place an upper bound of time to infection with any confidence
-  }else if ('VI' %in% df$participant.feibig){
+  }else if ('VI' %in% df$participant.fiebig){
     classified <- cbind(df,founder.multiplicity = NA)
     
   }else{
@@ -112,7 +112,7 @@ assignclassification<- function(listofdfs, threshold){
   
   #BEAST TMRCA
   beast_df <- listofdfs$beast
-  fiebig_split <- split.data.frame(beast_df , beast_df$participant.feibig)
+  fiebig_split <- split.data.frame(beast_df , beast_df$participant.fiebig)
   beast_classified <- lapply(fiebig_split , classifyrelative) %>% do.call(what =rbind.data.frame)
   stopifnot(nrow(beast_df) == nrow(beast_classified))
   
@@ -139,7 +139,6 @@ stratifypooledmethods <- function(data, thresholds){
   mapply(write.csv, x=classified_dfs, file= filenames)
   
 }
-
 
 ###############################
 ##START##
