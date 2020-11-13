@@ -58,7 +58,7 @@ p2 <- ggplot(exposures_df, aes(x = reported.exposure , y = frequency))+
 
 p2
 
-#Seroconversion
+#Seroconversion #stack infant and NA together
 p3 <- ggplot(df, aes(participant.seropositivity))+ 
   geom_bar()+
   scale_color_npg()+
@@ -70,7 +70,7 @@ p3 <- ggplot(df, aes(participant.seropositivity))+
 
 p3
 
-#multiplicity
+#subtype
 p4 <- ggplot(df, aes(grouped.subtype))+
   geom_bar()+
   scale_color_npg()+
@@ -84,6 +84,11 @@ p4
 library(ggpubr)
 ggarrange(p1,p2,p3,p4,
           ncol = 2 , nrow = 2 , labels = "AUTO")
+
+
+#Year of Publication
+
+#Minimum number of founders plot
 
 
 

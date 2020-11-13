@@ -45,7 +45,7 @@ labeldfs <- function(listofdfs){
     names(df)[ncol(df)] <- 'method'
     output[[i]] <- df
   }
-  
+
   names(output) <- varnames
   return(output)
 }
