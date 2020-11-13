@@ -106,7 +106,7 @@ assignclassification<- function(listofdfs, threshold){
   #Poisson
   poisson_df <- listofdfs$poisson
   POISSON <- threshold[[2]]
-  criteria_p <- c(~ poisson.GOF >= POISSON, ~ poisson.GOF < POISSON, ~ is.na(poisson.GOF))
+  criteria_p <- c(~ poisson.GOF <= POISSON, ~ poisson.GOF > POISSON, ~ is.na(poisson.GOF))
   poisson_classified <- classifyfixed(poisson_df, criteria_p)
   stopifnot(nrow(poisson_df) == nrow(poisson_classified))
   
