@@ -1,6 +1,4 @@
 #HIV-1 Founder Variants Meta-Analysis: Principle Dataset
-#J Baxter
-#created 27/09/2020
 
 #dependencies
 library(meta)
@@ -10,6 +8,10 @@ library(dplyr)
 library(tidyr)
 library(dmetar)
 
+
+#define functions required in script
+
+#format dataframe to group by publication and covariate (generalised)
 formatDF <- function(df, covar){
   if (is.null(covar)){
     df_grouped <- df %>% 
@@ -23,6 +25,7 @@ formatDF <- function(df, covar){
   return(df_grouped)
 }
 
+#pool heterogeneity for whole dataset
 MetaAll <- function(agregated_df) {
   meta::metaprop(multiplefounders,
            subjects,
@@ -91,21 +94,8 @@ meta_init <- lapply(data , MetaAll)
 
 
 #subgroup analysis of principle dataset
-metas4subanalysis <- meta_init[[2:5]]
-modeltype <- c('random' , 'fixed' , 'fixed' , 'random')
+
 
 #presenting subgroup analyses
 
 ##END##
-
-##alternative ?
-principle <- read.csv('sysreview_indivi')
-df_labelled <- unite(df, "publication", c(df$FAU , df$YOP), sep = '_')
-
-df_grouped <- df %>% 
-  group_by(publication,subtype,exposure,seroconversion,method) %>%
-  summarise(subjects = n(), multiplefounders = sum(df$founderclass))
-
-meta_alt <- metaALL(df_grouped)
-
-alt_exposure <- update.meta(meta_alt, byvar = subtype, comb.random = TRUE)
