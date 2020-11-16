@@ -7,10 +7,10 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(dmetar)
+library(readr)
 
 
 #define functions required in script
-
 #format dataframe to group by publication and covariate (generalised)
 formatDF <- function(df, covar){
   if (is.null(covar)){
@@ -71,7 +71,7 @@ MetaAll <- function(agregated_df) {
 
 ##START##  
 #import dataset
-principle <- read.csv('sysreview_indivi')
+principle <- read_csv('sysreview_indivi')
 
 #define subgroups
 subgroups <- list(NULL, 'subtype' , 'exposure' , 'seroconversion' , 'method')

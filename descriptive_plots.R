@@ -28,6 +28,9 @@ stacked_categories <- function(x, catnames){
   return(freq)
 }
 
+
+#my colours
+mycols_founder <- RColorBrewer::brewer.pal(name = 'RdBu', n = 8)[c(2,7)]
 #remove NAs from founder.multiplicity column
 
 
@@ -35,53 +38,62 @@ stacked_categories <- function(x, catnames){
 #method
 p1 <- ggplot(df, aes(grouped.method))+
   geom_bar(aes(fill = multiple.founders, colour = multiple.founders))+
-  scale_color_brewer(palette = 'RdBu')+
-  scale_fill_brewer(palette = 'RdBu')+
+  scale_color_manual(values = mycols_founder)+
+  scale_fill_manual(values = mycols_founder)+
   theme_classic()+
   xlab('Grouped Method')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Count')
+  ylab('Frequency')+
+  labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
 p1
 
 #Seroconversion #stack infant and NA together
 p3 <- ggplot(df, aes(participant.seropositivity))+ 
   geom_bar(aes(fill = multiple.founders, colour = multiple.founders))+
-  scale_color_brewer(palette = 'RdBu')+
-  scale_fill_brewer(palette = 'RdBu')+
+  scale_color_manual(values = mycols_founder)+
+  scale_fill_manual(values = mycols_founder)+
   theme_classic()+
   xlab('Seropositivity')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Count')
+  ylab('Frequency')+
+  labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
 p3
 
 #subtype
 p4 <- ggplot(df, aes(grouped.subtype))+
   geom_bar(aes(fill = multiple.founders, colour = multiple.founders))+
-  scale_color_brewer(palette = 'RdBu')+
-  scale_fill_brewer(palette = 'RdBu')+
+  scale_color_manual(values = mycols_founder)+
+  scale_fill_manual(values = mycols_founder)+
   theme_classic()+
   xlab('Subtype')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Count')
+  ylab('Frequency')+
+  labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
 p4
 
-#drop NA and NGS
-p5 <- ggplot(df, aes(sequencing.number))+
-  geom_bar(aes(fill = multiple.founders, colour = multiple.founders))+
-  scale_color_brewer(palette = 'RdBu')+
-  scale_fill_brewer(palette = 'RdBu')+
+#number of sequences
+#must drop NA and NGS first 
+
+numseqs_df <- df[!df$sequencing.number %in% c('NGS', NA),]
+numseqs_df$sequencing.number <- as.numeric(numseqs_df$sequencing.number)
+
+p5 <- ggplot(numseqs_df , aes(sequencing.number))+
+  geom_histogram(binwidth=5, aes(fill = multiple.founders, colour = multiple.founders))+
+  scale_color_manual(values = mycols_founder)+
+  scale_fill_manual(values = mycols_founder)+
   theme_classic()+
-  xlab('Subtype')+
+  xlab('Number of Consensus Genomes Analysed')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Count')
+  ylab('Frequency') +
+  labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
   
   
 library(ggpubr)
-ggarrange(p1,p3,p4,
-          ncol = 2 , nrow = 2 , labels = "AUTO")
+ggarrange(p1,p3,p4, p5,
+          ncol = 2 , nrow = 2 , labels = "AUTO" , common.legend = TRUE , legend = 'bottom' , align = 'hv') 
 
 
 #bar plot for exposure
@@ -97,7 +109,7 @@ p2 <- ggplot(exposures_df, aes(x = reported.exposure , y = frequency))+
   theme_classic()+
   xlab('Exposure')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Count')
+  ylab('Frequency')
 
 p2
 
