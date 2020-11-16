@@ -30,11 +30,13 @@ stacked_categories <- function(x, catnames){
 
 #remove NAs from founder.multiplicity column
 
+
+##basic plots for panel 1 (four bar plots to panel displaying frequencies of grouped method, seropositivity, subtype and number of sequences)
 #method
 p1 <- ggplot(df, aes(grouped.method))+
-  geom_bar()+
-  scale_color_npg()+
-  scale_fill_npg()+
+  geom_bar(aes(fill = multiple.founders, colour = multiple.founders))+
+  scale_color_brewer(palette = 'RdBu')+
+  scale_fill_brewer(palette = 'RdBu')+
   theme_classic()+
   xlab('Grouped Method')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
@@ -42,27 +44,11 @@ p1 <- ggplot(df, aes(grouped.method))+
 
 p1
 
-#Risk
-names <- c('reported.exposure' , 'sub.exposure' , 'frequency')
-exposures_df <- stacked_categories(df$reported.exposure, names)
-
-
-p2 <- ggplot(exposures_df, aes(x = reported.exposure , y = frequency))+
-  geom_bar(stat = 'identity' , aes(fill = sub.exposure, colour = sub.exposure), position = 'stack')+
-  scale_color_npg()+
-  scale_fill_npg()+
-  theme_classic()+
-  xlab('Exposure')+
-  theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Count')
-
-p2
-
 #Seroconversion #stack infant and NA together
 p3 <- ggplot(df, aes(participant.seropositivity))+ 
-  geom_bar()+
-  scale_color_npg()+
-  scale_fill_npg()+
+  geom_bar(aes(fill = multiple.founders, colour = multiple.founders))+
+  scale_color_brewer(palette = 'RdBu')+
+  scale_fill_brewer(palette = 'RdBu')+
   theme_classic()+
   xlab('Seropositivity')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
@@ -72,18 +58,48 @@ p3
 
 #subtype
 p4 <- ggplot(df, aes(grouped.subtype))+
-  geom_bar()+
-  scale_color_npg()+
-  scale_fill_npg()+
+  geom_bar(aes(fill = multiple.founders, colour = multiple.founders))+
+  scale_color_brewer(palette = 'RdBu')+
+  scale_fill_brewer(palette = 'RdBu')+
   theme_classic()+
   xlab('Subtype')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
   ylab('Count')
 
 p4
+
+#drop NA and NGS
+p5 <- ggplot(df, aes(sequencing.number))+
+  geom_bar(aes(fill = multiple.founders, colour = multiple.founders))+
+  scale_color_brewer(palette = 'RdBu')+
+  scale_fill_brewer(palette = 'RdBu')+
+  theme_classic()+
+  xlab('Subtype')+
+  theme( axis.text.x=element_text(angle=45, hjust=1))+
+  ylab('Count')
+  
+  
 library(ggpubr)
-ggarrange(p1,p2,p3,p4,
+ggarrange(p1,p3,p4,
           ncol = 2 , nrow = 2 , labels = "AUTO")
+
+
+#bar plot for exposure
+#Risk
+names <- c('reported.exposure' , 'sub.exposure' , 'frequency')
+exposures_df <- stacked_categories(df$reported.exposure, names)
+
+
+p2 <- ggplot(exposures_df, aes(x = reported.exposure , y = frequency))+
+  geom_bar(stat = 'identity' , aes(fill = sub.exposure, colour = sub.exposure), position = 'stack')+
+  scale_color_brewer(palette = 'RdBu')+
+  scale_fill_brewer(palette = 'RdBu')+
+  theme_classic()+
+  xlab('Exposure')+
+  theme( axis.text.x=element_text(angle=45, hjust=1))+
+  ylab('Count')
+
+p2
 
 
 #Year of Publication
