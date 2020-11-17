@@ -31,6 +31,8 @@ stacked_categories <- function(x, catnames){
 
 #my colours
 mycols_founder <- RColorBrewer::brewer.pal(name = 'RdBu', n = 8)[c(2,7)]
+nb.cols <- 12
+mycols_method <- colorRampPalette(brewer.pal(10, "RdBu"))(nb.cols)
 #remove NAs from founder.multiplicity column
 
 
@@ -104,19 +106,19 @@ exposures_df <- stacked_categories(df$reported.exposure, names)
 
 p2 <- ggplot(exposures_df, aes(x = reported.exposure , y = frequency))+
   geom_bar(stat = 'identity' , aes(fill = sub.exposure, colour = sub.exposure), position = 'stack')+
-  scale_color_brewer(palette = 'RdBu')+
-  scale_fill_brewer(palette = 'RdBu')+
+  scale_color_manual(values = mycols_method)+
+  scale_fill_manual(values = mycols_method)+
   theme_classic()+
   xlab('Exposure')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Frequency')
+  ylab('Frequency') + labs(fill = "Reported Exposure", colour = "Reported Exposure")
 
 p2
 
 
 #Year of Publication
 
-#Minimum number of founders plot
+#Minimum numcitqtber of founders plot
 
 
 
