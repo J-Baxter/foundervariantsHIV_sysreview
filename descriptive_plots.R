@@ -6,13 +6,14 @@ library(ggplot2)
 library(ggsci)
 library(dplyr)
 library(forcats)
-library(tidyr
-        )
+library(tidyr)
+library(RColorBrewer)
 #set wd
 setwd("./data/")
 
 #import data
 df <- read.csv("data_master.csv", na.strings = "NA")
+dfnona <- df[!is.na(df$multiple.founders),]
 
 #function for stacking categories and calculating summary frequencies
 stacked_categories <- function(x, catnames){
@@ -38,7 +39,7 @@ mycols_method <- colorRampPalette(brewer.pal(10, "RdBu"))(nb.cols)
 
 ##basic plots for panel 1 (four bar plots to panel displaying frequencies of grouped method, seropositivity, subtype and number of sequences)
 #method
-p1 <- ggplot(df, aes(grouped.method))+
+p1 <- ggplot(dfnona, aes(grouped.method))+
   geom_bar(aes(fill = multiple.founders, colour = multiple.founders))+
   scale_color_manual(values = mycols_founder)+
   scale_fill_manual(values = mycols_founder)+
@@ -51,7 +52,7 @@ p1 <- ggplot(df, aes(grouped.method))+
 p1
 
 #Seroconversion #stack infant and NA together
-p3 <- ggplot(df, aes(participant.seropositivity))+ 
+p3 <- ggplot(dfnona, aes(participant.seropositivity))+ 
   geom_bar(aes(fill = multiple.founders, colour = multiple.founders))+
   scale_color_manual(values = mycols_founder)+
   scale_fill_manual(values = mycols_founder)+
@@ -64,7 +65,7 @@ p3 <- ggplot(df, aes(participant.seropositivity))+
 p3
 
 #subtype
-p4 <- ggplot(df, aes(grouped.subtype))+
+p4 <- ggplot(dfnona, aes(grouped.subtype))+
   geom_bar(aes(fill = multiple.founders, colour = multiple.founders))+
   scale_color_manual(values = mycols_founder)+
   scale_fill_manual(values = mycols_founder)+
@@ -79,7 +80,7 @@ p4
 #number of sequences
 #must drop NA and NGS first 
 
-numseqs_df <- df[!df$sequencing.number %in% c('NGS', NA),]
+numseqs_df <- dfnona[!dfnona$sequencing.number %in% c('NGS', NA),]
 numseqs_df$sequencing.number <- as.numeric(numseqs_df$sequencing.number)
 
 p5 <- ggplot(numseqs_df , aes(sequencing.number))+
