@@ -92,7 +92,7 @@ data_master.labelled <- unite(data_master.nona, "publication", c(author ,year), 
 data_master.labelled$multiple.founders = 1 - (as.numeric(data_master.labelled$multiple.founders)-1)
 
 df_grouped <- data_master.labelled %>% 
-  group_by(publication, reported.exposure) %>%
+  group_by(publication) %>%
   summarise(subjects = n(), multiplefounders = sum(multiple.founders))
 
 
