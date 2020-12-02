@@ -5,7 +5,6 @@ library(fitdistrplus)
 library(tidyr)
 
 #functions
-
 #sanity check dataframe, created author/year labels and remove NA from founder multiplicty column
 formatDF <- function(df){
   if ('multiple.founders' %in% colnames(df)){
@@ -18,6 +17,7 @@ formatDF <- function(df){
   formatted <- labelled
   return(formatted)
 }
+
 
 #group counts of founder multiplicty by study and selected covariates (NB does not count proportions)
 groupDF <- function(df, covar){
@@ -40,6 +40,7 @@ groupDF <- function(df, covar){
   return(df_grouped)
 }
 
+
 #continuity correction for log transformations where proportions = 0 or 1. correction set at 0.3, the expected proportion of founder variants from previous studies
 contCorrection <- function(x){
   if(x==0){
@@ -50,6 +51,7 @@ contCorrection <- function(x){
         x=x}
   return(x)
 }
+
 
 #calculate proportions
 calcProps <- function(df, logtransfom = TRUE){
@@ -71,6 +73,19 @@ calcProps <- function(df, logtransfom = TRUE){
   return(props)
 }
 
+
+#exploring assumption 1: assessing distirbution of proportions
+assumption1 <- function()
+
+
+
+      
+#exploring assumption 2: evaluating independence of covariates
+assumption1 <- function()
+  
+  
+#main
+  
 
 #import dataset
 data_master<- read.csv("data_master.csv", na.strings = "NA")
