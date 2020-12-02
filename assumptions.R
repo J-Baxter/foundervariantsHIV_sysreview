@@ -99,7 +99,7 @@ assumption2 <- function()
   
   
 #main
-main <- function(data, vars = NULL, logtransformprops = TRUE ){
+main <- function(data, covars = NULL, logtransformprops = TRUE ){
   if (class(data) != "data.frame"){
     stop('input is not a data frame')
     
@@ -109,7 +109,7 @@ main <- function(data, vars = NULL, logtransformprops = TRUE ){
   
   #calculate proportions
   props <- formatDF(data) %>%
-    groupDF(., covar = vars) %>%
+    groupDF(., covar = covars) %>%
     calcProps(., logtransform = logtransformprops)
 
   assumption1(props) %>% print()
@@ -118,12 +118,12 @@ main <- function(data, vars = NULL, logtransformprops = TRUE ){
   print("done")
 }  
 
+
 #import dataset
 data_master<- read.csv("data/data_master.csv", na.strings = "NA")
 
 ##RUN##
 #potential covars: "participant.seropositivity","grouped.method","reported.exposure","grouped.subtype" 
-main(data_master , vars = "reported.exposure")
+main(data_master , covars = "reported.exposure")
 
 ##END##
-
