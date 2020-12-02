@@ -39,8 +39,9 @@ groupDF <- function(df, covar = NULL){
     
   }else{
     df_grouped <- df %>% 
-      group_by(publication, sym(covar)) %>%
-      summarise(subjects = n(), multiple.founders = sum(multiple.founders))}
+      group_by(publication, get(covar)) %>%
+      summarise(subjects = n(), multiple.founders = sum(multiple.founders))
+    }
   
   return(df_grouped)
 }
@@ -98,7 +99,7 @@ assumption2 <- function()
   
   
 #main
-main <- function(data, covar = NULL, logtransformprops = TRUE ){
+main <- function(data, vars = NULL, logtransformprops = TRUE ){
   if (class(data) != "data.frame"){
     stop('input is not a data frame')
     
@@ -106,8 +107,9 @@ main <- function(data, covar = NULL, logtransformprops = TRUE ){
   data = data
   }
   
+  #calculate proportions
   props <- formatDF(data) %>%
-    groupDF(., covar = covar) %>%
+    groupDF(., covar = vars) %>%
     calcProps(., logtransform = logtransformprops)
 
   assumption1(props) %>% print()
@@ -120,7 +122,8 @@ main <- function(data, covar = NULL, logtransformprops = TRUE ){
 data_master<- read.csv("data/data_master.csv", na.strings = "NA")
 
 ##RUN##
-main(data_master)
+#potential covars: "participant.seropositivity","grouped.method","reported.exposure","grouped.subtype" 
+main(data_master , vars = "reported.exposure")
 
 ##END##
 
