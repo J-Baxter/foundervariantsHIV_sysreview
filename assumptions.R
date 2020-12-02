@@ -69,12 +69,12 @@ calcProps <- function(df, logtransform = TRUE){
   }
   
   if (logtransform == TRUE){
-    print('calculating log transformed proportions')
+    cat('\ncalculating log transformed proportions \n')
     props.corrected <- lapply(props.init , contCorrection) %>% unlist()
     props <- log(props.corrected)
     
   }else if (logtransform == FALSE){
-    print('calculating raw proportions')
+    cat('\n calculating raw proportions \n')
     props <- props.init
     
   }else{
@@ -115,7 +115,8 @@ main <- function(data, covars = NULL, logtransformprops = TRUE ){
   assumption1(props) %>% print()
   #assumption2(props) %>% print()
   
-  print("done")
+  cat("\nassumption evaluation complete \nDONE")
+
 }  
 
 
