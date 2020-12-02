@@ -43,10 +43,8 @@ groupDF <- function(df, covar){
 
 #continuity correction for log transformations where proportions = 0 or 1. correction set at 0.3, the expected proportion of founder variants from previous studies
 contCorrection <- function(x){
-  if(x==0){
+  if(x==0|x==1){
     x=0.3
-  }else if(x==1){
-      x=0.3
   }else{
         x=x}
   return(x)
@@ -75,7 +73,11 @@ calcProps <- function(df, logtransfom = TRUE){
 
 
 #exploring assumption 1: assessing distirbution of proportions
-assumption1 <- function()
+assumption1 <- function(){
+  fit.norm.cont = fitdist(props.corrected.log , distr = 'norm')
+  plot(fit.norm.cont)
+  gofstat(fit.norm.cont)
+}
 
 
 
@@ -85,15 +87,11 @@ assumption1 <- function()
   
   
 #main
-  
+main <- function(){
+  if (data != class(data.frame))
+}  
 
 #import dataset
 data_master<- read.csv("data_master.csv", na.strings = "NA")
 
 
-
-props <- df_grouped$multiplefounders/df_grouped$subjects
-props.corrected.log =lapply(props , contcorrection) %>% unlist() %>% log()
-fit.norm.cont = fitdist(props.corrected.log , distr = 'norm')
-plot(fit.norm.cont)
-gofstat(fit.norm.cont)
