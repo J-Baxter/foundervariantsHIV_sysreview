@@ -86,14 +86,14 @@ calcProps <- function(df, logtransform = TRUE){
 #exploring assumption 1: assessing distirbution of proportions
 assumption1 <- function(num){
   fitted.norm = fitdist(num , distr = 'norm')
-  print(summary(fitted.norm))
+  summary(fitted.norm)
   plot(fitted.norm)
   gofstat(fitted.norm)
 }
 
       
 #exploring assumption 2: evaluating independence of covariates
-assumption1 <- function()
+assumption2 <- function()
   
   
 #main
@@ -109,8 +109,10 @@ main <- function(data, covar = NULL, logtransformprops = TRUE ){
     groupDF(., covar = covar) %>%
     calcProps(., logtransform = logtransformprops)
 
-  assumption1(props)
-  #assumption2(props)
+  assumption1(props) %>% print()
+  #assumption2(props) %>% print()
+  
+  print("done")
 }  
 
 #import dataset
