@@ -1,6 +1,7 @@
 #evaluate distribution of data to assumptions of meta analysis
 
 #dependencies
+setwd("~/foundervariantsHIV_sysreview")
 library(fitdistrplus)
 library(tidyr)
 
@@ -116,6 +117,10 @@ main <- function(data, covar = NULL, logtransformprops = TRUE ){
 }  
 
 #import dataset
-data_master<- read.csv("data_master.csv", na.strings = "NA")
+data_master<- read.csv("data/data_master.csv", na.strings = "NA")
+
+##RUN##
 main(data_master)
+
+##END##
 
