@@ -22,7 +22,7 @@ formatDF <- function(df){
 
 
 #group counts of founder multiplicty by study and selected covariates (NB does not count proportions)
-groupDF <- function(df, covar){
+groupDF <- function(df, covar = NULL){
   if (class(df$multiple.founders)=="factor"){
     df$multiple.founders = 1 - (as.numeric(df$multiple.founders)-1)
     
@@ -58,17 +58,17 @@ contCorrection <- function(x){
 
 
 #calculate proportions
-calcProps <- function(df, logtransfom = TRUE){
+calcProps <- function(df, logtransform = TRUE){
   if ('multiple.founders' %in% colnames(df)){
-    props.init <- df$multiple.founders/df_grouped$subjects
+    props.init <- df$multiple.founders/df$subjects
     
   }else{
     stop('no founder multiplicity column found')
   }
   
-  if (logtransfom == TRUE){
+  if (logtransform == TRUE){
     print('calculating log transformed proportions')
-    props.corrected <- lapply(props , contCorrection) %>% unlist()
+    props.corrected <- lapply(props.init , contCorrection) %>% unlist()
     props <- log(props.corrected)
     
   }else if (logtransform == FALSE){
@@ -84,10 +84,11 @@ calcProps <- function(df, logtransfom = TRUE){
 
 
 #exploring assumption 1: assessing distirbution of proportions
-assumption1 <- function(){
-  fit.norm.cont = fitdist(props.corrected.log , distr = 'norm')
-  plot(fit.norm.cont)
-  gofstat(fit.norm.cont)
+assumption1 <- function(num){
+  fitted.norm = fitdist(num , distr = 'norm')
+  print(summary(fitted.norm))
+  plot(fitted.norm)
+  gofstat(fitted.norm)
 }
 
       
@@ -96,8 +97,8 @@ assumption1 <- function()
   
   
 #main
-main <- function(data, covar, logtransform = TRUE ){
-  if (data != class(data.frame)){
+main <- function(data, covar = NULL, logtransformprops = TRUE ){
+  if (class(data) != "data.frame"){
     stop('input is not a data frame')
     
   }else{
@@ -105,11 +106,11 @@ main <- function(data, covar, logtransform = TRUE ){
   }
   
   props <- formatDF(data) %>%
-    groupDF(.,covar) %>%
-    calcProps(., logtransform = )
+    groupDF(., covar = covar) %>%
+    calcProps(., logtransform = logtransformprops)
 
   assumption1(props)
-  assumption2(props)
+  #assumption2(props)
 }  
 
 #import dataset
