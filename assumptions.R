@@ -86,6 +86,7 @@ calcProps <- function(df, logtransform = TRUE){
 
 
 #exploring assumption 1: assessing distirbution of proportions
+#input is study based proportions
 assumption1 <- function(num){
   fitted.norm = fitdist(num , distr = 'norm')
   summary(fitted.norm)
@@ -95,11 +96,26 @@ assumption1 <- function(num){
 
       
 #exploring assumption 2: evaluating independence of covariates
-assumption2 <- function()
+#input main dataframe
+assumption2 <- function(df, combinations, simulate.p.value = FALSE){
+  nvar <- length(combinations)/2
+  chiseq.val <- list()
   
-  
+  for (i in 1:nvar){
+    
+    a = paste0("df", '$' , combinations[1,i]) %>% parse(text=.) %>% eval()
+    b = paste0("df", '$' , combinations[2,i])%>% parse(text=.) %>% eval()
+    cont.tab <- table(a,b) %>% 
+    chiseq.val[[i]] <- chisq.test(cont.tab , simulate.p.value = simulate.p.value)
+  }
+
+  return(chiseq.val)
+
+}
+
+
 #main
-main <- function(data, covars = NULL, logtransformprops = TRUE ){
+main <- function(data, splitby = NULL, logtransformprops = TRUE, covars, simulate.p.value = FALSE){
   if (class(data) != "data.frame"){
     stop('input is not a data frame')
     
@@ -109,12 +125,17 @@ main <- function(data, covars = NULL, logtransformprops = TRUE ){
   
   #calculate proportions
   props <- formatDF(data) %>%
-    groupDF(., covar = covars) %>%
+    groupDF(., covar = splitby) %>%
     calcProps(., logtransform = logtransformprops)
 
+  #test assumption 1: is our measure variable parametric?
   assumption1(props) %>% print()
-  #assumption2(props) %>% print()
   
+  #get covar combinations
+  combos <- combn(covars , m = 2)
+
+  #testing assumption 2: independence of covariates
+  assumption2(data, combinations = combos , simulate.p.value = simulate.p.value)
   cat("\nassumption evaluation complete \nDONE")
 
 }  
@@ -125,6 +146,7 @@ data_master<- read.csv("data/data_master.csv", na.strings = "NA")
 
 ##RUN##
 #potential covars: "participant.seropositivity","grouped.method","reported.exposure","grouped.subtype" 
+covars <- c("participant.seropositivity","grouped.method","reported.exposure")
 main(data_master , covars = "reported.exposure")
 
 ##END##
