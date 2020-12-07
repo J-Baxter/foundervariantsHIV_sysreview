@@ -80,8 +80,8 @@ MetaAll <- function(agregated_df) {
 
 ##START##  
 #import dataset
-data_master<- read.csv("data_master.csv", na.strings = "NA")
-data_master.nona <- df[!is.na(df$multiple.founders),]
+data_master<- read.csv("data/data_master.csv", na.strings = "NA")
+data_master.nona <- data_master[!is.na(data_master$multiple.founders),]
 
 #define subgroups
 subgroups <- list(NULL, "subtype" , "reported.exposure" , "participant.seropositivity" , "method")
@@ -104,8 +104,8 @@ test <- meta::metaprop(multiplefounders,
                data = df_grouped,
                subset = NULL,
                exclude = NULL,
-               method = 'Inverse', #Inverse variance method to pool
-               sm = "PLN", #log transform proportions
+               method = 'inverse', #Inverse variance method to pool
+               sm = "PLOGIT", #double arcsine transformation
                incr = gs("incr"),#A numeric which is added to event number and sample size of studies with zero or all events, i.e., studies with an event probability of either 0 or 1
                allincr = gs("allincr"),#A logical indicating if incr is considered for all studies if at least one study has either zero or all events. If FALSE (default), incr is considered only in studies with zero or all events
                addincr = gs("addincr"),#A logical indicating if incr is used for all studies irrespective of number of events
@@ -136,6 +136,7 @@ test <- meta::metaprop(multiplefounders,
                keepdata = TRUE,
                warn = TRUE, 
                control = NULL)
+summary(test)
 data <- lapply(subgroups , function(x) formatDF(data_master.labelled,  x))
   
 names(data) <- c('df_master' , 'df_subtype', 'df_exposure' , 'df_seroconversion' , 'df_method')
@@ -156,3 +157,8 @@ exposure.subgroup <- update.meta(test, byvar = reported.exposure, comb.random = 
 #presenting subgroup analyses
 
 ##END##
+##Experimental##
+
+ies <- escalc(xi = 'multiplefounders' , ni = 'subjects' , data = df_grouped , measure = "PFT")
+pes <- rma(yi, vi, data=ies , method = 'REML')
+pes.pred <- predict(pes , transf = transf.ipft.hm, targ=list(ni=df_grouped$subjects))

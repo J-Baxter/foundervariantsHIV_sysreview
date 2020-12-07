@@ -30,6 +30,19 @@ stacked_categories <- function(x, catnames){
 }
 
 
+test <- split_transission(expos)
+split_transission <- function(x , catnames){
+  t1 <- as.character(x$`dfnona$reported.exposure`) %>% 
+    strsplit(. , '[:]') %>% do.call(rbind.data.frame, .) %>% 
+    cbind.data.frame(., expos$`dfnona$multiple.founders`)
+  
+  t2 <- t1[,c(1,3)]
+  freq <- t2 %>%
+    group_by(t2[,1] , t2[,2]) %>%
+    summarise(frequency = n())
+  colnames(freq) <- catnames
+  return(freq)
+}
 #my colours
 mycols_founder <- RColorBrewer::brewer.pal(name = 'RdBu', n = 8)[c(2,7)]
 nb.cols <- 12
@@ -43,60 +56,72 @@ p1 <- ggplot(dfnona, aes(grouped.method))+
   geom_bar(aes(fill = multiple.founders, colour = multiple.founders))+
   scale_color_manual(values = mycols_founder)+
   scale_fill_manual(values = mycols_founder)+
+  ylim(0,1600)+
   theme_classic()+
   xlab('Grouped Method')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
   ylab('Frequency')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
-p1
-
 #Seroconversion #stack infant and NA together
-p3 <- ggplot(dfnona, aes(participant.seropositivity))+ 
+p2 <- ggplot(dfnona, aes(participant.seropositivity))+ 
   geom_bar(aes(fill = multiple.founders, colour = multiple.founders))+
   scale_color_manual(values = mycols_founder)+
   scale_fill_manual(values = mycols_founder)+
+  ylim(0,1600)+
   theme_classic()+
   xlab('Seropositivity')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
   ylab('Frequency')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
-p3
-
 #subtype
-p4 <- ggplot(dfnona, aes(grouped.subtype))+
+p3 <- ggplot(dfnona, aes(grouped.subtype))+
   geom_bar(aes(fill = multiple.founders, colour = multiple.founders))+
   scale_color_manual(values = mycols_founder)+
   scale_fill_manual(values = mycols_founder)+
+  ylim(0,1600)+
   theme_classic()+
   xlab('Subtype')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
   ylab('Frequency')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
-p4
-
 #number of sequences
 #must drop NA and NGS first 
-
 numseqs_df <- dfnona[!dfnona$sequencing.number %in% c('NGS', NA),]
 numseqs_df$sequencing.number <- as.numeric(numseqs_df$sequencing.number)
 
-p5 <- ggplot(numseqs_df , aes(sequencing.number))+
+p4 <- ggplot(numseqs_df , aes(sequencing.number))+
   geom_histogram(binwidth=5, aes(fill = multiple.founders, colour = multiple.founders))+
   scale_color_manual(values = mycols_founder)+
   scale_fill_manual(values = mycols_founder)+
+  ylim(0,1600)+
   theme_classic()+
   xlab('Number of Consensus Genomes Analysed')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
   ylab('Frequency') +
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
-  
-  
+
+#direction of transission
+names <- c('reported.exposure' , 'multiple.founders' , 'frequency')
+exposure_grouped <- cbind.data.frame(dfnona$reported.exposure, dfnona$multiple.founders) %>% split_transission(. ,names)
+colnames(t2) <- c('reported.exposure' , 'multiple.founders' )
+p5 <- ggplot(t2, aes(reported.exposure))+
+  geom_bar(aes(fill = multiple.founders, colour = multiple.founders))+
+  scale_color_manual(values = mycols_founder)+
+  scale_fill_manual(values = mycols_founder)+
+  ylim(0,1500)+
+  theme_classic()+
+  xlab('Reported Exposure')+
+  theme( axis.text.x=element_text(angle=45, hjust=1))+
+  ylab('Frequency')+
+  labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity") 
+
+
 library(ggpubr)
-ggarrange(p1,p3,p4, p5,
-          ncol = 2 , nrow = 2 , labels = "AUTO" , common.legend = TRUE , legend = 'bottom' , align = 'hv') 
+ggarrange(p1,p2,p3, p4, p5,
+          ncol = 2 , nrow = 3 , labels = "AUTO" , common.legend = TRUE , legend = 'bottom' , align = 'hv') 
 
 
 #bar plot for exposure
@@ -105,7 +130,7 @@ names <- c('reported.exposure' , 'sub.exposure' , 'frequency')
 exposures_df <- stacked_categories(df$reported.exposure, names)
 
 
-p2 <- ggplot(exposures_df, aes(x = reported.exposure , y = frequency))+
+p6 <- ggplot(exposures_df, aes(x = reported.exposure , y = frequency))+
   geom_bar(stat = 'identity' , aes(fill = sub.exposure, colour = sub.exposure), position = 'stack')+
   scale_color_manual(values = mycols_method)+
   scale_fill_manual(values = mycols_method)+
@@ -114,7 +139,7 @@ p2 <- ggplot(exposures_df, aes(x = reported.exposure , y = frequency))+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
   ylab('Frequency') + labs(fill = "Reported Exposure", colour = "Reported Exposure")
 
-p2
+p6
 
 
 #Year of Publication

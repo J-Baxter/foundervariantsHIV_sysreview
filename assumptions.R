@@ -105,7 +105,7 @@ assumption2 <- function(df, combinations, simulate.p.value = FALSE){
     
     a = paste0("df", '$' , combinations[1,i]) %>% parse(text=.) %>% eval()
     b = paste0("df", '$' , combinations[2,i])%>% parse(text=.) %>% eval()
-    cont.tab <- table(a,b) %>% 
+    cont.tab <- table(a,b) %>% print()
     chiseq.val[[i]] <- chisq.test(cont.tab , simulate.p.value = simulate.p.value)
   }
 
