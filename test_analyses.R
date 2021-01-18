@@ -1,6 +1,12 @@
 #test script for meta analysis models using keele, abrahams, haaland and li papers
 
 formatDF <-  function(df){
+  #create dummy variables in founder multiplicity col
+  if (class(df$multiple.founders)=="factor"){
+    df$multiple.founders = 1 - (as.numeric(df$multiple.founders)-1)
+  }else{
+    stop('founder multiplicity is not a factor')
+  }
   df_nona <- df[!is.na(df$multiple.founders),]
   df_nodups <- df_nona[(df_nona$include.main == '') & (df_nona$exclude.repeatstudy == ''),]
   df_labelled <- unite(df_nodups, "publication", c(author ,year), sep = '_')
@@ -9,20 +15,14 @@ formatDF <-  function(df){
 
 
 CalcProps <- function(df, covar = NULL){
-  #create dummy variables in founder multiplicity col
-  if (class(df_labelled$multiple.founders)=="factor"){
-    df_labelled$multiple.founders = 1 - (as.numeric(df_labelled$multiple.founders)-1)
-  }else{
-    stop('founder multiplicity is not a factor')
-  }
-  
+ 
   #summarise
   if (is.null(covar)){
-    df_grouped <- df_labelled %>% 
+    df_grouped <- df %>% 
       group_by(publication) %>%
       summarise(subjects = n(), multiplefounders = sum(multiple.founders))
   }else{
-    df_grouped <- df_labelled %>% 
+    df_grouped <- df %>% 
       group_by(publication, sym(covar)) %>%
       summarise(subjects = n(), multiplefounders = sum(multiple.founders))}
   
@@ -54,7 +54,17 @@ step1 <- function(data, study_id){
   return(agg.results)
 }
 
-
+onehotEncode <- function(data, covar, names){
+  onehot <- cbind.data.frame(data[, covar]) %>%
+    data.table::as.data.table() %>%
+    mltools::one_hot()
+  
+  colnames(onehot) <- names[order(names)]
+  
+  testset_onehot <- cbind.data.frame(data,onehot)
+  
+  return(testset_onehot)
+  }
 
 
 #define main
@@ -63,7 +73,7 @@ main <- function(){
   df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF()
   
   #set test data
-  testlist <- c('Keele_2008' , "Abrahams_2009", "Haaland_2009", "Li_2010")
+  testlist <- c('Keele_2008' , "Abrahams_2009", "Haaland_2009")
   testset_df <- lapply(testlist, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
  
   #pooling (no evaluation of covariates)
@@ -114,19 +124,45 @@ main <- function(){
                                    method.bias = gs("method.bias"), #A character string indicating which test is to be used. Either "rank", "linreg", or "mm", can be abbreviated. 
                                    
                                    #presentation
-                                   backtransf = TRUE, pscale = 1, title = gs("title"), complab = gs("complab"), outclab = "",
-                                   print.byvar = gs("print.byvar"), byseparator = gs("byseparator"), keepdata = TRUE, warn = TRUE, control = NULL)
+                                   backtransf = FALSE, pscale = 1, title = gs("title"), complab = gs("complab"), outclab = "",
+                                   print.byvar = gs("print.byvar"), byseparator = gs("byseparator"), keepdata = TRUE, warn = TRUE, control = NULL
+                                   )
   
   
   
   #onestep - glmm with clustering (independent intercepts) for studies and random effects for between study heterogeneity
   #ML estimation, but could use ASREML (ML estimation may lead to lower E(x) and narrower CIs)
-  onestrat.logit <- glmer(multiple.founders ~ Keele_2008 + Haaland_2009 + Abrahams_2009 + (1 + reported.exposure | publication), 
+  testset_onestage <- onehotEncode(testset_df, covar = "publication", names = testlist)
+  
+  onestrat.logit <- glmer(multiple.founders ~ 1 + Keele_2008 + Haaland_2009 + Abrahams_2009 + (1 | publication), 
                           data = testset_onestage,
                           family = binomial,
-                          control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 50000)))
+                          control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 50000))) %>% summary()
   
+  #compare
+  model_intercepts <- c( meta.ran.reml.hk$TE.random,
+                   metaprop.ran$TE.random,
+                   onestrat.logit$coefficients[1,1])
   
+  model_se <- c(meta.ran.reml.hk$seTE.random ,
+                metaprop.ran$seTE.random,
+                onestrat.logit$coefficients[1,2])
   
-  #compare Log Odd estimates 
+  precalc_ci <- list(c(meta.ran.reml.hk$lower.random, meta.ran.reml.hk$upper.random),
+                  c(metaprop.ran$lower.random, metaprop.ran$upper.random))
+  
+  ci.calc <- function(u,se,threshold){
+    value <- 1-(threshold/2)
+    upper <- u + se*qnorm(value)
+    lower <- u - se*qnorm(value)
+    ci <- c(lower,upper)
+    return(ci)
+  }
+  
+  onestep_ci <- ci.calc(model_intercepts[3], model_se[3], 0.05) %>% list()
+  
+  modelcomp_df <- append(precalc_ci , onestep_ci) %>% do.call(rbind.data.frame, . ) %>%
+    cbind.data.frame(model_intercepts)
+ 
+  
 }
