@@ -54,6 +54,7 @@ step1 <- function(data, study_id){
   return(agg.results)
 }
 
+
 onehotEncode <- function(data, covar, names){
   onehot <- cbind.data.frame(data[, covar]) %>%
     data.table::as.data.table() %>%
@@ -65,6 +66,15 @@ onehotEncode <- function(data, covar, names){
   
   return(testset_onehot)
   }
+
+
+ci.calc <- function(u,se,threshold){
+  value <- 1-(threshold/2)
+  upper <- u + se*qnorm(value)
+  lower <- u - se*qnorm(value)
+  ci <- c(lower,upper)
+  return(ci)
+}
 
 
 #define main
@@ -150,14 +160,6 @@ main <- function(){
   
   precalc_ci <- list(c(meta.ran.reml.hk$lower.random, meta.ran.reml.hk$upper.random),
                   c(metaprop.ran$lower.random, metaprop.ran$upper.random))
-  
-  ci.calc <- function(u,se,threshold){
-    value <- 1-(threshold/2)
-    upper <- u + se*qnorm(value)
-    lower <- u - se*qnorm(value)
-    ci <- c(lower,upper)
-    return(ci)
-  }
   
   onestep_ci <- ci.calc(model_intercepts[3], model_se[3], 0.05) %>% list()
   
