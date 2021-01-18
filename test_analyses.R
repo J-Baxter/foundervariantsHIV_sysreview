@@ -54,6 +54,9 @@ step1 <- function(data, study_id){
   return(agg.results)
 }
 
+
+
+
 #define main
 main <- function(){
   #import data
@@ -62,14 +65,68 @@ main <- function(){
   #set test data
   testlist <- c('Keele_2008' , "Abrahams_2009", "Haaland_2009", "Li_2010")
   testset_df <- lapply(testlist, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
-  
  
   #pooling (no evaluation of covariates)
   #twostep - binomial/normal model coded manually
   #step1 pooling within studies
-  summary = lapply(testlist, step1, data = testset_df) %>% do.call(rbind.data.frame,.)
+  test_summary <- lapply(testlist, step1, data = testset_df) %>% do.call(rbind.data.frame,.)
   
-  #step 2a pooling across studies using random effects (normal model). 
+  #step 2 pooling across studies using random effects (normal model). 
+  meta.ran.reml.hk <- metagen(TE = log_or,
+                              seTE= se, 
+                              studlab = study_id,
+                              data = test_summary,
+                              sm = "OR", 
+                              comb.random = TRUE,
+                              comb.fixed = FALSE,
+                              overall = TRUE,
+                              method.tau = "REML", 
+                              hakn = TRUE, 
+                              backtransf = FALSE)
+
+  
+  #twostep - binomial/normal model coded using metaprop (logit calc + calls metagen internally for random effects normal model)
+  testset_props <- CalcProps(testset_df)
+  
+  metaprop.ran <-   meta::metaprop(multiplefounders,
+                                   subjects,
+                                   studlab = publication,
+                                   data = testset_props,
+                                   subset = NULL,
+                                   exclude = NULL,
+                                   method = 'Inverse', #Inverse variance method to pool
+                                   sm = "PLOGIT", #log transform proportions
+                                   incr = 0.0005,#A numeric which is added to event number and sample size of studies with zero or all events, i.e., studies with an event probability of either 0 or 1
+                                   allincr = gs("allincr"),#A logical indicating if incr is considered for all studies if at least one study has either zero or all events. If FALSE (default), incr is considered only in studies with zero or all events
+                                   addincr = gs("addincr"),#A logical indicating if incr is used for all studies irrespective of number of events
+                                   method.ci = "NAsm",
+                                   level = gs("level"),#The level used to calculate confidence intervals for individual studies
+                                   level.comb = gs("level.comb"),#he level used to calculate confidence intervals for pooled estimates
+                                   comb.fixed = FALSE,
+                                   comb.random = TRUE,
+                                   hakn = TRUE, 
+                                   adhoc.hakn = "se",
+                                   method.tau = 'REML', #Maximum likelihood estimation of Tau
+                                   method.tau.ci = "QP", #Q-Profile method (Viechtbauer, 2007)
+                                   prediction = gs("prediction"),#A logical indicating whether a prediction interval should be printed
+                                   level.predict = gs("level.predict"),#The level used to calculate prediction interval for a new study.
+                                   null.effect = NA,#A numeric value specifying the effect under the null hypothesis.
+                                   method.bias = gs("method.bias"), #A character string indicating which test is to be used. Either "rank", "linreg", or "mm", can be abbreviated. 
+                                   
+                                   #presentation
+                                   backtransf = TRUE, pscale = 1, title = gs("title"), complab = gs("complab"), outclab = "",
+                                   print.byvar = gs("print.byvar"), byseparator = gs("byseparator"), keepdata = TRUE, warn = TRUE, control = NULL)
   
   
+  
+  #onestep - glmm with clustering (independent intercepts) for studies and random effects for between study heterogeneity
+  #ML estimation, but could use ASREML (ML estimation may lead to lower E(x) and narrower CIs)
+  onestrat.logit <- glmer(multiple.founders ~ Keele_2008 + Haaland_2009 + Abrahams_2009 + (1 + reported.exposure | publication), 
+                          data = testset_onestage,
+                          family = binomial,
+                          control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 50000)))
+  
+  
+  
+  #compare Log Odd estimates 
 }
