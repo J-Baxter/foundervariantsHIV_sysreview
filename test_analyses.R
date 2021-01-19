@@ -1,5 +1,21 @@
-#test script for meta analysis models using keele, abrahams, haaland and li papers
+# IPD meta analysis of HIV founder variant multiplicity
+# calculates summary proportion of infections initiated by multiple founder variants
+# models implemented:
+# 1. One-step glmm (independent intercepts for studies with random effects, ml fit)
+# 2. Two-step binomial-normal model (Random effects, inverse variance pooling, reml estimator of tau)
+# 3. Two-step beta-binomial model
+# estimations of mean effect size, confidence intervals and heterogeneity are presented 
 
+
+#dependencies
+library(tidyr)
+library(lme4)
+library(dplyr)
+library(mltools)
+library(data.table)
+
+
+# Formats data spreadsheet for analysis. Removes duplicates and NAs.
 formatDF <-  function(df){
   #create dummy variables in founder multiplicity col
   if (class(df$multiple.founders)=="factor"){
@@ -9,11 +25,13 @@ formatDF <-  function(df){
   }
   df_nona <- df[!is.na(df$multiple.founders),]
   df_nodups <- df_nona[(df_nona$include.main == '') & (df_nona$exclude.repeatstudy == ''),]
-  df_labelled <- unite(df_nodups, "publication", c(author ,year), sep = '_')
+  df_labelled <- unite(df, "publication", c(author ,year), sep = '_')
   return(df_labelled)
 }
 
 
+# Sums number of patients within each study and number of infections initiated by multiple founders. 
+# Can be stratified with additional covariates
 CalcProps <- function(.data, ...){
     .data %>% 
       group_by(publication, ...) %>%
@@ -21,7 +39,36 @@ CalcProps <- function(.data, ...){
   }
 
 
-step1 <- function(data, study_id){
+## Functions for one-step GLMM
+
+# Creates dummy variables for clustering random effects of studies
+onehotEncode <- function(data, covar, names){
+  onehot <- cbind.data.frame(data[, covar]) %>%
+    data.table::as.data.table() %>%
+    mltools::one_hot()
+  
+  colnames(onehot) <- names[order(names)]
+  
+  testset_onehot <- cbind.data.frame(data,onehot)
+  
+  return(testset_onehot)
+}
+
+
+#
+ci.calc <- function(u,se,threshold){
+  value <- 1-(threshold/2)
+  upper <- u + se*qnorm(value)
+  lower <- u - se*qnorm(value)
+  ci <- c(lower,upper)
+  return(ci)
+}
+
+
+## Functions for two-step binomial-normal model
+
+# Logistic regression to pool within study proportions (logit transformed)
+step_binom <- function(data, study_id){
   df_subset <- subset(data, publication==study_id)
   events <- nrow(df_subset)
   success <-  sum(df_subset$multiple.founders)
@@ -46,104 +93,87 @@ step1 <- function(data, study_id){
 }
 
 
-onehotEncode <- function(data, covar, names){
-  onehot <- cbind.data.frame(data[, covar]) %>%
-    data.table::as.data.table() %>%
-    mltools::one_hot()
-  
-  colnames(onehot) <- names[order(names)]
-  
-  testset_onehot <- cbind.data.frame(data,onehot)
-  
-  return(testset_onehot)
-  }
+# Random effects normal model to estimate between study heterogeneity and pool overall proportion (backtransformed)
 
 
-ci.calc <- function(u,se,threshold){
-  value <- 1-(threshold/2)
-  upper <- u + se*qnorm(value)
-  lower <- u - se*qnorm(value)
-  ci <- c(lower,upper)
-  return(ci)
-}
 
 
-#define main
-main <- function(){
-  #import data
-  df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF()
+
+
+
+##########################START##########################
+
+# Import data
+df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF()
   
-  #set test data
-  testlist <- c('Keele_2008' , "Abrahams_2009", "Haaland_2009")
-  testset_df <- lapply(testlist, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
+# Set test data
+testlist <- c('Keele_2008' , "Abrahams_2009", "Haaland_2009")
+testset_df <- lapply(testlist, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
  
-  #pooling (no evaluation of covariates)
-  #twostep - binomial/normal model coded manually
-  #step1 pooling within studies
-  test_summary <- lapply(testlist, step1, data = testset_df) %>% do.call(rbind.data.frame,.)
+# 1. One-step  GLMM with clustering (independent intercepts) for studies and random effects for between study heterogeneity
+# ML estimation, but could use ASREML (ML estimation may lead to lower E(x) and narrower CIs)
+testset_onestage <- onehotEncode(testset_df, covar = "publication", names = testlist)
+
+onestrat.logit <- glmer(multiple.founders ~ 1 + Keele_2008 + Haaland_2009 + Abrahams_2009 + (1 | publication), 
+                        data = testset_onestage,
+                        family = binomial,
+                        control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 50000))) %>% summary()
+
+
+# 2. Two-step binomial-normal model (Random effects, inverse variance pooling, reml estimator of tau)
+#step1 pooling within studies
+test_summary <- lapply(testlist, step1, data = testset_df) %>% do.call(rbind.data.frame,.)
   
-  #step 2 pooling across studies using random effects (normal model). 
-  meta.ran.reml.hk <- metagen(TE = log_or,
-                              seTE= se, 
-                              studlab = study_id,
-                              data = test_summary,
-                              sm = "OR", 
-                              comb.random = TRUE,
-                              comb.fixed = FALSE,
-                              overall = TRUE,
-                              method.tau = "REML", 
-                              hakn = TRUE, 
-                              backtransf = FALSE)
+#step 2 pooling across studies using random effects (normal model). 
+meta.ran.reml.hk <- metagen(TE = log_or,
+                            seTE= se, 
+                            studlab = study_id,
+                            data = test_summary,
+                            sm = "OR", 
+                            comb.random = TRUE,
+                            comb.fixed = FALSE,
+                            overall = TRUE,
+                            method.tau = "REML", 
+                            hakn = TRUE, 
+                            backtransf = FALSE)
 
   
-  #twostep - binomial/normal model coded using metaprop (logit calc + calls metagen internally for random effects normal model)
-  testset_props <- CalcProps(testset_df , covar = "reported.exposure")
-  
-  metaprop.ran <-   meta::metaprop(multiplefounders,
-                                   subjects,
-                                   studlab = publication,
-                                   data = testset_props,
-                                   subset = NULL,
-                                   exclude = NULL,
-                                   method = 'Inverse', #Inverse variance method to pool
-                                   sm = "PLOGIT", #log transform proportions
-                                   incr = 0.0005,#A numeric which is added to event number and sample size of studies with zero or all events, i.e., studies with an event probability of either 0 or 1
-                                   allincr = gs("allincr"),#A logical indicating if incr is considered for all studies if at least one study has either zero or all events. If FALSE (default), incr is considered only in studies with zero or all events
-                                   addincr = gs("addincr"),#A logical indicating if incr is used for all studies irrespective of number of events
-                                   method.ci = "NAsm",
-                                   level = gs("level"),#The level used to calculate confidence intervals for individual studies
-                                   level.comb = gs("level.comb"),#he level used to calculate confidence intervals for pooled estimates
-                                   comb.fixed = FALSE,
-                                   comb.random = TRUE,
-                                   hakn = TRUE, 
-                                   adhoc.hakn = "se",
-                                   method.tau = 'REML', #Maximum likelihood estimation of Tau
-                                   method.tau.ci = "QP", #Q-Profile method (Viechtbauer, 2007)
-                                   prediction = gs("prediction"),#A logical indicating whether a prediction interval should be printed
-                                   level.predict = gs("level.predict"),#The level used to calculate prediction interval for a new study.
-                                   null.effect = NA,#A numeric value specifying the effect under the null hypothesis.
-                                   method.bias = gs("method.bias"), #A character string indicating which test is to be used. Either "rank", "linreg", or "mm", can be abbreviated. 
+#twostep - binomial/normal model coded using metaprop (logit calc + calls metagen internally for random effects normal model)
+testset_props <- CalcProps(df)
+
+metaprop.ran <-   meta::metaprop(multiplefounders,
+                                 subjects,
+                                 studlab = publication,
+                                 data = testset_props,
+                                 subset = NULL,
+                                 exclude = NULL,
+                                 method = 'Inverse', #Inverse variance method to pool
+                                 sm = "PLOGIT", #log transform proportions
+                                 incr = 0.0005,#A numeric which is added to event number and sample size of studies with zero or all events, i.e., studies with an event probability of either 0 or 1
+                                 allincr = gs("allincr"),#A logical indicating if incr is considered for all studies if at least one study has either zero or all events. If FALSE (default), incr is considered only in studies with zero or all events
+                                 addincr = gs("addincr"),#A logical indicating if incr is used for all studies irrespective of number of events
+                                 method.ci = "NAsm",
+                                 level = gs("level"),#The level used to calculate confidence intervals for individual studies
+                                 level.comb = gs("level.comb"),#he level used to calculate confidence intervals for pooled estimates
+                                 comb.fixed = FALSE,
+                                 comb.random = TRUE,
+                                 hakn = TRUE, 
+                                 adhoc.hakn = "se",
+                                 method.tau = 'REML', #Maximum likelihood estimation of Tau
+                                 method.tau.ci = "QP", #Q-Profile method (Viechtbauer, 2007)
+                                 prediction = gs("prediction"),#A logical indicating whether a prediction interval should be printed
+                                 level.predict = gs("level.predict"),#The level used to calculate prediction interval for a new study.
+                                 null.effect = NA,#A numeric value specifying the effect under the null hypothesis.
+                                 method.bias = gs("method.bias"), #A character string indicating which test is to be used. Either "rank", "linreg", or "mm", can be abbreviated. 
                                    
-                                   #presentation
-                                   backtransf = FALSE, pscale = 1, title = gs("title"), complab = gs("complab"), outclab = "",
-                                   print.byvar = gs("print.byvar"), byseparator = gs("byseparator"), keepdata = TRUE, warn = TRUE, control = NULL
+                                 #presentation
+                                 backtransf = TRUE, pscale = 1, title = gs("title"), complab = gs("complab"), outclab = "",
+                                 print.byvar = gs("print.byvar"), byseparator = gs("byseparator"), keepdata = TRUE, warn = TRUE, control = NULL
                                    )
   
   
+  forest(metaprop.ran)
   
-  #onestep - glmm with clustering (independent intercepts) for studies and random effects for between study heterogeneity
-  #ML estimation, but could use ASREML (ML estimation may lead to lower E(x) and narrower CIs)
-  testset_onestage <- onehotEncode(testset_df, covar = "publication", names = testlist)
-  
-  onestrat.logit <- glmer(multiple.founders ~ 1 + Keele_2008 + Haaland_2009 + Abrahams_2009 + (1 | publication), 
-                          data = testset_onestage,
-                          family = binomial,
-                          control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 50000))) %>% summary()
-  
-  glmer(multiple.founders ~ 1+ Keele_2008 + Haaland_2009 + Abrahams_2009 + (1 | publication) + (reported.exposure -1| publication), 
-        data = testset_onestage,
-        family = binomial,
-        control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 50000))) %>% summary()
   
   
   #compare
