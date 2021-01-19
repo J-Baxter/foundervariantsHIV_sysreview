@@ -14,20 +14,11 @@ formatDF <-  function(df){
 }
 
 
-CalcProps <- function(df, covar = NULL){
- 
-  #summarise
-  if (is.null(covar)){
-    df_grouped <- df %>% 
-      group_by(publication) %>%
+CalcProps <- function(.data, ...){
+    .data %>% 
+      group_by(publication, ...) %>%
       summarise(subjects = n(), multiplefounders = sum(multiple.founders))
-  }else{
-    df_grouped <- df %>% 
-      group_by(publication, sym(covar)) %>%
-      summarise(subjects = n(), multiplefounders = sum(multiple.founders))}
-  
-  return(df_grouped)
-}
+  }
 
 
 step1 <- function(data, study_id){
@@ -106,7 +97,7 @@ main <- function(){
 
   
   #twostep - binomial/normal model coded using metaprop (logit calc + calls metagen internally for random effects normal model)
-  testset_props <- CalcProps(testset_df)
+  testset_props <- CalcProps(testset_df , covar = "reported.exposure")
   
   metaprop.ran <-   meta::metaprop(multiplefounders,
                                    subjects,
@@ -149,6 +140,12 @@ main <- function(){
                           family = binomial,
                           control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 50000))) %>% summary()
   
+  glmer(multiple.founders ~ 1+ Keele_2008 + Haaland_2009 + Abrahams_2009 + (1 | publication) + (reported.exposure -1| publication), 
+        data = testset_onestage,
+        family = binomial,
+        control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 50000))) %>% summary()
+  
+  
   #compare
   model_intercepts <- c( meta.ran.reml.hk$TE.random,
                    metaprop.ran$TE.random,
@@ -166,5 +163,5 @@ main <- function(){
   modelcomp_df <- append(precalc_ci , onestep_ci) %>% do.call(rbind.data.frame, . ) %>%
     cbind.data.frame(model_intercepts)
  
-  
+  colnames(modelcomp_df) <- c('lower.ci' , 'upper.ci' , 'intercept')
 }
