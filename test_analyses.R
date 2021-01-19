@@ -55,8 +55,18 @@ onehotEncode <- function(data, covar, names){
 }
 
 
-#
-ci.calc <- function(u,se,threshold){
+# Specifications for fitting of glmm model
+glmmREM <- function(data, formula){
+  model <- glmer(formula = formula, 
+        data = data,
+        family = binomial,
+        control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 50000)))
+  return(model)
+}
+
+
+# Calculates confidence intervals at set threshold
+CalcCI <- function(u,se,threshold){
   value <- 1-(threshold/2)
   upper <- u + se*qnorm(value)
   lower <- u - se*qnorm(value)
@@ -68,7 +78,7 @@ ci.calc <- function(u,se,threshold){
 ## Functions for two-step binomial-normal model
 
 # Logistic regression to pool within study proportions (logit transformed)
-step_binom <- function(data, study_id){
+BNstepOne <- function(data, study_id){
   df_subset <- subset(data, publication==study_id)
   events <- nrow(df_subset)
   success <-  sum(df_subset$multiple.founders)
@@ -94,7 +104,10 @@ step_binom <- function(data, study_id){
 
 
 # Random effects normal model to estimate between study heterogeneity and pool overall proportion (backtransformed)
+BNstepTwo <-  function(){
+  
 
+}
 
 
 
@@ -114,15 +127,15 @@ testset_df <- lapply(testlist, function(x,y) subset(x, publication == y), x = df
 # ML estimation, but could use ASREML (ML estimation may lead to lower E(x) and narrower CIs)
 testset_onestage <- onehotEncode(testset_df, covar = "publication", names = testlist)
 
-onestrat.logit <- glmer(multiple.founders ~ 1 + Keele_2008 + Haaland_2009 + Abrahams_2009 + (1 | publication), 
-                        data = testset_onestage,
-                        family = binomial,
-                        control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 50000))) %>% summary()
+pool_f <- as.formula('multiple.founders ~ 1 + Keele_2008 + Haaland_2009 + Abrahams_2009 + (1 | publication)')
+
+onestrat.logit <- glmmREM(formula = pool_f,
+                           data = testset_onestage) %>% summary()
 
 
 # 2. Two-step binomial-normal model (Random effects, inverse variance pooling, reml estimator of tau)
 #step1 pooling within studies
-test_summary <- lapply(testlist, step1, data = testset_df) %>% do.call(rbind.data.frame,.)
+test_summary <- lapply(testlist, BNstepOne, data = testset_df) %>% do.call(rbind.data.frame,.)
   
 #step 2 pooling across studies using random effects (normal model). 
 meta.ran.reml.hk <- metagen(TE = log_or,
