@@ -25,7 +25,7 @@ formatDF <-  function(df){
   }
   df_nona <- df[!is.na(df$multiple.founders),]
   df_nodups <- df_nona[(df_nona$include.main == '') & (df_nona$exclude.repeatstudy == ''),]
-  df_labelled <- unite(df, "publication", c(author ,year), sep = '_')
+  df_labelled <- unite(df_nodups, "publication", c(author ,year), sep = '_')
   return(df_labelled)
 }
 
@@ -56,9 +56,9 @@ onehotEncode <- function(data, covar, names){
 
 
 # Specifications for fitting of glmm model
-glmmREM <- function(data, formula){
-  model <- glmer(formula = formula, 
-        data = data,
+glmmREM <- function(form, df = NULL){
+  model <- glmer(formula = form, 
+        data = df,
         family = binomial,
         control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 50000)))
   return(model)
@@ -129,8 +129,7 @@ testset_onestage <- onehotEncode(testset_df, covar = "publication", names = test
 
 pool_f <- as.formula('multiple.founders ~ 1 + Keele_2008 + Haaland_2009 + Abrahams_2009 + (1 | publication)')
 
-onestrat.logit <- glmmREM(formula = pool_f,
-                           data = testset_onestage) %>% summary()
+onestrat.logit <- glmmREM(pool_f, df=testset_onestage) %>% summary()
 
 
 # 2. Two-step binomial-normal model (Random effects, inverse variance pooling, reml estimator of tau)
