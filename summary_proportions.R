@@ -3,7 +3,7 @@
 # models implemented:
 # 1. One-step glmm (independent intercepts for studies with random effects, ml fit)
 # 2. Two-step binomial-normal model (Random effects, inverse variance pooling, reml estimator of tau)
-# 3. Two-step beta-binomial model
+# 3. One-step beta-binomial mixed model
 # estimations of mean effect size, confidence intervals and heterogeneity are presented 
 
 
@@ -125,6 +125,8 @@ testset_df <- lapply(testlist, function(x,y) subset(x, publication == y), x = df
  
 # 1. One-step  GLMM with clustering (independent intercepts) for studies and random effects for between study heterogeneity
 # ML estimation, but could use ASREML (ML estimation may lead to lower E(x) and narrower CIs)
+# assumes conditional independence and follow binomial distribution
+
 testset_onestage <- onehotEncode(testset_df, covar = "publication", names = testlist)
 
 pool_f <- as.formula('multiple.founders ~ 1 + Keele_2008 + Haaland_2009 + Abrahams_2009 + (1 | publication)')
@@ -151,43 +153,47 @@ meta.ran.reml.hk <- metagen(TE = log_or,
 
   
 #twostep - binomial/normal model coded using metaprop (logit calc + calls metagen internally for random effects normal model)
-testset_props <- CalcProps(df)
+testset_props <- CalcProps(testset_df)
 
-metaprop.ran <-   meta::metaprop(multiplefounders,
-                                 subjects,
-                                 studlab = publication,
-                                 data = testset_props,
-                                 subset = NULL,
-                                 exclude = NULL,
-                                 method = 'Inverse', #Inverse variance method to pool
-                                 sm = "PLOGIT", #log transform proportions
-                                 incr = 0.0005,#A numeric which is added to event number and sample size of studies with zero or all events, i.e., studies with an event probability of either 0 or 1
-                                 allincr = gs("allincr"),#A logical indicating if incr is considered for all studies if at least one study has either zero or all events. If FALSE (default), incr is considered only in studies with zero or all events
-                                 addincr = gs("addincr"),#A logical indicating if incr is used for all studies irrespective of number of events
-                                 method.ci = "NAsm",
-                                 level = gs("level"),#The level used to calculate confidence intervals for individual studies
-                                 level.comb = gs("level.comb"),#he level used to calculate confidence intervals for pooled estimates
-                                 comb.fixed = FALSE,
-                                 comb.random = TRUE,
-                                 hakn = TRUE, 
-                                 adhoc.hakn = "se",
-                                 method.tau = 'REML', #Maximum likelihood estimation of Tau
-                                 method.tau.ci = "QP", #Q-Profile method (Viechtbauer, 2007)
-                                 prediction = gs("prediction"),#A logical indicating whether a prediction interval should be printed
-                                 level.predict = gs("level.predict"),#The level used to calculate prediction interval for a new study.
-                                 null.effect = NA,#A numeric value specifying the effect under the null hypothesis.
-                                 method.bias = gs("method.bias"), #A character string indicating which test is to be used. Either "rank", "linreg", or "mm", can be abbreviated. 
-                                   
-                                 #presentation
-                                 backtransf = TRUE, pscale = 1, title = gs("title"), complab = gs("complab"), outclab = "",
-                                 print.byvar = gs("print.byvar"), byseparator = gs("byseparator"), keepdata = TRUE, warn = TRUE, control = NULL
-                                   )
+metaprop.ran <- meta::metaprop(multiplefounders,
+                               subjects,
+                               studlab = publication,
+                               data = testset_props,
+                               subset = NULL,
+                               exclude = NULL,
+                               method = 'Inverse', #Inverse variance method to pool
+                               sm = "PLOGIT", #log transform proportions
+                               incr = 0.0005,#A numeric which is added to event number and sample size of studies with zero or all events, i.e., studies with an event probability of either 0 or 1
+                               allincr = gs("allincr"),#A logical indicating if incr is considered for all studies if at least one study has either zero or all events. If FALSE (default), incr is considered only in studies with zero or all events
+                               addincr = gs("addincr"),#A logical indicating if incr is used for all studies irrespective of number of events
+                               method.ci = "NAsm",
+                               level = gs("level"),#The level used to calculate confidence intervals for individual studies
+                               level.comb = gs("level.comb"),#he level used to calculate confidence intervals for pooled estimates
+                               comb.fixed = FALSE,
+                               comb.random = TRUE,
+                               hakn = TRUE, 
+                               adhoc.hakn = "se",
+                               method.tau = 'REML', #Maximum likelihood estimation of Tau
+                               method.tau.ci = "QP", #Q-Profile method (Viechtbauer, 2007)
+                               prediction = gs("prediction"),#A logical indicating whether a prediction interval should be printed
+                               level.predict = gs("level.predict"),#The level used to calculate prediction interval for a new study.
+                               null.effect = NA,#A numeric value specifying the effect under the null hypothesis.
+                               method.bias = gs("method.bias"), #A character string indicating which test is to be used. Either "rank", "linreg", or "mm", can be abbreviated. 
+                                 
+                               #presentation
+                               backtransf = TRUE, pscale = 1, title = gs("title"), complab = gs("complab"), outclab = "",
+                               print.byvar = gs("print.byvar"), byseparator = gs("byseparator"), keepdata = TRUE, warn = TRUE, control = NULL
+                               )
+Forest(metaprop.ran)
   
-  
-  forest(metaprop.ran)
-  
-  
-  
+
+# 3. Beta-binomial model
+#the event rate pi for the ith study is drawn from a beta distirbution. conditional on pi, the number of individuals xi in the ith study of size ni
+# who experience the events of interest follows a binomial distribution B(ni;pi) (From Chuang-Stein 1993)
+# fitted using REML
+glmmTMB(multiple.founders ~ 1 + Keele_2008 + Haaland_2009 + Abrahams_2009 + (1 | publication), data = testset_onestage , family = betabinomial(link = 'logit'))  
+betabin(cbind(y, n - y) ~ pub , ~1,  data = testset_props , lin = "logit") %>% summary()
+
   #compare
   model_intercepts <- c( meta.ran.reml.hk$TE.random,
                    metaprop.ran$TE.random,
