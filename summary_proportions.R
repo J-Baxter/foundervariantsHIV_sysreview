@@ -1,9 +1,9 @@
 # IPD meta analysis of HIV founder variant multiplicity
 # calculates summary proportion of infections initiated by multiple founder variants
 # models implemented:
-# 1. One-step glmm (independent intercepts for studies with random effects, ml fit)
-# 2. Two-step binomial-normal model (Random effects, inverse variance pooling, reml estimator of tau)
-# 3. One-step beta-binomial mixed model
+# 1. Two-step binomial-normal model (Random effects, inverse variance pooling, reml estimator of tau)
+# 2. One-step binomial GLMM (with clustering (independent intercepts) for studies and random effects for between study heterogeneity, approx ML fit)
+# 3. One-step beta-binomial GLMM, dispersion param for study labels. Laplace approximate ML estimation
 # estimations of mean effect size, confidence intervals and heterogeneity are presented 
 
 
@@ -52,16 +52,6 @@ onehotEncode <- function(data, covar, names){
   testset_onehot <- cbind.data.frame(data,onehot)
   
   return(testset_onehot)
-}
-
-
-# Specifications for fitting of glmm model
-glmmREM <- function(form, df = NULL){
-  model <- glmer(formula = form, 
-        data = df,
-        family = binomial,
-        control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 50000)))
-  return(model)
 }
 
 
@@ -122,40 +112,15 @@ df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF()
 # Set test data
 testlist <- c('Keele_2008' , "Abrahams_2009", "Haaland_2009")
 testset_df <- lapply(testlist, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
- 
-# 1. One-step  GLMM with clustering (independent intercepts) for studies and random effects for between study heterogeneity
-# ML estimation, but could use ASREML (ML estimation may lead to lower E(x) and narrower CIs)
-# assumes conditional independence and follow binomial distribution
-
-testset_onestage <- onehotEncode(testset_df, covar = "publication", names = testlist)
-
-pool_f <- as.formula('multiple.founders ~ 1 + Keele_2008 + Haaland_2009 + Abrahams_2009 + (1 | publication)')
-
-onestrat.logit <- glmmREM(pool_f, df=testset_onestage) %>% summary()
 
 
-# 2. Two-step binomial-normal model (Random effects, inverse variance pooling, reml estimator of tau)
-#step1 pooling within studies
-test_summary <- lapply(testlist, BNstepOne, data = testset_df) %>% do.call(rbind.data.frame,.)
-  
-#step 2 pooling across studies using random effects (normal model). 
-meta.ran.reml.hk <- metagen(TE = log_or,
-                            seTE= se, 
-                            studlab = study_id,
-                            data = test_summary,
-                            sm = "OR", 
-                            comb.random = TRUE,
-                            comb.fixed = FALSE,
-                            overall = TRUE,
-                            method.tau = "REML", 
-                            hakn = TRUE, 
-                            backtransf = FALSE)
-
-  
-#twostep - binomial/normal model coded using metaprop (logit calc + calls metagen internally for random effects normal model)
+# 1. Two-step binomial-normal model
+# step 1: pooling within studies using binomial model/logit 
+# step 2: pooling across studies using random effects (normal model). Inverse variance method used to pool. REML estimator of Tau. 
+#Calls meta::metagen internally
 testset_props <- CalcProps(testset_df)
 
-metaprop.ran <- meta::metaprop(multiplefounders,
+meta.ran.reml.hk <- meta::metaprop(multiplefounders,
                                subjects,
                                studlab = publication,
                                data = testset_props,
@@ -184,24 +149,49 @@ metaprop.ran <- meta::metaprop(multiplefounders,
                                backtransf = TRUE, pscale = 1, title = gs("title"), complab = gs("complab"), outclab = "",
                                print.byvar = gs("print.byvar"), byseparator = gs("byseparator"), keepdata = TRUE, warn = TRUE, control = NULL
                                )
-Forest(metaprop.ran)
-  
+forest(metaprop.ran)
+
+
+# 2. One-step Binomial GLMM with clustering (independent intercepts) for studies and random effects for between study heterogeneity
+# Laplace approximate ML estimation
+# assumes conditional independence and follow binomial distribution
+
+testset_onestage <- onehotEncode(testset_df, covar = "publication", names = testlist)
+
+onestep_bn <- glmer(formula = multiple.founders ~ 1 + Keele_2008 + Haaland_2009 + Abrahams_2009 + (1 | publication), 
+                    data = testset_onestage,
+                    family = binomial,
+                    control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 50000)))
+
+onestep_bn.sum <- summary(onestep_bn)
+summary(onestep_bn)
+
 
 # 3. Beta-binomial model
 #the event rate pi for the ith study is drawn from a beta distirbution. conditional on pi, the number of individuals xi in the ith study of size ni
 # who experience the events of interest follows a binomial distribution B(ni;pi) (From Chuang-Stein 1993)
-# fitted using REML
-glmmTMB(multiple.founders ~ 1 + Keele_2008 + Haaland_2009 + Abrahams_2009 + (1 | publication), data = testset_onestage , family = betabinomial(link = 'logit'))  
-betabin(cbind(y, n - y) ~ pub , ~1,  data = testset_props , lin = "logit") %>% summary()
+# Laplace approximate ML estimation
 
-  #compare
-  model_intercepts <- c( meta.ran.reml.hk$TE.random,
-                   metaprop.ran$TE.random,
-                   onestrat.logit$coefficients[1,1])
-  
-  model_se <- c(meta.ran.reml.hk$seTE.random ,
-                metaprop.ran$seTE.random,
-                onestrat.logit$coefficients[1,2])
+onestep_bb <- glmmTMB(multiple.founders ~ 1 ,
+                      dispformula =  ~ publication -1, 
+                      data = testset_onestage , 
+                      family = betabinomial(link = 'logit'))
+
+onestep_bb.sum <- summary(onestep_bb)
+summary(onestep_bb)
+
+
+# Model comparison
+AIC(onestep_bn,onestep_bb)
+lrtest(onestep_bn,onestep_bb)
+
+model_intercepts <- c(mmeta.ran.reml.hk$TE.random, 
+                      onestep_bn.sum$coefficients[1,1], 
+                      onestep_bb.sum$coefficients$cond[1,1])
+
+model_se <- c(meta.ran.reml.hk$seTE.random,
+              onestep_bn.sum$coefficients[1,3],
+              onestep_bb.sum$coefficients$cond[1,2])
   
   precalc_ci <- list(c(meta.ran.reml.hk$lower.random, meta.ran.reml.hk$upper.random),
                   c(metaprop.ran$lower.random, metaprop.ran$upper.random))
