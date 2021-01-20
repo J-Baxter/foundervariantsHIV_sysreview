@@ -64,46 +64,6 @@ CalcCI <- function(u,se,threshold){
   return(ci)
 }
 
-
-## Functions for two-step binomial-normal model
-
-# Logistic regression to pool within study proportions (logit transformed)
-BNstepOne <- function(data, study_id){
-  df_subset <- subset(data, publication==study_id)
-  events <- nrow(df_subset)
-  success <-  sum(df_subset$multiple.founders)
-  prop.multifounders <- success/events
-  incr = 0.0005 
-  incr.event = incr/events
-  
-  if (prop.multifounders == 0){
-    lr <- glm(multiple.founders+incr.event ~ 1, df_subset , family = binomial(link = "logit"))
-    log_or <- summary(lr)$coefficients[,1]
-    se <- summary(lr)$coefficients[, 2]
-    
-  }else{
-    lr <- glm(multiple.founders ~ 1, df_subset , family = binomial(link = "logit"))
-    log_or <- summary(lr)$coefficients[,1]
-    se <- summary(lr)$coefficients[, 2]
-  }
-  
-  agg.results <- cbind.data.frame(study_id, log_or, se)
-  
-  return(agg.results)
-}
-
-
-# Random effects normal model to estimate between study heterogeneity and pool overall proportion (backtransformed)
-BNstepTwo <-  function(){
-  
-
-}
-
-
-
-
-
-
 ##########################START##########################
 
 # Import data
