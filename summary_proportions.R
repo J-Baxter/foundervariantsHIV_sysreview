@@ -141,25 +141,26 @@ onestep_bb.sum <- summary(onestep_bb)
 summary(onestep_bb)
 
 
-# Model comparison: Estimated sumary effects (prop, SE,CI), between study variance (tau, I^)
+# Model comparison: Estimated sumary effects (prop, CI), between study variance (tau, I^)
 
 
-model_intercepts <- c(mmeta.ran.reml.hk$TE.random, 
-                      onestep_bn.sum$coefficients[1,1], 
-                      onestep_bb.sum$coefficients$cond[1,1])
-
-model_se <- c(meta.ran.reml.hk$seTE.random,
-              onestep_bn.sum$coefficients[1,3],
-              onestep_bb.sum$coefficients$cond[1,2])
+summary_logodds <- c(mmeta.ran.reml.hk$TE.random, 
+                     onestep_bn.sum$coefficients[1,1], 
+                     onestep_bb.sum$coefficients$cond[1,1])
   
-precalc_ci <- list(c(meta.ran.reml.hk$lower.random, meta.ran.reml.hk$upper.random),
-                   c(metaprop.ran$lower.random, metaprop.ran$upper.random))
+summary_logodds.ci95 <- list(c(meta.ran.reml.hk$lower.random, meta.ran.reml.hk$upper.random),
+                             c(confint(onestep_bn)[2,c(1,2)]),
+                             c(confint(onestep_bb, component = "cond")[1,c(1,2)]))
 
-onestep_ci <- ci.calc(model_intercepts[3], model_se[3], 0.05) %>% list()
+tau <-
+  
+tau.ci95 <- 
+  
+i2 <- 
+  
+i2.ci95 <- 
 
-modelcomp_df <- append(precalc_ci , onestep_ci) %>% do.call(rbind.data.frame, . ) %>%
-  cbind.data.frame(model_intercepts)
-colnames(modelcomp_df) <- c('lower.ci' , 'upper.ci' , 'intercept')
+modelcomp_df <- 
 
 # Model Comparison: Does beta-binomial better represent overdispersion than binomial mode
 AIC(onestep_bn,onestep_bb)
