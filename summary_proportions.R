@@ -121,7 +121,7 @@ twostep.sum
 #    study heterogeneity, approx ML fit 
 # Laplace approximate ML estimation
 # assumes conditional independence and follow binomial distribution
-df_onestage <- onehotEncode(df, covar = "publication", names = publist)
+df_onestage <- onehotEncode(testset_df, covar = "publication", names = testlist)
 
 onestep_bi_strat <- glmer(multiple.founders ~ reported.exposure + Brooks_2020 + Leda_2020 + Liu_2020 + Macharia_2020 + 
                             Martinez_2020 + Rolland_2020 + VillabonaArenas_2020 + Sivay_2019 + 
@@ -139,10 +139,10 @@ onestep_bi_strat <- glmer(multiple.founders ~ reported.exposure + Brooks_2020 + 
                             SalazarGonzalez_2008 + Sagar_2006 + Derdeyn_2004 + Ritola_2004 + Sagar_2004 + 
                             Renjifo_2003 + Sagar_2003 + Verhofstede_2003 +  Delwart_2002 + Learn_2002 + 
                             Long_2002 + Nowak_2002 + Dickover_2001 + Long_2000 +Wade_1998 + Briant_1995 + 
-                            Poss_1995 + Wolinsky_1992 -1 + (reported.exposure - 1 | publication),
+                            Poss_1995 + Wolinsky_1992 + (reported.exposure | publication),
                           data = df_onestage,
                           family = binomial,
-                          control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 50000)))
+                          control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 100000)))
 
 # known warning 1: fixed-effect model matrix is rank deficient so dropping 1 column / coefficient boundary 
 # (singular) fit: see ?isSingular
@@ -165,8 +165,8 @@ onestep_bi_strat.sum <- summary(onestep_bi_strat)
 
 onestep_bi_ind <- glmer(multiple.founders ~ (1|publication) + (0+1|publication) ,
                         data = df,
-                        family = binomial,
-                        control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 50000)))
+                        family = binomial(link = "logit"),
+                        control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 100000)))
 
 onestep_bi_ind.sum <- summary(onestep_bi_ind)
 onestep_bi_ind.sum
