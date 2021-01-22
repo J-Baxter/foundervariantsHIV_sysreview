@@ -123,7 +123,7 @@ twostep.sum
 # assumes conditional independence and follow binomial distribution
 df_onestage <- onehotEncode(df, covar = "publication", names = publist)
 
-onestep_bi_strat <- glmer(multiple.founders ~ 1 + Brooks_2020 + Leda_2020 + Liu_2020 + Macharia_2020 + 
+onestep_bi_strat <- glmer(multiple.founders ~ reported.exposure + Brooks_2020 + Leda_2020 + Liu_2020 + Macharia_2020 + 
                             Martinez_2020 + Rolland_2020 + VillabonaArenas_2020 + Sivay_2019 + 
                             Todesco_2019 + Tovanabutra_2019 + Ashokkumar_2018 + Dukhovlinova_2018 + 
                             deCamp_2017 + Kijak_2017 + Lyer_2017  + AbigailSmith_2016 + Chaillon_2016 + 
@@ -139,7 +139,7 @@ onestep_bi_strat <- glmer(multiple.founders ~ 1 + Brooks_2020 + Leda_2020 + Liu_
                             SalazarGonzalez_2008 + Sagar_2006 + Derdeyn_2004 + Ritola_2004 + Sagar_2004 + 
                             Renjifo_2003 + Sagar_2003 + Verhofstede_2003 +  Delwart_2002 + Learn_2002 + 
                             Long_2002 + Nowak_2002 + Dickover_2001 + Long_2000 +Wade_1998 + Briant_1995 + 
-                            Poss_1995 + Wolinsky_1992 + (1 | publication),
+                            Poss_1995 + Wolinsky_1992 -1 + (reported.exposure - 1 | publication),
                           data = df_onestage,
                           family = binomial,
                           control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 50000)))
@@ -163,7 +163,7 @@ onestep_bi_strat.sum <- summary(onestep_bi_strat)
 # assumes conditional independence and follow binomial distribution
 # (1 | random.factor) + (0 + fixed.factor | random.factor) = fixed.factor + (fixed.factor || random.factor)
 
-onestep_bi_ind <- glmer(multiple.founders ~ (1|publication) + ((0+1|publication)) ,
+onestep_bi_ind <- glmer(multiple.founders ~ (1|publication) + (0+1|publication) ,
                         data = df,
                         family = binomial,
                         control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 50000)))
@@ -181,7 +181,7 @@ onestep_bi_ind.sum
 # Laplace approximate ML estimation
 
 #current issue NAs for all values other than estimate.
-df_props <- CalcProps(df)
+df_props <- CalcProps(df, reported.exposure)
 onestep_bb <- betabin(cbind(multiplefounders, subjects - multiplefounders) ~ 1, ~ 1, data = df_props)
 
 onestep_bb.sum <- summary(onestep_bb)
@@ -194,7 +194,7 @@ onestep_bb.sum
 summary_props <- c(step2_bn$beta,
                    onestep_bi_strat.sum$coefficients[1,1],
                    onestep_bi_ind.sum$coefficients[1,1], 
-                   onestep_bb.sum$coefficients$cond[1,1]) %>% transf.ilogit()
+                   onestep_bb@param[1]) %>% transf.ilogit()
   
 summary_props.ci95 <- list(c(meta.ran.reml.hk$lower.random, meta.ran.reml.hk$upper.random),
                              c(confint(onestep_bi)[2,c(1,2)]),
