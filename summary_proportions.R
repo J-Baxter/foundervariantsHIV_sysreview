@@ -114,6 +114,7 @@ step2_bn <- rma.uni(log_or, se,
 twostep.sum <- summary(step2_bn)
 twostep.sum
 
+
 ###################################################################################################
 
 # 2. One-step binomial GLMM allowing for clustering by study. stratified intercepts and random effects for between 
@@ -143,11 +144,15 @@ onestep_bi_strat <- glmer(multiple.founders ~ 1 + Brooks_2020 + Leda_2020 + Liu_
                           family = binomial,
                           control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 50000)))
 
-onestep_bi.sum <- summary(onestep_bi_strat)
-onestep_bi.sum
 # known warning 1: fixed-effect model matrix is rank deficient so dropping 1 column / coefficient boundary 
 # (singular) fit: see ?isSingular
 # known warning 2: maxfun < 10 * length(par)^2 is not recommended.
+
+onestep_bi_strat.sum <- summary(onestep_bi_strat)
+# known warning: In vcov.merMod(object, correlation = correlation, sigm = sig) :
+# variance-covariance matrix computed from finite-difference Hessian is
+# not positive definite or contains NA values: falling back to var-cov estimated from RX
+# onestep_bi_strat.sum
 
 
 ###################################################################################################
@@ -186,9 +191,10 @@ onestep_bb.sum
 ###################################################################################################
 
 # Model comparison: Estimated sumary effects (prop, CI), between study variance (tau, I^)
-summary_props <- c(meta.ran.reml.hk$TE.random, 
-                     onestep_bi.sum$coefficients[1,1], 
-                     onestep_bb.sum$coefficients$cond[1,1]) %>% transf.ilogit()
+summary_props <- c(step2_bn$beta,
+                   onestep_bi_strat.sum$coefficients[1,1],
+                   onestep_bi_ind.sum$coefficients[1,1], 
+                   onestep_bb.sum$coefficients$cond[1,1]) %>% transf.ilogit()
   
 summary_props.ci95 <- list(c(meta.ran.reml.hk$lower.random, meta.ran.reml.hk$upper.random),
                              c(confint(onestep_bi)[2,c(1,2)]),
