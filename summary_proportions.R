@@ -6,7 +6,7 @@
 #    for between study heterogeneity, approx ML fit
 # 3. One-step binomial GLMM allowing for clustering by study. uncorrelated random effects between studies
 #    (uncorrelated intercept and slope). approx ML fit
-# 4. One-step beta-binomial GLMM, dispersion param for study labels. Laplace approximate ML estimation
+# 4. Two-step beta-binomial GLMM, dispersion param for study labels. Laplace approximate ML estimation
 
 # estimations of mean effect size, confidence intervals and heterogeneity are presented 
 
@@ -120,27 +120,23 @@ twostep.sum
 
 ###################################################################################################
 
-# 2. One-step binomial GLMM allowing for clustering by study. stratified intercepts and random effects for between 
-#    study heterogeneity, approx ML fit 
+# 2. One-step binomial GLMM allowing for clustering by study. 
+# random slope of x within group with correlated intercept
 # Laplace approximate ML estimation
 # assumes conditional independence and follow binomial distribution
+
 df_onestage <- onehotEncode(df, covar = "publication", names = publist)
 
-onestep_bi_strat <- glmer(multiple.founders ~ 1 +  ( 1 + 1|publication),
-                           data = df_onestage,
+onestep_bi_strat <- glmer(multiple.founders ~  1 +  (1 |publication),
+                           data = df,
                            family = binomial(link = "logit"),
                            control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 100000)))
 
-# known warning 1: fixed-effect model matrix is rank deficient so dropping 1 column / coefficient boundary 
-# (singular) fit: see ?isSingular
-# known warning 2: maxfun < 10 * length(par)^2 is not recommended.
-
 onestep_bi_strat.sum <- summary(onestep_bi_strat)
-# known warning: In vcov.merMod(object, correlation = correlation, sigm = sig) :
-# variance-covariance matrix computed from finite-difference Hessian is
-# not positive definite or contains NA values: falling back to var-cov estimated from RX
-# onestep_bi_strat.sum
+onestep_bi_strat.sum
 
+onestep_bi_strat.tau2 <- VarCorr(onestep_bi_strat)[[1]][1] 
+onestep_bi_strat.tau2_se <- 
 
 ###################################################################################################
 
@@ -151,14 +147,15 @@ onestep_bi_strat.sum <- summary(onestep_bi_strat)
 # assumes conditional independence and follow binomial distribution
 # (1 | random.factor) + (0 + fixed.factor | random.factor) = fixed.factor + (fixed.factor || random.factor)
 
-onestep_bi_ind <- glmer(multiple.founders ~ reported.exposure + (1|publication) + (0+reported.exposure|publication) ,
+onestep_bi_rand <- glmer(multiple.founders ~  1 + (1|publication) + (0+1|publication)  ,
                         data = df,
                         family = binomial(link = "logit"),
                         control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 100000)))
 
-onestep_bi_ind.sum <- summary(onestep_bi_ind)
-onestep_bi_ind.sum
+onestep_bi_rand.sum <- summary(onestep_bi_rand)
+onestep_bi_rand.sum
 
+onestep_bi_rand.tau2 <- VarCorr(onestep_bi_rand)[[1]][1] 
 
 ###################################################################################################
 
@@ -168,26 +165,36 @@ onestep_bi_ind.sum
 # distribution B(ni;pi) (From Chuang-Stein 1993).
 # Laplace approximate ML estimation
 
-#current issue NAs for all values other than estimate.
 df_props <- CalcProps(df, reported.exposure)
-onestep_bb <- betabin(cbind(multiplefounders, subjects - multiplefounders) ~ 1, ~ 1, data = df_props)
+betabinom <- betabin(cbind(multiplefounders, subjects - multiplefounders) ~ 1, ~ 1, data = df_props)
 
-onestep_bb.sum <- summary(onestep_bb)
-onestep_bb.sum
+betabinom.sum <- summary(betabinom)
+betabinom.sum
 
-
+binom.ci <- varbin(subjects,multiplefounders, data = df_props)@tab[5,c(3,4)] #Bootstrapped Binomial CIs-check Chuang-Stein 1993
 ###################################################################################################
 
 # Model comparison: Estimated sumary effects (prop, CI), between study variance (tau, I^)
 summary_props <- c(step2_bn$beta,
                    onestep_bi_strat.sum$coefficients[1,1],
                    onestep_bi_ind.sum$coefficients[1,1], 
-                   onestep_bb@param[1]) %>% transf.ilogit()
+                   betabinom@param[1]) %>% 
+  as.numeric() %>% 
+  transf.ilogit()
   
-summary_props.ci95 <- list(c(meta.ran.reml.hk$lower.random, meta.ran.reml.hk$upper.random),
-                             c(confint(onestep_bi)[2,c(1,2)]),
-                             c(confint(onestep_bb, component = "cond")[1,c(1,2)])) %>% lapply(.,transf.ilogit)
+summary_props.ci95 <- list(c(step2_bn$ci.lb , step2_bn$ci.ub),
+                           c(confint(onestep_bi_strat)[2,c(1,2)]),
+                           c(confint(onestep_bi_rand)[2,c(1,2)]),
+                           binom.ci) %>% lapply(.,transf.ilogit)
 
+tau2 <- c(step2_bn$tau2, onestep_bi_strat.tau2, onestep_bi_rand.tau2 )
+
+tau2.ci <- 
+  
+I2 <- 
+  
+I2.ci <- 
+  
 
 modelcomp_df <- cbind.data.frame(c('meta.ran.reml.hk', 'onestep_bn', 'onestep_bb'),
                                  summary_props, sapply(summary_props.ci95, rbind.data.frame) %>% t())
