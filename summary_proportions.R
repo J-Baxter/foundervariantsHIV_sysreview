@@ -96,6 +96,9 @@ publist <- unique(df$publication)
 testlist <- c("Keele_2008", "Abrahams_2009", "Haaland_2009","Li_2010", "Janes_2015")#
 testset_df <- lapply(testlist, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
 
+#set seed
+set.seed(4472)
+
 
 ###################################################################################################
 
@@ -121,28 +124,12 @@ twostep.sum
 #    study heterogeneity, approx ML fit 
 # Laplace approximate ML estimation
 # assumes conditional independence and follow binomial distribution
-df_onestage <- onehotEncode(testset_df, covar = "publication", names = testlist)
+df_onestage <- onehotEncode(df, covar = "publication", names = publist)
 
-onestep_bi_strat <- glmer(multiple.founders ~ reported.exposure + Brooks_2020 + Leda_2020 + Liu_2020 + Macharia_2020 + 
-                            Martinez_2020 + Rolland_2020 + VillabonaArenas_2020 + Sivay_2019 + 
-                            Todesco_2019 + Tovanabutra_2019 + Ashokkumar_2018 + Dukhovlinova_2018 + 
-                            deCamp_2017 + Kijak_2017 + Lyer_2017  + AbigailSmith_2016 + Chaillon_2016 + 
-                            Novitsky_2016 +Oberle_2016 + SalazarGonzalez_2016 + Tully_2016 + 
-                            Chen_2015 + Danaviah_2015 + Deymier_2015 + Gounder_2015 + Janes_2015 + 
-                            Le_2015 + Zanini_2015 + Chaillon_2014 + Sterrett_2014  + Wagner_2014 +
-                            Baalwa_2013 + Frange_2013 + Henn_2012 + Kiwelu_2012 + Rossenkhan_2012 + 
-                            Sturdevant_2012 + CollinsFairclough_2011 + Cornelissen_2011 + Herbeck_2011 +
-                            Kishko_2011 + Nofemela_2011 + Novitsky_2011 + Rachinger_2011 + Rieder_2011 + 
-                            Rolland_2011 + Bar_2010 + Fischer_2010 + Li_2010 + Masharsky_2010 + 
-                            Zhang_2010 + Abrahams_2009 + Haaland_2009 + Kearney_2009 + Novitsky_2009 + 
-                            SalazarGonzalez_2009 + Gottlieb_2008 + Keele_2008 + Kwiek_2008 + 
-                            SalazarGonzalez_2008 + Sagar_2006 + Derdeyn_2004 + Ritola_2004 + Sagar_2004 + 
-                            Renjifo_2003 + Sagar_2003 + Verhofstede_2003 +  Delwart_2002 + Learn_2002 + 
-                            Long_2002 + Nowak_2002 + Dickover_2001 + Long_2000 +Wade_1998 + Briant_1995 + 
-                            Poss_1995 + Wolinsky_1992 + (reported.exposure | publication),
-                          data = df_onestage,
-                          family = binomial,
-                          control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 100000)))
+onestep_bi_strat <- glmer(multiple.founders ~ 1 +  ( 1 + 1|publication),
+                           data = df_onestage,
+                           family = binomial(link = "logit"),
+                           control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 100000)))
 
 # known warning 1: fixed-effect model matrix is rank deficient so dropping 1 column / coefficient boundary 
 # (singular) fit: see ?isSingular
@@ -157,13 +144,14 @@ onestep_bi_strat.sum <- summary(onestep_bi_strat)
 
 ###################################################################################################
 
-# 3. One-step binomial GLMM allowing for clustering by study. uncorrelated random effects between studies 
-#    (uncorrelated intercept and slope). approx ML fit
+# 3. One-step binomial GLMM allowing for clustering by study. 
+# uncorrelated random intercept and random slope within group 
+# approx ML fit
 # Laplace approximate ML estimation
 # assumes conditional independence and follow binomial distribution
 # (1 | random.factor) + (0 + fixed.factor | random.factor) = fixed.factor + (fixed.factor || random.factor)
 
-onestep_bi_ind <- glmer(multiple.founders ~ (1|publication) + (0+1|publication) ,
+onestep_bi_ind <- glmer(multiple.founders ~ reported.exposure + (1|publication) + (0+reported.exposure|publication) ,
                         data = df,
                         family = binomial(link = "logit"),
                         control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 100000)))
