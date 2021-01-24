@@ -84,6 +84,42 @@ BNstepOne <- function(data, study_id){
   return(agg.results)
 }
 
+CalcTwostepBiNorm <- function(data, study_list){
+  step1 <- lapply(study_list, BNstepOne , data = data) %>% do.call(rbind.data.frame,.)
+  step2 <- rma.uni(log_or, se, 
+                   data = step1,
+                   method = "REML",
+                   knha = TRUE, 
+                   measure = "PLO")
+  
+  list(step1, step2) %>%
+    return()
+}
+
+
+CalcOnestepBiStrat <- function(data){
+  model <- glmer(multiple.founders ~  1 +  ( 1 |publication),
+                 data = data,
+                 family = binomial(link = "logit"),
+                 control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 100000)))
+  return(model)
+}
+
+
+CalcOnestepBiRand <- function(data){
+  model <- glmer(multiple.founders ~  1 + (1|publication) + (0 + 1|publication),
+                 data = data,
+                 family = binomial(link = "logit"),
+                 control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 100000)))
+  return(model)
+}
+
+
+CalcTwostepBetaBi <- function(proportions){
+  model <- betabin(cbind(multiplefounders, subjects - multiplefounders) ~ 1, ~ 1, data = proportions)
+  return(model)
+}
+
 
 ###################################################################################################
 
@@ -106,15 +142,12 @@ set.seed(4472)
 # step 1: pooling within studies using binomial model/logit 
 # step 2: pooling across studies using random effects (normal model). Inverse variance method used to pool. 
 # REML estimator of Tau. 
-twostep_binorm.step1 <- lapply(publist, BNstepOne , data = df) %>% do.call(rbind.data.frame,.)
 
-twostep_binorm <- rma.uni(log_or, se, 
-                    data = twostep_binorm.step1,
-                    method = "REML",
-                    knha = TRUE, 
-                    measure = "PLO")
+twostep_binorm <- CalcTwostepBiNorm(df, publist)
+twostep_binorm.step1 <- twostep_binorm$step1
+twostep_binorm.step2 <- twostep_binorm$step2
 
-twostep_binorm.sum <- summary(twostep_binorm)
+twostep_binorm.sum <- summary(twostep_binorm.step2)
 twostep_binorm.sum
 
 
@@ -127,16 +160,13 @@ twostep_binorm.sum
 
 df_onestage <- onehotEncode(df, covar = "publication", names = publist)
 
-onestep_bi_strat <- glmer(multiple.founders ~  1 +  ( 1 |publication),
-                           data = df,
-                           family = binomial(link = "logit"),
-                           control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 100000)))
-
+onestep_bi_strat <- CalcOnestepBiStrat(df)
 onestep_bi_strat.sum <- summary(onestep_bi_strat)
 onestep_bi_strat.sum
 
 onestep_bi_strat.tau2 <- VarCorr(onestep_bi_strat)[[1]][1] 
 onestep_bi_strat.tau2_se <- 
+
 
 ###################################################################################################
 
@@ -147,11 +177,7 @@ onestep_bi_strat.tau2_se <-
 # assumes conditional independence and follow binomial distribution
 # (1 | random.factor) + (0 + fixed.factor | random.factor) = fixed.factor + (fixed.factor || random.factor)
 
-onestep_bi_rand <- glmer(multiple.founders ~  1 + (1|publication) + (0 + 1|publication)  ,
-                        data = df,
-                        family = binomial(link = "logit"),
-                        control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 100000)))
-
+onestep_bi_rand <- CalcOnestepBiRand(df) 
 onestep_bi_rand.sum <- summary(onestep_bi_rand)
 onestep_bi_rand.sum
 
@@ -165,8 +191,8 @@ onestep_bi_rand.tau2 <- VarCorr(onestep_bi_rand)[[1]][1]
 # distribution B(ni;pi) (From Chuang-Stein 1993).
 # Laplace approximate ML estimation
 
-df_props <- CalcProps(df, reported.exposure)
-twostep_betabi <- betabin(cbind(multiplefounders, subjects - multiplefounders) ~ 1, ~ 1, data = df_props)
+df_props <- CalcProps(df)
+twostep_betabi <- CalcTwostepBetaBi(df_props)
 
 twostep_betabi.sum <- summary(twostep_betabi)
 twostep_betabi.sum
@@ -204,11 +230,11 @@ colnames(modelcomp_df) <- c('model', 'proportions', 'props.ci95_lb', 'props.ci95
 
 
 ###################################################################################################
-
 # Sensitivity Analyses
 # 1. Impact of Individual Studies
 # 2. Exclusion of small sample sizes (less than n = 10)
-# 3. 
+# 3. Exclusion of studies with 0 multiple founder variants
+
 
 library(influence.ME)
 # 1. Impact of Individual Studies
@@ -218,15 +244,21 @@ onestep_bi_rand.influence <- influence.ME::influence(onestep_bi_rand , group = "
 twostep_betabi.influence 
 
 # 2. Exclusion of small sample sizes (less than n = 10)
-
-publist.nosmallsample <- subset(df_props , subjects > 9 , select = publication)
-df.nosmallsample <- subset(df, publication==publist.nosmallsample)
+publist.nosmallsample <- subset(df_props , subjects > 9 , select = publication) %>% pull(.,var=publication) %>% unique()
+df.nosmallsample <- lapply(publist.nosmallsample, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
 df_props.nosmallsample <- subset(df_props , subjects > 9)
 
-twostep_binorm.nosamllsample <-
-onestep_bi_strat.nosamllsample <- 
-onestep_bi_rand.nosamllsample <- 
-twostep_betabi.nosamllsample <- 
+twostep_binorm.nosamllsample <- CalcTwostepBiNorm(df.nosmallsample, publist.nosmallsample)
+onestep_bi_strat.nosamllsample <- CalcOnestepBiStrat(df.nosmallsample)
+onestep_bi_rand.nosamllsample <- CalcOnestepBiRand(df.nosmallsample)
+twostep_betabi.nosamllsample <- CalcTwostepBetaBi(df_props.nosmallsample)
+
+
+# 3. Exclusion of studies with 0 multiple founder variants
+
+
+
+# 4. Bootstrap replicates of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
 
 ###################################################################################################
 #Visualisation
@@ -241,6 +273,10 @@ ggplot(twostep_binorm.step1, aes(x=log_or)) + geom_histogram(binwidth = 0.25,col
 # Forest Plot 2-step BN
 
 
-#
+# Influence dot plot against summary proportion of founder variant multiplicity
+
+
+# Table summarising sensitivity analyses 2 & 3 compared to original estimations of effect size
+
 
 
