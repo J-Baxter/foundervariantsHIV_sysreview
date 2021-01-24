@@ -11,7 +11,7 @@
 # estimations of mean effect size, confidence intervals and heterogeneity are presented 
 
 
-#dependencies
+# Dependencies
 library(tidyr)
 library(lme4)
 library(dplyr)
@@ -20,6 +20,9 @@ library(data.table)
 library(metafor)
 library(dmetar)
 library(aod)
+library(ggplot2)
+library(influence.ME)
+
 
 # Formats data spreadsheet for analysis. Removes duplicates and NAs.
 formatDF <-  function(df){
@@ -236,7 +239,6 @@ colnames(modelcomp_df) <- c('model', 'proportions', 'props.ci95_lb', 'props.ci95
 # 3. Exclusion of studies with 0 multiple founder variants
 
 
-library(influence.ME)
 # 1. Impact of Individual Studies
 twostep_binorm.influence <- influence.rma.uni(twostep_binorm)
 onestep_bi_strat.influence <- influence.ME::influence(onestep_bi_strat , group = "publication")
@@ -255,16 +257,22 @@ twostep_betabi.nosamllsample <- CalcTwostepBetaBi(df_props.nosmallsample)
 
 
 # 3. Exclusion of studies with 0 multiple founder variants
+publist.nozeros <- subset(df_props , multiplefounders != 0 , select = publication) %>% pull(.,var=publication) %>% unique()
+df.nozeros <- lapply(publist.nozeros, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
+df_props.nozeros <- subset(df_props , multiplefounders != 0)
 
+twostep_binorm.nosamllsample <- CalcTwostepBiNorm(df.nozeros, publist.nozeros)
+onestep_bi_strat.nosamllsample <- CalcOnestepBiStrat(df.nozeros)
+onestep_bi_rand.nosamllsample <- CalcOnestepBiRand(df.nozeros)
+twostep_betabi.nosamllsample <- CalcTwostepBetaBi(df_props.nozeros)
 
 
 # 4. Bootstrap replicates of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
 
+
 ###################################################################################################
 #Visualisation
 
-# 
-library(ggplot2)
 
 # plot log odds of individual studies. should be normally distiributed to satisfy binomial-normal model.
 ggplot(twostep_binorm.step1, aes(x=log_or)) + geom_histogram(binwidth = 0.25,color="black", fill="white")+
