@@ -106,16 +106,16 @@ set.seed(4472)
 # step 1: pooling within studies using binomial model/logit 
 # step 2: pooling across studies using random effects (normal model). Inverse variance method used to pool. 
 # REML estimator of Tau. 
-step1_bn <- lapply(publist, BNstepOne , data = df) %>% do.call(rbind.data.frame,.)
+twostep_binorm.step1 <- lapply(publist, BNstepOne , data = df) %>% do.call(rbind.data.frame,.)
 
-step2_bn <- rma.uni(log_or, se, 
-                    data = step1_withinstudy,
+twostep_binorm <- rma.uni(log_or, se, 
+                    data = twostep_binorm.step1,
                     method = "REML",
                     knha = TRUE, 
                     measure = "PLO")
 
-step2_bn.sum <- summary(step2_bn)
-step2_bn.sum
+twostep_binorm.sum <- summary(twostep_binorm)
+twostep_binorm.sum
 
 
 ###################################################################################################
@@ -166,28 +166,28 @@ onestep_bi_rand.tau2 <- VarCorr(onestep_bi_rand)[[1]][1]
 # Laplace approximate ML estimation
 
 df_props <- CalcProps(df, reported.exposure)
-betabinom <- betabin(cbind(multiplefounders, subjects - multiplefounders) ~ 1, ~ 1, data = df_props)
+twostep_betabi <- betabin(cbind(multiplefounders, subjects - multiplefounders) ~ 1, ~ 1, data = df_props)
 
-betabinom.sum <- summary(betabinom)
-betabinom.sum
+twostep_betabi.sum <- summary(twostep_betabi)
+twostep_betabi.sum
 
 binom.ci <- varbin(subjects,multiplefounders, data = df_props)@tab[5,c(3,4)] #Bootstrapped Binomial CIs-check Chuang-Stein 1993
 ###################################################################################################
 
 # Model comparison: Estimated sumary effects (prop, CI), between study variance (tau, I^)
-summary_props <- c(step2_bn$beta,
+summary_props <- c(twostep_binorm$beta,
                    onestep_bi_strat.sum$coefficients[1,1],
                    onestep_bi_ind.sum$coefficients[1,1], 
-                   betabinom@param[1]) %>% 
+                   twostep_betabi@param[1]) %>% 
   as.numeric() %>% 
   transf.ilogit()
   
-summary_props.ci95 <- list(c(step2_bn$ci.lb , step2_bn$ci.ub),
+summary_props.ci95 <- list(c(twostep_binorm$ci.lb , twostep_binorm$ci.ub),
                            c(confint(onestep_bi_strat)[2,c(1,2)]),
                            c(confint(onestep_bi_rand)[2,c(1,2)]),
                            binom.ci) %>% lapply(.,transf.ilogit)
 
-tau2 <- c(step2_bn$tau2, onestep_bi_strat.tau2, onestep_bi_rand.tau2 )
+tau2 <- c(twostep_binorm$tau2, onestep_bi_strat.tau2, onestep_bi_rand.tau2 )
 
 tau2.ci <- 
   
@@ -204,13 +204,35 @@ colnames(modelcomp_df) <- c('model', 'proportions', 'props.ci95_lb', 'props.ci95
 
 
 ###################################################################################################
+
+# Sensitivity Analyses
+# 1. Impact of Individual Studies
+# 2. Exclusion of small sample sizes (less than n = 10)
+# 3. 
+
+library(influence.ME)
+# 1. Impact of Individual Studies
+twostep_binorm.influence <- influence.rma.uni(twostep_binorm)
+onestep_bi_strat.influence <- influence.ME::influence(onestep_bi_strat , group = "publication")
+onestep_bi_rand.influence <- influence.ME::influence(onestep_bi_rand , group = "publication")
+twostep_betabi.influence 
+
+# 2. Exclusion of small sample sizes (less than n = 10)
+
+
+###################################################################################################
 # Plots
 
 # 
 library(ggplot2)
 
 # plot log odds of individual studies. should be normally distiributed to satisfy binomial-normal model.
-ggplot(step1_bn, aes(x=log_or)) + geom_histogram(binwidth = 0.25,color="black", fill="white")+
+ggplot(twostep_binorm.step1, aes(x=log_or)) + geom_histogram(binwidth = 0.25,color="black", fill="white")+
   theme_classic() + scale_x_continuous(expand = c(0, 0)) + scale_y_continuous(expand = c(0, 0))
- 
+
+# Forest Plot 2-step BN
+
+
+#
+
 
