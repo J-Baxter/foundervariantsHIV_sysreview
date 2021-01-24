@@ -219,9 +219,17 @@ twostep_betabi.influence
 
 # 2. Exclusion of small sample sizes (less than n = 10)
 
+publist.nosmallsample <- subset(df_props , subjects > 9 , select = publication)
+df.nosmallsample <- subset(df, publication==publist.nosmallsample)
+df_props.nosmallsample <- subset(df_props , subjects > 9)
+
+twostep_binorm.nosamllsample <-
+onestep_bi_strat.nosamllsample <- 
+onestep_bi_rand.nosamllsample <- 
+twostep_betabi.nosamllsample <- 
 
 ###################################################################################################
-# Plots
+#Visualisation
 
 # 
 library(ggplot2)
