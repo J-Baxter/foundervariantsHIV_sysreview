@@ -147,8 +147,8 @@ set.seed(4472)
 # REML estimator of Tau. 
 
 twostep_binorm <- CalcTwostepBiNorm(df, publist)
-twostep_binorm.step1 <- twostep_binorm$step1
-twostep_binorm.step2 <- twostep_binorm$step2
+twostep_binorm.step1 <- twostep_binorm[[1]]
+twostep_binorm.step2 <- twostep_binorm[[2]]
 
 twostep_binorm.sum <- summary(twostep_binorm.step2)
 twostep_binorm.sum
@@ -204,17 +204,22 @@ binom.ci <- varbin(subjects,multiplefounders, data = df_props)@tab[5,c(3,4)] #Bo
 ###################################################################################################
 
 # Model comparison: Estimated sumary effects (prop, CI), between study variance (tau, I^)
-summary_props <- c(twostep_binorm$beta,
+summary_estimates <- c(twostep_binorm.step2$beta,
                    onestep_bi_strat.sum$coefficients[1,1],
                    onestep_bi_ind.sum$coefficients[1,1], 
                    twostep_betabi@param[1]) %>% 
   as.numeric() %>% 
-  transf.ilogit()
+  transf.ilogit() %>% cbind.data.frame()
+
   
-summary_props.ci95 <- list(c(twostep_binorm$ci.lb , twostep_binorm$ci.ub),
+summary_props.ci95 <- list(c(twostep_binorm.step2$ci.lb , twostep_binorm.step2$ci.ub),
                            c(confint(onestep_bi_strat)[2,c(1,2)]),
                            c(confint(onestep_bi_rand)[2,c(1,2)]),
-                           binom.ci) %>% lapply(.,transf.ilogit)
+                           binom.ci) %>% 
+  lapply(.,as.numeric) %>% 
+  lapply(.,transf.ilogit) %>% do.call(rbind.data.frame,.)
+
+##Errors with bi_rand and BB confidence intervals (values are completely wrong!)
 
 tau2 <- c(twostep_binorm$tau2, onestep_bi_strat.tau2, onestep_bi_rand.tau2 )
 
@@ -234,18 +239,18 @@ colnames(modelcomp_df) <- c('model', 'proportions', 'props.ci95_lb', 'props.ci95
 
 ###################################################################################################
 # Sensitivity Analyses
-# 1. Impact of Individual Studies
-# 2. Exclusion of small sample sizes (less than n = 10)
-# 3. Exclusion of studies with 0 multiple founder variants
+# Influence of Individual Studies
+# 1. Exclusion of small sample sizes (less than n = 10)
+# 2. Exclusion of studies with 0 multiple founder variants
 
 
-# 1. Impact of Individual Studies
+# Influence of Individual Studies
 twostep_binorm.influence <- influence.rma.uni(twostep_binorm)
 onestep_bi_strat.influence <- influence.ME::influence(onestep_bi_strat , group = "publication")
 onestep_bi_rand.influence <- influence.ME::influence(onestep_bi_rand , group = "publication")
-twostep_betabi.influence 
+twostep_betabi.influence #TBC
 
-# 2. Exclusion of small sample sizes (less than n = 10)
+# 1. Exclusion of small sample sizes (less than n = 10)
 publist.nosmallsample <- subset(df_props , subjects > 9 , select = publication) %>% pull(.,var=publication) %>% unique()
 df.nosmallsample <- lapply(publist.nosmallsample, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
 df_props.nosmallsample <- subset(df_props , subjects > 9)
@@ -256,7 +261,7 @@ onestep_bi_rand.nosamllsample <- CalcOnestepBiRand(df.nosmallsample)
 twostep_betabi.nosamllsample <- CalcTwostepBetaBi(df_props.nosmallsample)
 
 
-# 3. Exclusion of studies with 0 multiple founder variants
+# 2. Exclusion of studies with 0 multiple founder variants
 publist.nozeros <- subset(df_props , multiplefounders != 0 , select = publication) %>% pull(.,var=publication) %>% unique()
 df.nozeros <- lapply(publist.nozeros, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
 df_props.nozeros <- subset(df_props , multiplefounders != 0)
@@ -264,10 +269,10 @@ df_props.nozeros <- subset(df_props , multiplefounders != 0)
 twostep_binorm.nosamllsample <- CalcTwostepBiNorm(df.nozeros, publist.nozeros)
 onestep_bi_strat.nosamllsample <- CalcOnestepBiStrat(df.nozeros)
 onestep_bi_rand.nosamllsample <- CalcOnestepBiRand(df.nozeros)
-twostep_betabi.nosamllsample <- CalcTwostepBetaBi(df_props.nozeros)
+twostep_betabi.nosamllsample <- CalcTwostepBetaBi(df_props.nozeros) #expectation is this is no better than binomial models
 
 
-# 4. Bootstrap replicates of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
+# Bootstrap replicates of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
 
 
 ###################################################################################################
@@ -279,12 +284,18 @@ ggplot(twostep_binorm.step1, aes(x=log_or)) + geom_histogram(binwidth = 0.25,col
   theme_classic() + scale_x_continuous(expand = c(0, 0)) + scale_y_continuous(expand = c(0, 0))
 
 # Forest Plot 2-step BN
-
+forest()
 
 # Influence dot plot against summary proportion of founder variant multiplicity
 
 
-# Table summarising sensitivity analyses 2 & 3 compared to original estimations of effect size
-
+# Table summarising sensitivity analyses 1 & 2 compared to original estimations of effect size
+sensitivity_df <- cbind.data.frame("Summary Estimate" = summary_props,
+                                   "Summary 95% CIs" = summary_props.ci95,
+                                   "Sensitivity Analysis 1: Minimum 10 Subjects per Study" = ,
+                                   "Sensitivity Analysis 1: Minimum 10 Subjects per Study 95% CIs" =,
+                                   "Sensitivity Analysis 2: Exclusion 0 MF Studies" = ,
+                                   "Sensitivity Analysis 2: Exclusion 0 MF Studies 95% CIs" =,
+                                   )
 
 
