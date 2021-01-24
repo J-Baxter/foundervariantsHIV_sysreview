@@ -114,8 +114,8 @@ step2_bn <- rma.uni(log_or, se,
                     knha = TRUE, 
                     measure = "PLO")
 
-twostep.sum <- summary(step2_bn)
-twostep.sum
+step2_bn.sum <- summary(step2_bn)
+step2_bn.sum
 
 
 ###################################################################################################
@@ -127,7 +127,7 @@ twostep.sum
 
 df_onestage <- onehotEncode(df, covar = "publication", names = publist)
 
-onestep_bi_strat <- glmer(multiple.founders ~  1 +  (1 |publication),
+onestep_bi_strat <- glmer(multiple.founders ~  1 +  ( 1 |publication),
                            data = df,
                            family = binomial(link = "logit"),
                            control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 100000)))
@@ -147,7 +147,7 @@ onestep_bi_strat.tau2_se <-
 # assumes conditional independence and follow binomial distribution
 # (1 | random.factor) + (0 + fixed.factor | random.factor) = fixed.factor + (fixed.factor || random.factor)
 
-onestep_bi_rand <- glmer(multiple.founders ~  1 + (1|publication) + (0+1|publication)  ,
+onestep_bi_rand <- glmer(multiple.founders ~  1 + (1|publication) + (0 + 1|publication)  ,
                         data = df,
                         family = binomial(link = "logit"),
                         control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 100000)))
@@ -196,19 +196,21 @@ I2 <-
 I2.ci <- 
   
 
-modelcomp_df <- cbind.data.frame(c('meta.ran.reml.hk', 'onestep_bn', 'onestep_bb'),
+modelcomp_df <- cbind.data.frame(c('2step.binorm', '1step_bn_strat', '1step_bn_rand', 'betabinom'),
                                  summary_props, sapply(summary_props.ci95, rbind.data.frame) %>% t())
 
-colnames(modelcomp_df) <- c('model', 'proportions', 'props.ci95_lower', 'props.ci95_upper')
+colnames(modelcomp_df) <- c('model', 'proportions', 'props.ci95_lb', 'props.ci95_ub', 'tau2' , 'tau2.ci95_lb', 
+                            'tau2.ci95_ub', I2, I2.ci95_lb, I2.ci95_ub, Q)
 
-comp.table <- as_tibble(modelcomp_df)
 
+###################################################################################################
+# Plots
 
-# Model Comparison: Does beta-binomial better represent overdispersion than binomial mode
-AIC(onestep_bi,onestep_bb)
-lrtest(onestep_bi,onestep_bb)
+# 
+library(ggplot2)
 
-# Influence analyses
-
+# plot log odds of individual studies. should be normally distiributed to satisfy binomial-normal model.
+ggplot(step1_bn, aes(x=log_or)) + geom_histogram(binwidth = 0.25,color="black", fill="white")+
+  theme_classic() + scale_x_continuous(expand = c(0, 0)) + scale_y_continuous(expand = c(0, 0))
  
 
