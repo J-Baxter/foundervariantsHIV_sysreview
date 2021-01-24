@@ -124,6 +124,31 @@ CalcTwostepBetaBi <- function(proportions){
 }
 
 
+CalcEstimates <- function(model1, model2, model3, model4){
+  summary_estimates <- c(model1$beta,
+                         summary(model2)$coefficients[1,1],
+                         summary(model3)$coefficients[1,1], 
+                         model4@param[1]) %>% 
+    as.numeric() %>% 
+    transf.ilogit() %>% cbind.data.frame()
+  
+  binom.ci <- varbin(subjects,multiplefounders, data = df_props)@tab[5,c(3,4)] 
+  #Bootstrapped Binomial CIs-check Chuang-Stein 1993
+  
+  summary_props.ci95 <- list(c(model1$ci.lb , model1$ci.ub),
+                             c(confint(model2)[2,c(1,2)]),
+                             c(confint(model3)[2,c(1,2)]),
+                             binom.ci) %>% 
+    lapply(.,as.numeric) %>% 
+    lapply(.,transf.ilogit) %>% do.call(rbind.data.frame,.)
+  
+  results <- cbind.data.frame("Estimate" = summary_props,
+                              "95% CI Lower" = summary_props.ci95[,1],
+                              "95% CI Lower" = summary_props.ci95[,2])
+  return(results)
+}
+
+
 ###################################################################################################
 
 # Import data
@@ -200,24 +225,12 @@ twostep_betabi <- CalcTwostepBetaBi(df_props)
 twostep_betabi.sum <- summary(twostep_betabi)
 twostep_betabi.sum
 
-binom.ci <- varbin(subjects,multiplefounders, data = df_props)@tab[5,c(3,4)] #Bootstrapped Binomial CIs-check Chuang-Stein 1993
+ 
 ###################################################################################################
 
 # Model comparison: Estimated sumary effects (prop, CI), between study variance (tau, I^)
-summary_estimates <- c(twostep_binorm.step2$beta,
-                   onestep_bi_strat.sum$coefficients[1,1],
-                   onestep_bi_ind.sum$coefficients[1,1], 
-                   twostep_betabi@param[1]) %>% 
-  as.numeric() %>% 
-  transf.ilogit() %>% cbind.data.frame()
+summary_results <- CalcEstimates(twostep_binorm.step2,onestep_bi_strat,onestep_bi_ind,twostep_betabi)
 
-  
-summary_props.ci95 <- list(c(twostep_binorm.step2$ci.lb , twostep_binorm.step2$ci.ub),
-                           c(confint(onestep_bi_strat)[2,c(1,2)]),
-                           c(confint(onestep_bi_rand)[2,c(1,2)]),
-                           binom.ci) %>% 
-  lapply(.,as.numeric) %>% 
-  lapply(.,transf.ilogit) %>% do.call(rbind.data.frame,.)
 
 ##Errors with bi_rand and BB confidence intervals (values are completely wrong!)
 
