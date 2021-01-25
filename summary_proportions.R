@@ -264,7 +264,7 @@ colnames(modelcomp_df) <- c('model', 'proportions', 'props.ci95_lb', 'props.ci95
 
 
 # Influence of Individual Studies
-twostep_binorm.influence <- influence.rma.uni(twostep_binorm)
+twostep_binorm.influence <- influence.rma.uni(twostep_binorm.step2)
 onestep_bi_strat.influence <- influence.ME::influence(onestep_bi_strat , group = "publication")
 onestep_bi_rand.influence <- influence.ME::influence(onestep_bi_rand , group = "publication")
 twostep_betabi.influence #TBC
@@ -313,11 +313,12 @@ ggplot(twostep_binorm.step1, aes(x=log_or)) + geom_histogram(binwidth = 0.25,col
   theme_classic() + scale_x_continuous(expand = c(0, 0)) + scale_y_continuous(expand = c(0, 0))
 
 # Forest Plot 2-step BN
-forest(twostep_binorm.step2 , showweights = TRUE, slab = publist , transf = transf.ilogit, header = TRUE, digits = 3,
-       refline = 0.283, ilab = cbind(df_props$multiplefounders, df_props$subjects), ilab.xpos = c(-0.8, -0.4)
+pdf("testplot.pdf" , width = 14 , height = 20)
+forest(twostep_binorm.step2 , showweights = TRUE, slab = sort(publist) , transf = transf.ilogit, header = TRUE, digits = 3,
+       refline = 0.283, ilab = cbind(df_props$multiplefounders, df_props$subjects), ilab.xpos = c(-0.9, -0.4), 
        )
-text(c(-0.8,-0.4), 79, c('Multiple Founders' , 'Subjects') , font = 2 , cex = 0.6)
-#Ordering of study labels
+text(c(-0.9,-0.4), 79, c('Multiple Founders' , 'Subjects') , font = 2)
+dev.off()
 
 
 # Influence dot plot against summary proportion of founder variant multiplicity
