@@ -22,6 +22,7 @@ library(dmetar)
 library(aod)
 library(ggplot2)
 library(influence.ME)
+library(kableExtra)
 
 
 # Formats data spreadsheet for analysis. Removes duplicates and NAs.
@@ -124,7 +125,7 @@ CalcTwostepBetaBi <- function(proportions){
 }
 
 
-CalcEstimates <- function(model1, model2, model3, model4, itername){
+CalcEstimates <- function(model1, model2, model3, model4){
   summary_estimates <- c(model1$beta,
                          summary(model2)$coefficients[1,1],
                          summary(model3)$coefficients[1,1], 
@@ -146,7 +147,7 @@ CalcEstimates <- function(model1, model2, model3, model4, itername){
                               summary_props.ci95[,1],
                               summary_props.ci95[,2])
   
-  colnames(results) <- c(paste0(itername,".Estimate"), paste0(itername,".95% CI Lower"),paste0(itername,".95% CI Upper") )
+  colnames(results) <- c("Estimate", "95% CI Lower", "95% CI Upper" )
   return(results)
 }
 
@@ -234,8 +235,7 @@ twostep_betabi.sum
 summary_results <- CalcEstimates(twostep_binorm.step2,
                                  onestep_bi_strat,
                                  onestep_bi_ind,
-                                 twostep_betabi,
-                                 itername = 'summary')
+                                 twostep_betabi)
 
 
 ##Errors with bi_rand and BB confidence intervals (values are completely wrong!)
@@ -282,8 +282,7 @@ twostep_betabi.nosamllsample <- CalcTwostepBetaBi(df_props.nosmallsample)
 SA1_results <- CalcEstimates(twostep_binorm.nosamllsample[[2]],
                              onestep_bi_strat.nosamllsample,
                              onestep_bi_rand.nosamllsample,
-                             twostep_betabi.nosamllsample,
-                             itername = 'SA1')
+                             twostep_betabi.nosamllsample)
 
 
 # 2. Exclusion of studies with 0 multiple founder variants
@@ -299,8 +298,7 @@ twostep_betabi.nozeros <- CalcTwostepBetaBi(df_props.nozeros) #expectation is th
 SA2_results <- CalcEstimates(twostep_binorm.nozeros[[2]],
                              onestep_bi_strat.nozeros,
                              onestep_bi_rand.nozeros,
-                             twostep_betabi.nozeros,
-                             itername = 'SA2')
+                             twostep_betabi.nozeros)
 
 
 # Bootstrap replicates of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
@@ -321,36 +319,22 @@ forest()
 
 
 # Table summarising sensitivity analyses 1 & 2 compared to original estimations of effect size
-models <- c('Two-Step Binomial Normal',
+Models <- c('Two-Step Binomial Normal',
             'One-Step Binomial (random slope) and correlated intercept',
             'One-Step Binomial (uncorrelated random intercept and slope)',
             "Two-Step Beta-Binomial")
 
-sensitivity_df <- cbind.data.frame(models,
+sensitivity_df <- cbind.data.frame(Models,
                                    summary_results,
                                    SA1_results,
                                    SA2_results)
 
-gt_tbl <- 
-  sensitivity_df %>%
-  gt(rowname_col = "models") %>%
-  tab_stubhead(label = 'Model') %>%
-  tab_spanner(label = 'Summary Estimate \n',
-              columns = vars(summary.Estimate, `summary.95% CI Lower`, `summary.95% CI Upper`)) %>%
-  tab_spanner(label = 'Exclusion of Small (<10) Studies',
-              columns = vars(SA1.Estimate, `SA1.95% CI Lower`, `SA1.95% CI Upper`)) %>%
-  tab_spanner(label = 'Exclusion of Studies that report 0 MF',
-              columns = vars(SA2.Estimate, `SA2.95% CI Lower`, `SA2.95% CI Upper`)) %>%
-  cols_label(summary.Estimate = 'Estimate', `summary.95% CI Lower` = '95% CI Lower', `summary.95% CI Upper`= '95% CI Upper',
-             SA1.Estimate = 'Estimate', `SA1.95% CI Lower` = '95% CI Lower', `SA1.95% CI Upper` = '95% CI Upper', 
-             SA2.Estimate = 'Estimate', `SA2.95% CI Lower` = '95% CI Lower' , `SA2.95% CI Upper` = '95% CI Upper') %>%
-  fmt_number(columns = 1:9, decimals = 3) %>%
-  tab_options(table_body.hlines.color = 'black',
-              table_body.vlines.color = "black",
-              column_labels.border.top.color = "black",
-              column_labels.border.bottom.color = "black",
-              table.border.bottom.color = "black",
-              table.border.left.color = 'black',
-              )
+tbl <- kbl(sensitivity_df) %>%
+  kable_classic(html_font = "Arial") %>%
+  add_header_above(c(" " = 1, 
+                     'Summary Estimate' = 3,
+                     'Exclusion of Small (<10) Studies' = 3,
+                     'Exclusion of Studies reporting 0 MF' = 3))
   
-gt_tbl
+  
+tbl#modify to include number of papers in each analyses
