@@ -124,7 +124,7 @@ CalcTwostepBetaBi <- function(proportions){
 }
 
 
-CalcEstimates <- function(model1, model2, model3, model4){
+CalcEstimates <- function(model1, model2, model3, model4, itername){
   summary_estimates <- c(model1$beta,
                          summary(model2)$coefficients[1,1],
                          summary(model3)$coefficients[1,1], 
@@ -142,9 +142,11 @@ CalcEstimates <- function(model1, model2, model3, model4){
     lapply(.,as.numeric) %>% 
     lapply(.,transf.ilogit) %>% do.call(rbind.data.frame,.)
   
-  results <- cbind.data.frame("Estimate" = summary_props,
-                              "95% CI Lower" = summary_props.ci95[,1],
-                              "95% CI Lower" = summary_props.ci95[,2])
+  results <- cbind.data.frame(summary_props,
+                              summary_props.ci95[,1],
+                              summary_props.ci95[,2])
+  
+  colnames(results) <- c(paste0(itername,".Estimate"), paste0(itername,".95% CI Lower"),paste0(itername,".95% CI Upper") )
   return(results)
 }
 
@@ -229,7 +231,11 @@ twostep_betabi.sum
 ###################################################################################################
 
 # Model comparison: Estimated sumary effects (prop, CI), between study variance (tau, I^)
-summary_results <- CalcEstimates(twostep_binorm.step2,onestep_bi_strat,onestep_bi_ind,twostep_betabi)
+summary_results <- CalcEstimates(twostep_binorm.step2,
+                                 onestep_bi_strat,
+                                 onestep_bi_ind,
+                                 twostep_betabi,
+                                 itername = 'summary')
 
 
 ##Errors with bi_rand and BB confidence intervals (values are completely wrong!)
@@ -273,16 +279,28 @@ onestep_bi_strat.nosamllsample <- CalcOnestepBiStrat(df.nosmallsample)
 onestep_bi_rand.nosamllsample <- CalcOnestepBiRand(df.nosmallsample)
 twostep_betabi.nosamllsample <- CalcTwostepBetaBi(df_props.nosmallsample)
 
+SA1_results <- CalcEstimates(twostep_binorm.nosamllsample[[2]],
+                             onestep_bi_strat.nosamllsample,
+                             onestep_bi_rand.nosamllsample,
+                             twostep_betabi.nosamllsample,
+                             itername = 'SA1')
+
 
 # 2. Exclusion of studies with 0 multiple founder variants
 publist.nozeros <- subset(df_props , multiplefounders != 0 , select = publication) %>% pull(.,var=publication) %>% unique()
 df.nozeros <- lapply(publist.nozeros, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
 df_props.nozeros <- subset(df_props , multiplefounders != 0)
 
-twostep_binorm.nosamllsample <- CalcTwostepBiNorm(df.nozeros, publist.nozeros)
-onestep_bi_strat.nosamllsample <- CalcOnestepBiStrat(df.nozeros)
-onestep_bi_rand.nosamllsample <- CalcOnestepBiRand(df.nozeros)
-twostep_betabi.nosamllsample <- CalcTwostepBetaBi(df_props.nozeros) #expectation is this is no better than binomial models
+twostep_binorm.nozeros <- CalcTwostepBiNorm(df.nozeros, publist.nozeros)
+onestep_bi_strat.nozeros <- CalcOnestepBiStrat(df.nozeros)
+onestep_bi_rand.nozeros <- CalcOnestepBiRand(df.nozeros)
+twostep_betabi.nozeros <- CalcTwostepBetaBi(df_props.nozeros) #expectation is this is no better than binomial models
+
+SA2_results <- CalcEstimates(twostep_binorm.nozeros[[2]],
+                             onestep_bi_strat.nozeros,
+                             onestep_bi_rand.nozeros,
+                             twostep_betabi.nozeros,
+                             itername = 'SA2')
 
 
 # Bootstrap replicates of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
@@ -303,12 +321,36 @@ forest()
 
 
 # Table summarising sensitivity analyses 1 & 2 compared to original estimations of effect size
-sensitivity_df <- cbind.data.frame("Summary Estimate" = summary_props,
-                                   "Summary 95% CIs" = summary_props.ci95,
-                                   "Sensitivity Analysis 1: Minimum 10 Subjects per Study" = ,
-                                   "Sensitivity Analysis 1: Minimum 10 Subjects per Study 95% CIs" =,
-                                   "Sensitivity Analysis 2: Exclusion 0 MF Studies" = ,
-                                   "Sensitivity Analysis 2: Exclusion 0 MF Studies 95% CIs" =,
-                                   )
+models <- c('Two-Step Binomial Normal',
+            'One-Step Binomial (random slope) and correlated intercept',
+            'One-Step Binomial (uncorrelated random intercept and slope)',
+            "Two-Step Beta-Binomial")
 
+sensitivity_df <- cbind.data.frame(models,
+                                   summary_results,
+                                   SA1_results,
+                                   SA2_results)
 
+gt_tbl <- 
+  sensitivity_df %>%
+  gt(rowname_col = "models") %>%
+  tab_stubhead(label = 'Model') %>%
+  tab_spanner(label = 'Summary Estimate \n',
+              columns = vars(summary.Estimate, `summary.95% CI Lower`, `summary.95% CI Upper`)) %>%
+  tab_spanner(label = 'Exclusion of Small (<10) Studies',
+              columns = vars(SA1.Estimate, `SA1.95% CI Lower`, `SA1.95% CI Upper`)) %>%
+  tab_spanner(label = 'Exclusion of Studies that report 0 MF',
+              columns = vars(SA2.Estimate, `SA2.95% CI Lower`, `SA2.95% CI Upper`)) %>%
+  cols_label(summary.Estimate = 'Estimate', `summary.95% CI Lower` = '95% CI Lower', `summary.95% CI Upper`= '95% CI Upper',
+             SA1.Estimate = 'Estimate', `SA1.95% CI Lower` = '95% CI Lower', `SA1.95% CI Upper` = '95% CI Upper', 
+             SA2.Estimate = 'Estimate', `SA2.95% CI Lower` = '95% CI Lower' , `SA2.95% CI Upper` = '95% CI Upper') %>%
+  fmt_number(columns = 1:9, decimals = 3) %>%
+  tab_options(table_body.hlines.color = 'black',
+              table_body.vlines.color = "black",
+              column_labels.border.top.color = "black",
+              column_labels.border.bottom.color = "black",
+              table.border.bottom.color = "black",
+              table.border.left.color = 'black',
+              )
+  
+gt_tbl
