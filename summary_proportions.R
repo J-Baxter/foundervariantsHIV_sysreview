@@ -263,10 +263,27 @@ colnames(modelcomp_df) <- c('model', 'proportions', 'props.ci95_lb', 'props.ci95
 # 2. Exclusion of studies with 0 multiple founder variants
 
 
-# Influence of Individual Studies
-twostep_binorm.influence <- influence.rma.uni(twostep_binorm.step2)
-onestep_bi_strat.influence <- influence.ME::influence(onestep_bi_strat , group = "publication")
-onestep_bi_rand.influence <- influence.ME::influence(onestep_bi_rand , group = "publication")
+# Influence of Individual Studies (LOOCV)
+
+LOOCV.dat <- function(data){
+  pubs <- unique(data$publication)
+  loo <- list()
+  loo.pubs <- list()
+  
+  for (i in pubs){
+    loo[[i]] <- data[data$publication != i, ]
+    loo.pubs[[i]] <- pubs[pubs != i]
+  }
+  out <- list(loo, loo.pubs)
+  return(out)
+}
+
+df_loo <- LOOCV.dat(df)[[1]]
+publist_loo <- LOOCV.dat(df)[[2]]
+
+twostep_binorm.influence <- mapply(function(x,y) CalcTwostepBiNorm(data = x, publist = y), x = df_loo , y = publist_loo)
+onestep_bi_strat.influence <- lapply(df_loo, )
+onestep_bi_rand.influence <-  lapply(df_loo, )
 twostep_betabi.influence #TBC
 
 # 1. Exclusion of small sample sizes (less than n = 10)
