@@ -125,7 +125,7 @@ CalcTwostepBetaBi <- function(proportions){
 }
 
 
-CalcEstimates <- function(model1, model2, model3, model4){
+CalcEstimates <- function(model1, model2, model3, model4){#can potentially refactor around DFInfluence
   summary_estimates <- c(model1$beta,
                          summary(model2)$coefficients[1,1],
                          summary(model3)$coefficients[1,1], 
@@ -149,6 +149,83 @@ CalcEstimates <- function(model1, model2, model3, model4){
   
   colnames(results) <- c("Estimate", "95% CI Lower", "95% CI Upper" )
   return(results)
+}
+
+LOOCV.dat <- function(data){
+  pubs <- unique(data$publication)
+  loo <- list()
+  loo.pubs <- list()
+  
+  for (i in pubs){
+    loo[[i]] <- data[data$publication != i, ]
+    loo.pubs[[i]] <- pubs[pubs != i]
+  }
+  out <- list(loo, loo.pubs)
+  stopifnot(length(loo) == length(loo.pubs))
+  return(out)
+}
+
+
+DFInfluence <- function(model){
+  beta = numeric()
+  ci.lb = numeric()
+  ci.ub = numeric() 
+  
+  if (class(model[[1]]) == "rma" || class(model[[1]]) == "rma.uni"){
+    for (i in 1:length(model)){
+      beta[i] <- model[[i]]$beta
+      ci.lb[i] <-model[[i]]$ci.lb
+      ci.ub[i] <- model[[i]]$ci.ub
+    }
+  }else if (class(model[[1]]) =="glmerMod"){
+    for (i in 1:length(model)){
+      beta[i] <- summary(model[[i]])$coefficients[1,1]
+      ci.lb[i] <-confint(model[[i]])[2,1]
+      ci.ub[i] <- confint(model[[i]])[2,2]
+    }
+  }else if (class(model[[1]]) =="glmerMod"){
+    for (i in 1:length(model)){
+      beta[i] <- model[[i]]@param[1]
+      #ci.lb[i] <-
+      #ci.ub[i] <- 
+    }
+  }else{
+    stop('no valid model detected.')
+  }
+  
+  influence_out <- cbind.data.frame('trial'= paste("Omitting" ,unique(df$publication), sep = " ") %>% as.factor(),
+                                    "estimate" = transf.ilogit(beta),
+                                    "ci.lb" = transf.ilogit(ci.lb),
+                                    "ci.ub"= transf.ilogit(ci.ub)) 
+  return(influence_out)
+}
+
+
+PlotInfluence <- function(df, original){
+  influence.labs <- paste0(round(df$estimate, digits = 3), " " ,"[",round(df$ci.lb, digits= 3), "-" ,round(df$ci.lb,digits= 3), "]")
+  
+  orig.estimate <- original[1]
+  orig.ci.lb <- original[2]
+  orig.ci.ub <- original[3]
+  
+  plt <- ggplot(df,aes(x = trial , y = estimate) ) +
+    geom_point() + 
+    scale_y_continuous(limits=c(0,0.75),expand = c(0, 0)) +
+    scale_x_discrete()+
+    theme_classic() + 
+    coord_flip()+
+    geom_errorbar(aes(x = trial ,ymin=ci.lb, ymax=ci.ub))+
+    annotate( "rect", xmin=0, xmax=Inf, ymin=orig.ci.lb, ymax=orig.ci.ub ,alpha = .2, fill = 'blue') +
+    geom_hline(yintercept = orig.estimate,linetype="dashed", 
+               color = "blue", size=0.5)+
+    annotate("text", label = influence.labs, x = influence_out$trial , y = 0.7, size = 2.5, colour = "black", hjust = 1)+
+    theme(
+      axis.line.y =element_blank(),
+      axis.title.y =element_blank(),
+      axis.ticks.y=element_blank()
+    )
+  
+  print(plt)
 }
 
 
@@ -266,74 +343,37 @@ colnames(modelcomp_df) <- c('model', 'proportions', 'props.ci95_lb', 'props.ci95
 
 
 # Influence of Individual Studies (LOOCV)
-LOOCV.dat <- function(data){
-  pubs <- unique(data$publication)
-  loo <- list()
-  loo.pubs <- list()
-  
-  for (i in pubs){
-    loo[[i]] <- data[data$publication != i, ]
-    loo.pubs[[i]] <- pubs[pubs != i]
-  }
-  out <- list(loo, loo.pubs)
-  stopifnot(length(loo) == length(loo.pubs))
-  return(out)
-}
+df_loocv <- LOOCV.dat(df)[[1]]
+publist_loocv <- LOOCV.dat(df)[[2]]
 
-df_loo <- LOOCV.dat(df)[[1]]
-publist_loo <- LOOCV.dat(df)[[2]]
-twostep_binorm.influence <- mapply(function(x,y) CalcTwostepBiNorm(data = x, study_list = y)[[2]] , x = df_loo , y = publist_loo, SIMPLIFY = FALSE)
-
-asDFInfluence <- function(){
-  beta = numeric()
-  ci.lb = numeric()
-  ci.ub = numeric() 
-  
-  for (i in 1:length(twostep_binorm.influence)){
-    beta[i] <- twostep_binorm.influence[[i]]$beta
-    ci.lb[i] <-twostep_binorm.influence[[i]]$ci.lb
-    ci.ub[i] <- twostep_binorm.influence[[i]]$ci.ub
-  }
-  
-  influence_out <- cbind.data.frame('trial'= paste("Omitting" ,unique(df$publication), sep = " ") %>% as.factor(),
-                                    "estimate" = transf.ilogit(beta),
-                                    "ci.lb" = transf.ilogit(ci.lb),
-                                    "ci.ub"= transf.ilogit(ci.ub)) 
-  
-  return(influence_out)
-}
-
-
-PlotInfluence <- function(...){
-  influence.labs <- paste0(round(influence_out$estimate, digits = 3), " " ,"[",round(influence_out$ci.lb, digits= 3), "-" ,round(influence_out$ci.lb,digits= 3), "]")
-
-  plt <- ggplot(influence_out,aes(x = trial , y = estimate) ) +
-    geom_point() + 
-    scale_y_continuous(limits=c(0,0.75),expand = c(0, 0)) +
-    scale_x_discrete()+
-    theme_classic() + 
-    coord_flip()+
-    geom_errorbar(aes(x = trial ,ymin=ci.lb, ymax=ci.ub))+
-    annotate( "rect", xmin=0, xmax=Inf, ymin=0.242, ymax=0.328 ,alpha = .2, fill = 'blue') +
-    geom_hline(yintercept = 0.283,linetype="dashed", 
-               color = "blue", size=0.5)+
-    annotate("text", label = influence.labs, x = influence_out$trial , y = 0.7, size = 2.5, colour = "black", hjust = 1)+
-    theme(
-      axis.line.y =element_blank(),
-      axis.title.y =element_blank(),
-      axis.ticks.y=element_blank()
-    )
-  
-  print(plt)
-}
+twostep_binorm.influence <- mapply(function(x,y) CalcTwostepBiNorm(data = x, study_list = y)[[2]] , x = df_loocv , y = publist_loocv, SIMPLIFY = FALSE) %>%
+  DFInfluence()
 
 pdf("testinfluence.pdf" , width = 14 , height = 20) 
+PlotInfluence(twostep_binorm.influence)
+dev.off()
+
+onestep_bi_strat.influence <- lapply(df_loo ,CalcOnestepBiStrat) %>%
+  DFInfluence()
+
+pdf("testinfluence.pdf" , width = 14 , height = 20) 
+PlotInfluence(onestep_bi_strat.influence)
+dev.off()
+
+onestep_bi_rand.influence <-  lapply(df_loo ,CalcOnestepBiRand) %>%
+  DFInfluence()##TBC due to CIs
+
+pdf("testinfluence.pdf" , width = 14 , height = 20) 
+PlotInfluence(onestep_bi_rand.influence)
+dev.off()
+
+twostep_betabi.influence <-  lapply(df_loo ,CalcOnestepBiRand) %>%
+  DFInfluence() ##TBC due to CIs
+
+pdf("testinfluence.pdf" , width = 14 , height = 20) 
+PlotInfluence(twostep_betabi.influence)
 dev.off()
   
-
-onestep_bi_strat.influence <- mapply(function(x,y) CalcOnestepBiStrat(data = x, study_list = y)[[2]] , x = df_loo , y = publist_loo, SIMPLIFY = FALSE)
-onestep_bi_rand.influence <-  mapply(function(x,y) CalcOnestepBiRand(data = x, study_list = y)[[2]] , x = df_loo , y = publist_loo, SIMPLIFY = FALSE)
-twostep_betabi.influence #TBC
 
 # 1. Exclusion of small sample sizes (less than n = 10)
 publist.nosmallsample <- subset(df_props , subjects > 9 , select = publication) %>% pull(.,var=publication) %>% unique()
