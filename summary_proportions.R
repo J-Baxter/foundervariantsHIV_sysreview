@@ -35,7 +35,7 @@ formatDF <-  function(df){
   }
   df_nona <- df[!is.na(df$multiple.founders),]
   df_nodups <- df_nona[(df_nona$include.main == '') & (df_nona$exclude.repeatstudy == ''),]
-  df_labelled <- unite(df_nodups, "publication", c(author ,year), sep = '_')
+  df_labelled <- unite(df_nodups, "publication", c(author ,year), sep = ' ')
   return(df_labelled)
 }
 
@@ -313,7 +313,12 @@ ggplot(twostep_binorm.step1, aes(x=log_or)) + geom_histogram(binwidth = 0.25,col
   theme_classic() + scale_x_continuous(expand = c(0, 0)) + scale_y_continuous(expand = c(0, 0))
 
 # Forest Plot 2-step BN
-forest()
+forest(twostep_binorm.step2 , showweights = TRUE, slab = publist , transf = transf.ilogit, header = TRUE, digits = 3,
+       refline = 0.283, ilab = cbind(df_props$multiplefounders, df_props$subjects), ilab.xpos = c(-0.8, -0.4)
+       )
+text(c(-0.8,-0.4), 79, c('Multiple Founders' , 'Subjects') , font = 2 , cex = 0.6)
+#Ordering of study labels
+
 
 # Influence dot plot against summary proportion of founder variant multiplicity
 
@@ -324,12 +329,11 @@ Models <- c('Two-Step Binomial Normal',
             'One-Step Binomial (uncorrelated random intercept and slope)',
             "Two-Step Beta-Binomial")
 
-sensitivity_df <- cbind.data.frame(Models,
-                                   summary_results,
+sensitivity_df <- cbind.data.frame(summary_results,
                                    SA1_results,
-                                   SA2_results)
+                                   SA2_results, row.names = Models)
 
-tbl <- kbl(sensitivity_df) %>%
+tbl <- kbl(sensitivity_df, digits = 3) %>%
   kable_classic(html_font = "Arial") %>%
   add_header_above(c(" " = 1, 
                      'Summary Estimate' = 3,
@@ -337,4 +341,6 @@ tbl <- kbl(sensitivity_df) %>%
                      'Exclusion of Studies reporting 0 MF' = 3))
   
   
-tbl#modify to include number of papers in each analyses
+tbl
+#modify to include number of papers in each analyses
+#aim is to include bracketed cis in table that include heterogeneity estimates (tau2 and I2) in addition to raw estimate
