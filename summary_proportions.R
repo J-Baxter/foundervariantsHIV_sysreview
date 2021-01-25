@@ -44,7 +44,7 @@ formatDF <-  function(df){
   }
   df_nona <- df[!is.na(df$multiple.founders),]
   df_nodups <- df_nona[(df_nona$include.main == '') & (df_nona$exclude.repeatstudy == ''),]
-  df_labelled <- unite(df_nodups, "publication", c(author ,year), sep = ' ')
+  df_labelled <- unite(df_nodups, "publication", c(author ,year), sep = '_')
   return(df_labelled)
 }
 
@@ -366,11 +366,13 @@ I2 <-
 I2.ci <- 
   
 
-modelcomp_df <- cbind.data.frame(c('2step.binorm', '1step_bn_strat', '1step_bn_rand', 'betabinom'),
-                                 summary_props, sapply(summary_props.ci95, rbind.data.frame) %>% t())
+modelcomp_df <- cbind.data.frame(Model = c('Two-Step Binomial Normal',
+                                             'One-Step Binomial (random slope) and correlated intercept',
+                                             'One-Step Binomial (uncorrelated random intercept and slope)',
+                                             "Two-Step Beta-Binomial"),
+                                 summary_results)
 
-colnames(modelcomp_df) <- c('model', 'proportions', 'props.ci95_lb', 'props.ci95_ub', 'tau2' , 'tau2.ci95_lb', 
-                            'tau2.ci95_ub', I2, I2.ci95_lb, I2.ci95_ub, Q)
+colnames(modelcomp_df) <- c('Model', 'Estimate', 'props.ci95_lb', 'props.ci95_ub')
 
 
 ###################################################################################################
@@ -493,5 +495,28 @@ tbl <- kbl(sensitivity_df, digits = 3) %>%
   
   
 tbl
+summ
+ggplot(modelcomp_df) + geom_dotplot(aes(x= Models, y = Estimate))
+plt2 <- ggplot(modelcomp_df,aes(x= Models, y = Estimate) ) +
+  geom_point() + 
+  scale_y_continuous(limits=c(0,.6),expand = c(0, 0)) +
+  scale_x_discrete()+
+  theme_classic() + 
+  coord_flip()+
+  geom_pointrange(aes(ymin=props.ci95_lb, ymax= props.ci95_ub))
+  geom_errorbar(aes(x = Models , ymin=props.ci95_lb, ymax= props.ci95_ub))
+
++
+  annotate( "rect", xmin=0, xmax=Inf, ymin=orig.ci.lb, ymax=orig.ci.ub ,alpha = .2, fill = 'blue') +
+  geom_hline(yintercept = orig.estimate,linetype="dashed", 
+             color = "blue", size=0.5)+
+  annotate("text", label = influence.labs, x = influence_out$trial , y = 0.7, size = 2.5, colour = "black", hjust = 1)+
+  theme(
+    axis.line.y =element_blank(),
+    axis.title.y =element_blank(),
+    axis.ticks.y=element_blank()
+  )
+                                    
+                                    
 #modify to include number of papers in each analyses
 #aim is to include bracketed cis in table that include heterogeneity estimates (tau2 and I2) in addition to raw estimate
