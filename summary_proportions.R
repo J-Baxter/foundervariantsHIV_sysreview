@@ -1,3 +1,5 @@
+###################################################################################################
+###################################################################################################
 # IPD meta analysis of HIV founder variant multiplicity
 # calculates summary proportion of infections initiated by multiple founder variants
 # models implemented:
@@ -11,6 +13,8 @@
 # estimations of mean effect size, confidence intervals and heterogeneity are presented 
 
 
+###################################################################################################
+###################################################################################################
 # Dependencies
 library(tidyr)
 library(lme4)
@@ -245,6 +249,7 @@ PlotInfluence <- function(df, original){
 
 
 ###################################################################################################
+###################################################################################################
 
 # Import data
 setwd("./data")
@@ -322,7 +327,7 @@ twostep_betabi.sum
 
  
 ###################################################################################################
-
+###################################################################################################
 # Model comparison: Estimated sumary effects (prop, CI), between study variance (tau, I^)
 summary_results <- CalcEstimates(twostep_binorm.step2,
                                  onestep_bi_strat,
@@ -348,6 +353,7 @@ colnames(modelcomp_df) <- c('model', 'proportions', 'props.ci95_lb', 'props.ci95
                             'tau2.ci95_ub', I2, I2.ci95_lb, I2.ci95_ub, Q)
 
 
+###################################################################################################
 ###################################################################################################
 # Sensitivity Analyses
 # Influence of Individual Studies
@@ -429,6 +435,7 @@ SA2_results <- CalcEstimates(twostep_binorm.nozeros[[2]],
 
 
 ###################################################################################################
+###################################################################################################
 #Visualisation
 
 
@@ -445,10 +452,7 @@ text(c(-0.9,-0.4), 79, c('Multiple Founders' , 'Subjects') , font = 2)
 dev.off()
 
 
-# Influence dot plot against summary proportion of founder variant multiplicity
-
-
-# Table summarising sensitivity analyses 1 & 2 compared to original estimations of effect size
+# Table summarising sensitivity analyses 1 & 2 & 3 compared to original estimations of effect size
 Models <- c('Two-Step Binomial Normal',
             'One-Step Binomial (random slope) and correlated intercept',
             'One-Step Binomial (uncorrelated random intercept and slope)',
@@ -456,7 +460,9 @@ Models <- c('Two-Step Binomial Normal',
 
 sensitivity_df <- cbind.data.frame(summary_results,
                                    SA1_results,
-                                   SA2_results, row.names = Models)
+                                   SA2_results, 
+                                   SA3_results, 
+                                   row.names = Models)
 
 tbl <- kbl(sensitivity_df, digits = 3) %>%
   kable_classic(html_font = "Arial") %>%
