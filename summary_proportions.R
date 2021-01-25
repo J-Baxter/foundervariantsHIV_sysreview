@@ -11,7 +11,12 @@
 # 4. Two-step beta-binomial GLMM, dispersion param for study labels. Laplace approximate ML estimation
 
 # estimations of mean effect size, confidence intervals and heterogeneity are presented 
-
+# Sensitivity analyses are conducted as follows:
+# SA1: leave-one-out cross validation of all models
+# SA2: exclude studies with fewer than 10 participants
+# SA3: excluding studies that only report single founder infectioins (ie prop multifounder =0)
+# SA4: alternative inclusion criteria for repeated participants
+# SA5: bootstrap/resampling of participants for whom multiple measurements are available
 
 ###################################################################################################
 ###################################################################################################
@@ -138,6 +143,14 @@ CalcTwostepBetaBi <- function(proportions){
 }
 
 
+CalcCI <- function(u,se,threshold){
+  value <- 1-(threshold/2)
+  upper <- u + se*qnorm(value)
+  lower <- u - se*qnorm(value)
+  ci <- c(lower,upper)
+  return(ci)
+}
+
 #extracts estimates of summary effect from models
 #can potentially refactor around DFInfluence
 CalcEstimates <- function(model1, model2, model3, model4){
@@ -148,15 +161,16 @@ CalcEstimates <- function(model1, model2, model3, model4){
     as.numeric() %>% 
     transf.ilogit() %>% cbind.data.frame()
   
-  binom.ci <- varbin(subjects,multiplefounders, data = df_props)@tab[5,c(3,4)] 
+  binom.ci <- varbin(subjects,multiplefounders, data = df_props)@tab[5,c(3,4)] %>% as.numeric()
   #Bootstrapped Binomial CIs-check Chuang-Stein 1993
+  #NB calls from outside function
   
   summary_props.ci95 <- list(c(model1$ci.lb , model1$ci.ub),
                              c(confint(model2)[2,c(1,2)]),
-                             c(confint(model3)[2,c(1,2)]),
-                             binom.ci) %>% 
+                             c(confint(model3)[3,c(1,2)])) %>% 
     lapply(.,as.numeric) %>% 
-    lapply(.,transf.ilogit) %>% do.call(rbind.data.frame,.)
+    lapply(.,transf.ilogit) %>% do.call(rbind.data.frame,.) %>%
+    rbind(.,binom.ci)
   
   results <- cbind.data.frame(summary_props,
                               summary_props.ci95[,1],
@@ -198,14 +212,20 @@ DFInfluence <- function(model){
   }else if (class(model[[1]]) =="glmerMod"){
     for (i in 1:length(model)){
       beta[i] <- summary(model[[i]])$coefficients[1,1]
-      ci.lb[i] <-confint(model[[i]])[2,1]
-      ci.ub[i] <- confint(model[[i]])[2,2]
+      ci.lb[i] <-confint(model[[i]])[nrow(model[[i]]),1]
+      ci.ub[i] <- confint(model[[i]])[nrow(model[[i]]),2]
     }
   }else if (class(model[[1]]) =="glmerMod"){
+    #Bootstrapped Binomial CIs-check Chuang-Stein 1993
+    #NB calls from outside function
+    binom.ci <- varbin(subjects,multiplefounders, data = df_props)@tab[5,c(3,4)] %>%
+      as.numeric() %>%
+      transf.logit()
+    
     for (i in 1:length(model)){
       beta[i] <- model[[i]]@param[1]
-      #ci.lb[i] <-
-      #ci.ub[i] <- 
+      ci.lb[i] <- binom.ci[1]
+      ci.ub[i] <- binom.ci[2]
     }
   }else{
     stop('no valid model detected.')
@@ -356,14 +376,14 @@ colnames(modelcomp_df) <- c('model', 'proportions', 'props.ci95_lb', 'props.ci95
 ###################################################################################################
 ###################################################################################################
 # Sensitivity Analyses
-# Influence of Individual Studies
-# 1. Exclusion of small sample sizes (less than n = 10)
-# 2. Exclusion of studies with 0 multiple founder variants
-# 3. Flipped exclusion criteria for repeat measurements
-#  Resampling of participants for which we have multiple measurments 
+# SA1. Influence of Individual Studies
+# SA2. Exclusion of small sample sizes (less than n = 10)
+# SA3. Exclusion of studies with 0 multiple founder variants
+# SA4. Flipped exclusion criteria for repeat measurements
+# SA5. Resampling of participants for which we have multiple measurments 
 
 
-# Influence of Individual Studies (LOOCV)
+# SA1. Influence of Individual Studies (LOOCV)
 df_loocv <- LOOCV.dat(df)[[1]]
 publist_loocv <- LOOCV.dat(df)[[2]]
 
@@ -396,7 +416,7 @@ PlotInfluence(twostep_betabi.influence)
 dev.off()
   
 
-# 1. Exclusion of small sample sizes (less than n = 10)
+# SA2. Exclusion of small sample sizes (less than n = 10)
 publist.nosmallsample <- subset(df_props , subjects > 9 , select = publication) %>% pull(.,var=publication) %>% unique()
 df.nosmallsample <- lapply(publist.nosmallsample, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
 df_props.nosmallsample <- subset(df_props , subjects > 9)
@@ -406,13 +426,13 @@ onestep_bi_strat.nosamllsample <- CalcOnestepBiStrat(df.nosmallsample)
 onestep_bi_rand.nosamllsample <- CalcOnestepBiRand(df.nosmallsample)
 twostep_betabi.nosamllsample <- CalcTwostepBetaBi(df_props.nosmallsample)
 
-SA1_results <- CalcEstimates(twostep_binorm.nosamllsample[[2]],
+SA2_results <- CalcEstimates(twostep_binorm.nosamllsample[[2]],
                              onestep_bi_strat.nosamllsample,
                              onestep_bi_rand.nosamllsample,
                              twostep_betabi.nosamllsample)
 
 
-# 2. Exclusion of studies with 0 multiple founder variants
+# SA3. Exclusion of studies with 0 multiple founder variants
 publist.nozeros <- subset(df_props , multiplefounders != 0 , select = publication) %>% pull(.,var=publication) %>% unique()
 df.nozeros <- lapply(publist.nozeros, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
 df_props.nozeros <- subset(df_props , multiplefounders != 0)
@@ -422,16 +442,16 @@ onestep_bi_strat.nozeros <- CalcOnestepBiStrat(df.nozeros)
 onestep_bi_rand.nozeros <- CalcOnestepBiRand(df.nozeros)
 twostep_betabi.nozeros <- CalcTwostepBetaBi(df_props.nozeros) #expectation is this is no better than binomial models
 
-SA2_results <- CalcEstimates(twostep_binorm.nozeros[[2]],
+SA3_results <- CalcEstimates(twostep_binorm.nozeros[[2]],
                              onestep_bi_strat.nozeros,
                              onestep_bi_rand.nozeros,
                              twostep_betabi.nozeros)
 
 
-# 3. Flipped exclusion criteria for repeat measurements
+# SA4. Flipped exclusion criteria for repeat measurements
 
 
-#  Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
+# SA5. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
 
 
 ###################################################################################################
@@ -452,16 +472,16 @@ text(c(-0.9,-0.4), 79, c('Multiple Founders' , 'Subjects') , font = 2)
 dev.off()
 
 
-# Table summarising sensitivity analyses 1 & 2 & 3 compared to original estimations of effect size
+# Table summarising sensitivity analyses 2 & 3 & 4 compared to original estimations of effect size
 Models <- c('Two-Step Binomial Normal',
             'One-Step Binomial (random slope) and correlated intercept',
             'One-Step Binomial (uncorrelated random intercept and slope)',
             "Two-Step Beta-Binomial")
 
 sensitivity_df <- cbind.data.frame(summary_results,
-                                   SA1_results,
-                                   SA2_results, 
+                                   SA2_results,
                                    SA3_results, 
+                                   #SA4_results, 
                                    row.names = Models)
 
 tbl <- kbl(sensitivity_df, digits = 3) %>%
