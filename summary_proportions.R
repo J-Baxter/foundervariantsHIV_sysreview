@@ -63,7 +63,7 @@ onehotEncode <- function(data, covar, names){
 }
 
 
-# First step glm of two-step binomial/normal model
+# First step glm of two-step binomial/normal model. Zero value cells + 0.0005
 BNstepOne <- function(data, study_id){
   df_subset <- subset(data, publication==study_id)
   events <- nrow(df_subset)
@@ -88,6 +88,9 @@ BNstepOne <- function(data, study_id){
   return(agg.results)
 }
 
+
+# Second step of two-step binomial/normal model, pooling studies using Inverse Variance method,
+# random effects, REML estimator of tau2.
 CalcTwostepBiNorm <- function(data, study_list){
   step1 <- lapply(study_list, BNstepOne , data = data) %>% do.call(rbind.data.frame,.)
   step2 <- rma.uni(log_or, se, 
@@ -101,6 +104,8 @@ CalcTwostepBiNorm <- function(data, study_list){
 }
 
 
+# One-step GLMM accounting for clustering of studies using a statified intercept (
+# random slope, correlated intercept)
 CalcOnestepBiStrat <- function(data){
   model <- glmer(multiple.founders ~  1 +  ( 1 |publication),
                  data = data,
@@ -110,6 +115,8 @@ CalcOnestepBiStrat <- function(data){
 }
 
 
+# One-step GLMM accounting for clustering of studies using a random intercept (
+# random slope, random & uncorrelated intercept)
 CalcOnestepBiRand <- function(data){
   model <- glmer(multiple.founders ~  1 + (1|publication) + (0 + 1|publication),
                  data = data,
@@ -119,13 +126,17 @@ CalcOnestepBiRand <- function(data){
 }
 
 
+# Two-step (Compound dist) GLMM accounting for clustering of studies using dispersion param Phi
+# of beta distriubtion to capture between study heterogeneity of p
 CalcTwostepBetaBi <- function(proportions){
   model <- betabin(cbind(multiplefounders, subjects - multiplefounders) ~ 1, ~ 1, data = proportions)
   return(model)
 }
 
 
-CalcEstimates <- function(model1, model2, model3, model4){#can potentially refactor around DFInfluence
+#extracts estimates of summary effect from models
+#can potentially refactor around DFInfluence
+CalcEstimates <- function(model1, model2, model3, model4){
   summary_estimates <- c(model1$beta,
                          summary(model2)$coefficients[1,1],
                          summary(model3)$coefficients[1,1], 
@@ -151,6 +162,8 @@ CalcEstimates <- function(model1, model2, model3, model4){#can potentially refac
   return(results)
 }
 
+
+# Create list of dataframes for leave-one-out cross validation
 LOOCV.dat <- function(data){
   pubs <- unique(data$publication)
   loo <- list()
@@ -166,6 +179,7 @@ LOOCV.dat <- function(data){
 }
 
 
+#extract estimates from LOOCV to create dataframe (input for influence plot)
 DFInfluence <- function(model){
   beta = numeric()
   ci.lb = numeric()
@@ -201,6 +215,7 @@ DFInfluence <- function(model){
 }
 
 
+#print influence plot of leave one out cross validation
 PlotInfluence <- function(df, original){
   influence.labs <- paste0(round(df$estimate, digits = 3), " " ,"[",round(df$ci.lb, digits= 3), "-" ,round(df$ci.lb,digits= 3), "]")
   
