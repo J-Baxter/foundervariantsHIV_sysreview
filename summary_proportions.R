@@ -280,8 +280,47 @@ LOOCV.dat <- function(data){
 
 df_loo <- LOOCV.dat(df)[[1]]
 publist_loo <- LOOCV.dat(df)[[2]]
+stopifnot(length(df_loo) == length(publist_loo))
 
-twostep_binorm.influence <- mapply(function(x,y) CalcTwostepBiNorm(data = x, publist = y), x = df_loo , y = publist_loo)
+twostep_binorm.influence <- mapply(function(x,y) CalcTwostepBiNorm(data = x, study_list = y)[[2]] , x = df_loo , y = publist_loo, SIMPLIFY = FALSE)
+
+beta = numeric()
+ci.lb = numeric()
+ci.ub = numeric() 
+
+for (i in 1:length(twostep_binorm.influence)){
+  beta[i] <- twostep_binorm.influence[[i]]$beta
+  ci.lb[i] <-twostep_binorm.influence[[i]]$ci.lb
+  ci.ub[i] <- twostep_binorm.influence[[i]]$ci.ub
+}
+
+influence_out <- cbind.data.frame('trial'= paste("Omitting" ,unique(df$publication), sep = " ") %>% as.factor(),
+  "estimate" = transf.ilogit(beta),
+  "ci.lb" = transf.ilogit(ci.lb),
+  "ci.ub"= transf.ilogit(ci.ub)) 
+influence.labs <- paste0(round(influence_out$estimate, digits = 3), " " ,"[",round(influence_out$ci.lb, digits= 3), "-" ,round(influence_out$ci.lb,digits= 3), "]")
+
+pdf("testinfluence.pdf" , width = 14 , height = 20) 
+ggplot(influence_out,aes(x = trial , y = estimate) ) +
+  geom_point() + 
+  scale_y_continuous(limits=c(0,0.75),expand = c(0, 0)) +
+  scale_x_discrete()+
+  theme_classic() + 
+  coord_flip()+
+  geom_errorbar(aes(x = trial ,ymin=ci.lb, ymax=ci.ub))+
+  annotate( "rect", xmin=0, xmax=Inf, ymin=0.242, ymax=0.328 ,alpha = .2, fill = 'blue') +
+  geom_hline(yintercept = 0.283,linetype="dashed", 
+             color = "blue", size=0.5)+
+  annotate("text", label = influence.labs, x = influence_out$trial , y = 0.7, size = 2.5, colour = "black", hjust = 1)+
+  theme(
+    axis.line.y =element_blank(),
+    axis.title.y =element_blank(),
+    axis.ticks.y=element_blank()
+  )
+dev.off()
+  
+  
+
 onestep_bi_strat.influence <- lapply(df_loo, )
 onestep_bi_rand.influence <-  lapply(df_loo, )
 twostep_betabi.influence #TBC
