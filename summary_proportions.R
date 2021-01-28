@@ -55,6 +55,7 @@ CalcProps <- function(.data, ...){
     .data %>% 
       group_by(publication, ...) %>%
       summarise(subjects = n(), multiplefounders = sum(multiple.founders))
+  
   }
 
 
@@ -101,8 +102,8 @@ BNstepOne <- function(data, study_id){
 # Second step of two-step binomial/normal model, pooling studies using Inverse Variance method,
 # random effects, REML estimator of tau2.
 CalcTwostepBiNorm <- function(data, study_list){
-  step1 <- lapply(study_list, BNstepOne , data = data) %>% do.call(rbind.data.frame,.)
-  step2 <- rma.uni(log_or, se, 
+  step1 <- escalc(xi = multiplefounders , ni = subjects , data= df_props , add = 0.0005, measure = "PLO")
+  step2 <- rma.uni(yi, vi, 
                    data = step1,
                    method = "REML",
                    knha = TRUE, 
@@ -116,9 +117,10 @@ CalcTwostepBiNorm <- function(data, study_list){
 # One-step GLMM accounting for clustering of studies using a statified intercept (
 # random slope, correlated intercept)
 CalcOnestepBiStrat <- function(data){
-  model <- glmer(multiple.founders ~  1 +  ( 1 |publication),
+  model <- glmer(multiple.founders ~ reported.exposure + factor(publication) + (reported.exposure-1| publication),
                  data = data,
                  family = binomial(link = "logit"),
+                 nAGQ = 7,
                  control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 100000)))
   return(model)
 }
@@ -130,6 +132,7 @@ CalcOnestepBiRand <- function(data){
   model <- glmer(multiple.founders ~  1 + (1|publication) + (0 + 1|publication),
                  data = data,
                  family = binomial(link = "logit"),
+                 nAGQ = 1,
                  control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 100000)))
   return(model)
 }
@@ -308,7 +311,7 @@ twostep_binorm.sum
 
 df_onestage <- onehotEncode(df, covar = "publication", names = publist)
 
-onestep_bi_strat <- CalcOnestepBiStrat(df)
+onestep_bi_strat <- CalcOnestepBiStrat(df_onestage)
 onestep_bi_strat.sum <- summary(onestep_bi_strat)
 onestep_bi_strat.sum
 
@@ -339,7 +342,9 @@ onestep_bi_rand.tau2 <- VarCorr(onestep_bi_rand)[[1]][1]
 # distribution B(ni;pi) (From Chuang-Stein 1993).
 # Laplace approximate ML estimation
 
-df_props <- CalcProps(df)
+df_props <- CalcProps(df, reported.exposure)
+df_props$multiplefounders[df_props$multiplefounders == 0 ] <- 0.0005 # refactor to CalcProps function
+
 twostep_betabi <- CalcTwostepBetaBi(df_props)
 
 twostep_betabi.sum <- summary(twostep_betabi)
