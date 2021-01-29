@@ -1,5 +1,9 @@
+###################################################################################################
+###################################################################################################
 # General purpose functions for Inferring the multiplicity of founder variants initiating HIV-1 
-# infection: a systematic review and meta-analysis
+# infection: a systematic review and IPD meta-analysis
+###################################################################################################
+###################################################################################################
 
 # Formats data spreadsheet for analysis. Removes duplicates and NAs.
 formatDF <-  function(df){
@@ -16,6 +20,7 @@ formatDF <-  function(df){
 }
 
 
+###################################################################################################
 # Sums number of patients within each study and number of infections initiated by multiple founders. 
 # Can be stratified with additional covariates
 CalcProps <- function(.data, ...){
@@ -25,3 +30,6 @@ CalcProps <- function(.data, ...){
   
 }
 
+
+###################################################################################################
+###################################################################################################

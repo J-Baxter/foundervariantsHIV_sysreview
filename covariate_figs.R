@@ -178,7 +178,7 @@ plot_grid(p1.method + theme(legend.position="none"),
           p1.seropos + theme(legend.position="none"),
           p1.numseq + theme(legend.position="none"),
           p1.exposure + theme(legend.position="none"),
-          p2.1,
+          p1.6,
           ncol = 2 , nrow = 3,align = "hv", axis = "bt" , labels = "AUTO") 
 
 # Print to file
