@@ -76,8 +76,10 @@ mycols_founder <- RColorBrewer::brewer.pal(name = 'RdBu', n = 8)[c(2,7)]
 nb.cols <- 12
 mycols_method <- colorRampPalette(brewer.pal(10, "RdBu"))(nb.cols)
 
+
 # Set Labels
 labs <- c('Multiple','Sinlge')
+
 
 # 1.1 Method
 p1.method <- ggplot(df, aes(grouped.method))+
@@ -91,6 +93,7 @@ p1.method <- ggplot(df, aes(grouped.method))+
   ylab('Frequency')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
+
 # 1.2 Seroconversion (poss stack infant and NA together)
 p1.seropos <- ggplot(df, aes(participant.seropositivity))+ 
   geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders)), colour = forcats::fct_rev(factor(multiple.founders))))+
@@ -103,6 +106,7 @@ p1.seropos <- ggplot(df, aes(participant.seropositivity))+
   ylab('Frequency')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
+
 # 1.3 Subtype
 p1.subtype <- ggplot(df, aes(grouped.subtype))+
   geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders)), colour = forcats::fct_rev(factor(multiple.founders))))+
@@ -114,6 +118,7 @@ p1.subtype <- ggplot(df, aes(grouped.subtype))+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
   ylab('Frequency')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
+
 
 # 1.4 Number of consensus sequences analysed
 numseqs_df <- GetNumSeqs(df)
@@ -128,6 +133,7 @@ p1.numseq <- ggplot(numseqs_df , aes(sequencing.number))+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
   ylab('Frequency') +
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
+
 
 # 1.5 Route of transmission (reported.exposure)
 names <- c('reported.exposure' , 'multiple.founders' , 'frequency')
@@ -145,6 +151,7 @@ p1.exposure <- ggplot(exposure_grouped, aes(reported.exposure))+
   ylab('Frequency')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity") 
 
+
 # Combine basic covariate plots into figure (with labels and axis)
 legend <- get_legend(p1.seropos + guides(color = guide_legend(nrow = 2)) +
                        theme(legend.position = "bottom"))
@@ -159,7 +166,6 @@ tile1.top <- plot_grid(p1.exposure+ theme(legend.position="none"),
 tile1.bottom <- plot_grid(p1.numseq+ theme(legend.position="none"),
                           legend, ncol = 2 , nrow = 1, labels = c("E"),rel_widths =c(1, 1, .3)) 
 
-
 figure1 <- cowplot::plot_grid(tile1.top, 
                               tile1.bottom, 
                               align = "hv", axis = "bt", nrow= 2, ncol = 1, rel_heights =  c(2, 1))
@@ -167,15 +173,15 @@ figure1 <- cowplot::plot_grid(tile1.top,
 # Print to file
 figure1
 
+
 ###################################################################################################
 ###################################################################################################
-#bar plot for exposure
-#Risk
+# Panel 2
+# 2.1 Detailed barplot displaying route of transmission (with direction subcategories)
 names <- c('reported.exposure' , 'sub.exposure' , 'frequency')
 exposures_df <- stacked_categories(df$reported.exposure, names)
 
-
-p6 <- ggplot(exposures_df, aes(x = reported.exposure , y = frequency))+
+p2.1 <- ggplot(exposures_df, aes(x = reported.exposure , y = frequency))+
   geom_bar(stat = 'identity' , aes(fill = sub.exposure, colour = sub.exposure), position = 'stack')+
   scale_color_manual(values = mycols_method)+
   scale_fill_manual(values = mycols_method)+
@@ -184,26 +190,26 @@ p6 <- ggplot(exposures_df, aes(x = reported.exposure , y = frequency))+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
   ylab('Frequency') + labs(fill = "Reported Exposure", colour = "Reported Exposure")
 
-p6
 
+#Year of Publication (with method lines)
+year <- strsplit(df$publication , "_") %>% do.call(rbind.data.frame , .)
+year.formatted <-ISOdate(year[,2] , 1, 1) %>% as.Date()
+df_withyear <- cbind.data.frame(year = year.formatted , df)
 
-#Year of Publication
-
-#Minimum numcitqtber of founders plot
-
-
-
-
-
-###others
-df <- read.csv("yop.csv")
-dates <- as.Date(ISOdate(df$Year.of.Publication, 1, 1))
-df.yrs <- as.data.frame(dates)
+cumsum <- plyr::ddply(df_withyear, year, summarise, val = sum(val))
 start <- as.Date('1991-6-30')
 end <- as.Date('2020-6-30')
-colnames(df.yrs) <- 'Year.of.Publication'
-p1 <- ggplot(df.yrs, aes(Year.of.Publication ))+
-  geom_bar(fill = '#000066')+
+
+p1 <- ggplot(df_withyear , aes(year))+
+  # New results by year published
+  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders)), colour = forcats::fct_rev(factor(multiple.founders))))+
+  scale_color_manual(values = mycols_founder, labels = labs)+
+  scale_fill_manual(values = mycols_founder, labels = labs)+
+  
+  # Cumulative total
+  geom_line(aes(y = cumsum(n)))
+  #methods lines
+  
   geom_vline(xintercept = as.numeric(dates[58]),linetype=2, colour="red" )+
   scale_color_brewer(palette = 'RdBu')+
   scale_fill_brewer(palette = 'RdBu')+
