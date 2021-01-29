@@ -66,22 +66,24 @@ setwd("./data")
 df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF()
 
 
-# Set colour palettes 
-mycols_founder <- RColorBrewer::brewer.pal(name = 'RdBu', n = 8)[c(2,7)]
-nb.cols <- 12
-mycols_method <- colorRampPalette(brewer.pal(10, "RdBu"))(nb.cols)
-
-
 ###################################################################################################
 ###################################################################################################
 # Basic plots for panel 1 (four bar plots to panel displaying frequencies of grouped method, 
 # seropositivity, subtype and number of sequences)
 
+# Set colour palettes 
+mycols_founder <- RColorBrewer::brewer.pal(name = 'RdBu', n = 8)[c(2,7)]
+nb.cols <- 12
+mycols_method <- colorRampPalette(brewer.pal(10, "RdBu"))(nb.cols)
+
+# Set Labels
+labs <- c('Multiple','Sinlge')
+
 # 1.1 Method
 p1.method <- ggplot(df, aes(grouped.method))+
   geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders)), colour = forcats::fct_rev(factor(multiple.founders))))+
-  scale_color_manual(values = mycols_founder)+
-  scale_fill_manual(values = mycols_founder)+
+  scale_color_manual(values = mycols_founder, labels = labs)+
+  scale_fill_manual(values = mycols_founder, labels = labs)+
   ylim(0,1000)+
   theme_classic()+
   xlab('Grouped Method')+
@@ -92,8 +94,8 @@ p1.method <- ggplot(df, aes(grouped.method))+
 # 1.2 Seroconversion (poss stack infant and NA together)
 p1.seropos <- ggplot(df, aes(participant.seropositivity))+ 
   geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders)), colour = forcats::fct_rev(factor(multiple.founders))))+
-  scale_color_manual(values = mycols_founder)+
-  scale_fill_manual(values = mycols_founder)+
+  scale_color_manual(values = mycols_founder, labels = labs)+
+  scale_fill_manual(values = mycols_founder, labels = labs)+
   ylim(0,1000)+
   theme_classic()+
   xlab('Seropositivity')+
@@ -104,8 +106,8 @@ p1.seropos <- ggplot(df, aes(participant.seropositivity))+
 # 1.3 Subtype
 p1.subtype <- ggplot(df, aes(grouped.subtype))+
   geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders)), colour = forcats::fct_rev(factor(multiple.founders))))+
-  scale_color_manual(values = mycols_founder)+
-  scale_fill_manual(values = mycols_founder)+
+  scale_color_manual(values = mycols_founder, labels = labs)+
+  scale_fill_manual(values = mycols_founder, labels = labs)+
   ylim(0,1000)+
   theme_classic()+
   xlab('Subtype')+
@@ -118,8 +120,8 @@ numseqs_df <- GetNumSeqs(df)
 
 p1.numseq <- ggplot(numseqs_df , aes(sequencing.number))+
   geom_histogram(binwidth=5, (aes(fill = forcats::fct_rev(factor(multiple.founders)), colour = forcats::fct_rev(factor(multiple.founders)))))+
-  scale_color_manual(values = mycols_founder)+
-  scale_fill_manual(values = mycols_founder)+
+  scale_color_manual(values = mycols_founder, labels = labs)+
+  scale_fill_manual(values = mycols_founder, labels = labs)+
   ylim(0,1000)+
   theme_classic()+
   xlab('Number of Consensus Genomes Analysed')+
@@ -134,8 +136,8 @@ colnames(exposure_grouped ) <- c('reported.exposure' , 'multiple.founders' )
 
 p1.exposure <- ggplot(exposure_grouped, aes(reported.exposure))+
   geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders)), colour = forcats::fct_rev(factor(multiple.founders))))+
-  scale_color_manual(values = mycols_founder)+
-  scale_fill_manual(values = mycols_founder)+
+  scale_color_manual(values = mycols_founder, labels = labs)+
+  scale_fill_manual(values = mycols_founder, labels = labs)+
   ylim(0,1000)+
   theme_classic()+
   xlab('Reported Exposure')+
@@ -163,7 +165,7 @@ figure1 <- cowplot::plot_grid(tile1.top,
                               align = "hv", axis = "bt", nrow= 2, ncol = 1, rel_heights =  c(2, 1))
 
 # Print to file
-
+figure1
 
 ###################################################################################################
 ###################################################################################################
