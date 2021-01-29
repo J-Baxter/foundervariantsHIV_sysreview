@@ -1,7 +1,10 @@
 ###################################################################################################
 ###################################################################################################
-#descriptive plots for selected studies
-
+#Figures describing covariate distirbution accompanying Inferring the multiplicity of founder variants
+# initiating HIV-1 infection: a systematic review and IPD meta-analysis
+# 1. Panel of bar plots (and one histogram) plotting frequency against covariate, stacking bars by 
+# binary classification of multiplicity
+# 2. 
 ###################################################################################################
 ###################################################################################################
 
@@ -13,7 +16,7 @@ library(forcats)
 library(tidyr)
 library(RColorBrewer)
 library(cowplot)
-
+source('generalpurpose_funcs.R')
 
 
 #function for stacking categories and calculating summary frequencies

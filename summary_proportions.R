@@ -32,31 +32,7 @@ library(aod)
 library(ggplot2)
 library(influence.ME)
 library(kableExtra)
-
-
-# Formats data spreadsheet for analysis. Removes duplicates and NAs.
-formatDF <-  function(df){
-  #create dummy variables in founder multiplicity col
-  if (class(df$multiple.founders)=="factor"){
-    df$multiple.founders = 1 - (as.numeric(df$multiple.founders)-1)
-  }else{
-    stop('founder multiplicity is not a factor')
-  }
-  df_nona <- df[!is.na(df$multiple.founders),]
-  df_nodups <- df_nona[(df_nona$include.main == '') & (df_nona$exclude.repeatstudy == ''),]
-  df_labelled <- unite(df_nodups, "publication", c(author ,year), sep = '_')
-  return(df_labelled)
-}
-
-
-# Sums number of patients within each study and number of infections initiated by multiple founders. 
-# Can be stratified with additional covariates
-CalcProps <- function(.data, ...){
-    .data %>% 
-      group_by(publication, ...) %>%
-      summarise(subjects = n(), multiplefounders = sum(multiple.founders))
-  
-  }
+source('generalpurpose_funcs.R')
 
 
 # Two-step binomial/normal model, pooling studies using Inverse Variance method,
@@ -404,7 +380,7 @@ publist.nozeros <- subset(df_props , multiplefounders != 0 , select = publicatio
 df.nozeros <- lapply(publist.nozeros, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
 df_props.nozeros <- subset(df_props , multiplefounders != 0)
 
-twostep_binorm.nozeros <- CalcTwostepBiNorm(df.nozeros, publist.nozeros)
+twostep_binorm.nozeros <- CalcTwostepBiNorm(df_props.nozeros)
 onestep_bi_strat.nozeros <- CalcOnestepBiStrat(df.nozeros)
 onestep_bi_rand.nozeros <- CalcOnestepBiRand(df.nozeros)
 twostep_betabi.nozeros <- CalcTwostepBetaBi(df_props.nozeros) #expectation is this is no better than binomial models
