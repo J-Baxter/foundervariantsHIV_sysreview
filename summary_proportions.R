@@ -59,20 +59,6 @@ CalcProps <- function(.data, ...){
   }
 
 
-# Creates dummy variables for clustering random effects of studies
-onehotEncode <- function(data, covar, names){
-  onehot <- cbind.data.frame(data[, covar]) %>%
-    data.table::as.data.table() %>%
-    mltools::one_hot()
-  
-  colnames(onehot) <- names[order(names)]
-  
-  testset_onehot <- cbind.data.frame(data,onehot)
-  
-  return(testset_onehot)
-}
-
-
 # Two-step binomial/normal model, pooling studies using Inverse Variance method,
 # random effects, REML estimator of tau2.
 CalcTwostepBiNorm <- function(data, study_list){
@@ -255,7 +241,8 @@ df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF()
 publist <- unique(df$publication)
 testlist <- c("Keele_2008", "Abrahams_2009", "Haaland_2009","Li_2010", "Janes_2015")#
 testset_df <- lapply(testlist, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
-
+nosmith <- publist[publist != "AbigailSmith_2016"]
+nosmith_df <- lapply(nosmith, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
 #set seed
 set.seed(4472)
 
