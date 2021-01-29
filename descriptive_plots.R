@@ -12,8 +12,11 @@ library(RColorBrewer)
 setwd("./data/")
 
 #import data
-df <- read.csv("data_master.csv", na.strings = "NA")
+df <- read.csv("data_master_11121.csv", na.strings = "NA")
 dfnona <- df[!is.na(df$multiple.founders),]
+
+df_nodups <- dfnona[(dfnona$include.main == '') & (dfnona$exclude.repeatstudy == ''),]
+
 
 #function for stacking categories and calculating summary frequencies
 stacked_categories <- function(x, catnames){
@@ -32,9 +35,10 @@ stacked_categories <- function(x, catnames){
 
 test <- split_transission(expos)
 split_transission <- function(x , catnames){
-  t1 <- as.character(x$`dfnona$reported.exposure`) %>% 
+  expos = cbind.data.frame(df$reported.exposure, df$multiple.founders) 
+  t1 <- as.character(expos$`df$reported.exposure`) %>% 
     strsplit(. , '[:]') %>% do.call(rbind.data.frame, .) %>% 
-    cbind.data.frame(., expos$`dfnona$multiple.founders`)
+    cbind.data.frame(., expos[,2])
   
   t2 <- t1[,c(1,3)]
   freq <- t2 %>%
@@ -52,11 +56,11 @@ mycols_method <- colorRampPalette(brewer.pal(10, "RdBu"))(nb.cols)
 
 ##basic plots for panel 1 (four bar plots to panel displaying frequencies of grouped method, seropositivity, subtype and number of sequences)
 #method
-p1 <- ggplot(dfnona, aes(grouped.method))+
-  geom_bar(aes(fill = multiple.founders, colour = multiple.founders))+
+p1 <- ggplot(df, aes(grouped.method))+
+  geom_bar(aes(fill = factor(multiple.founders), colour = factor(multiple.founders)))+
   scale_color_manual(values = mycols_founder)+
   scale_fill_manual(values = mycols_founder)+
-  ylim(0,1600)+
+  ylim(0,1000)+
   theme_classic()+
   xlab('Grouped Method')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
@@ -64,11 +68,11 @@ p1 <- ggplot(dfnona, aes(grouped.method))+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
 #Seroconversion #stack infant and NA together
-p2 <- ggplot(dfnona, aes(participant.seropositivity))+ 
-  geom_bar(aes(fill = multiple.founders, colour = multiple.founders))+
+p2 <- ggplot(df, aes(participant.seropositivity))+ 
+  geom_bar(aes(fill = factor(multiple.founders), colour = factor(multiple.founders)))+
   scale_color_manual(values = mycols_founder)+
   scale_fill_manual(values = mycols_founder)+
-  ylim(0,1600)+
+  ylim(0,1000)+
   theme_classic()+
   xlab('Seropositivity')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
@@ -76,11 +80,11 @@ p2 <- ggplot(dfnona, aes(participant.seropositivity))+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
 #subtype
-p3 <- ggplot(dfnona, aes(grouped.subtype))+
-  geom_bar(aes(fill = multiple.founders, colour = multiple.founders))+
+p3 <- ggplot(df, aes(grouped.subtype))+
+  geom_bar(aes(fill = factor(multiple.founders), colour = factor(multiple.founders)))+
   scale_color_manual(values = mycols_founder)+
   scale_fill_manual(values = mycols_founder)+
-  ylim(0,1600)+
+  ylim(0,1000)+
   theme_classic()+
   xlab('Subtype')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
@@ -89,14 +93,14 @@ p3 <- ggplot(dfnona, aes(grouped.subtype))+
 
 #number of sequences
 #must drop NA and NGS first 
-numseqs_df <- dfnona[!dfnona$sequencing.number %in% c('NGS', NA),]
+numseqs_df <- df[!df$sequencing.number %in% c('NGS', NA),]
 numseqs_df$sequencing.number <- as.numeric(numseqs_df$sequencing.number)
 
 p4 <- ggplot(numseqs_df , aes(sequencing.number))+
-  geom_histogram(binwidth=5, aes(fill = multiple.founders, colour = multiple.founders))+
+  geom_histogram(binwidth=5, aes(fill = factor(multiple.founders), colour = factor(multiple.founders)))+
   scale_color_manual(values = mycols_founder)+
   scale_fill_manual(values = mycols_founder)+
-  ylim(0,1600)+
+  ylim(0,1000)+
   theme_classic()+
   xlab('Number of Consensus Genomes Analysed')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
@@ -104,14 +108,28 @@ p4 <- ggplot(numseqs_df , aes(sequencing.number))+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
 #direction of transission
+
+
+split_transission <- function(x , catnames){
+  t1 <- as.character(x[,1]) %>% 
+    strsplit(. , '[:]') %>% do.call(rbind.data.frame, .) %>% 
+    cbind.data.frame(., x[,2])
+  
+  t2 <- t1[,c(1,3)]
+  freq <- t2 %>%
+    group_by(t2[,1] , t2[,2]) %>%
+    summarise(frequency = n())
+  colnames(freq) <- catnames
+  return(t2)
+}
 names <- c('reported.exposure' , 'multiple.founders' , 'frequency')
-exposure_grouped <- cbind.data.frame(dfnona$reported.exposure, dfnona$multiple.founders) %>% split_transission(. ,names)
-colnames(t2) <- c('reported.exposure' , 'multiple.founders' )
-p5 <- ggplot(t2, aes(reported.exposure))+
-  geom_bar(aes(fill = multiple.founders, colour = multiple.founders))+
+exposure_grouped <- cbind.data.frame(df$reported.exposure, df$multiple.founders) %>% split_transission(. ,names)
+colnames(exposure_grouped ) <- c('reported.exposure' , 'multiple.founders' )
+p5 <- ggplot(exposure_grouped, aes(reported.exposure))+
+  geom_bar(aes(fill = factor(multiple.founders), colour = factor(multiple.founders)))+
   scale_color_manual(values = mycols_founder)+
   scale_fill_manual(values = mycols_founder)+
-  ylim(0,1500)+
+  ylim(0,1000)+
   theme_classic()+
   xlab('Reported Exposure')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
@@ -120,8 +138,8 @@ p5 <- ggplot(t2, aes(reported.exposure))+
 
 
 library(ggpubr)
-ggarrange(p1,p2,p3, p4, p5,
-          ncol = 2 , nrow = 3 , labels = "AUTO" , common.legend = TRUE , legend = 'bottom' , align = 'hv') 
+tile1 <- plot_grid(p1+ theme(legend.position="none"),p2+ theme(legend.position="none"),p3+ theme(legend.position="none"), 
+                   p4+ theme(legend.position="none"), ncol = 2 , nrow = 2,align = "hv", axis = "bt") 
 
 
 #bar plot for exposure
@@ -141,7 +159,7 @@ p6 <- ggplot(exposures_df, aes(x = reported.exposure , y = frequency))+
 
 p6
 
-
+cowplot::plot_grid(tile1, p6, align = "hv", axis = "bt", rel_widths = c(1, 1.5), labels = 'AUTO')
 #Year of Publication
 
 #Minimum numcitqtber of founders plot

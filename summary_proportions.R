@@ -73,33 +73,7 @@ onehotEncode <- function(data, covar, names){
 }
 
 
-# First step glm of two-step binomial/normal model. Zero value cells + 0.0005
-BNstepOne <- function(data, study_id){
-  df_subset <- subset(data, publication==study_id)
-  events <- nrow(df_subset)
-  success <-  sum(df_subset$multiple.founders)
-  prop.multifounders <- success/events
-  incr = 0.0005 
-  incr.event = incr/events
-  
-  if (prop.multifounders == 0){
-    lr <- glm(multiple.founders+incr.event ~ 1, df_subset , family = binomial(link = "logit"))
-    log_or <- summary(lr)$coefficients[,1]
-    se <- summary(lr)$coefficients[, 2]
-    
-  }else{
-    lr <- glm(multiple.founders ~ 1, df_subset , family = binomial(link = "logit"))
-    log_or <- summary(lr)$coefficients[,1]
-    se <- summary(lr)$coefficients[, 2]
-  }
-  
-  agg.results <- cbind.data.frame(study_id, log_or, se)
-  
-  return(agg.results)
-}
-
-
-# Second step of two-step binomial/normal model, pooling studies using Inverse Variance method,
+# Two-step binomial/normal model, pooling studies using Inverse Variance method,
 # random effects, REML estimator of tau2.
 CalcTwostepBiNorm <- function(data, study_list){
   step1 <- escalc(xi = multiplefounders , ni = subjects , data= df_props , add = 0.0005, measure = "PLO")
@@ -117,10 +91,9 @@ CalcTwostepBiNorm <- function(data, study_list){
 # One-step GLMM accounting for clustering of studies using a statified intercept (
 # random slope, correlated intercept)
 CalcOnestepBiStrat <- function(data){
-  model <- glmer(multiple.founders ~ reported.exposure + factor(publication) + (reported.exposure-1| publication),
+  model <- glmer(multiple.founders ~  factor(publication) + (1| publication),
                  data = data,
                  family = binomial(link = "logit"),
-                 nAGQ = 7,
                  control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 100000)))
   return(model)
 }
