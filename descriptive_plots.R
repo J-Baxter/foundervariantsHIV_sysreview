@@ -61,29 +61,24 @@ split_transission <- function(x , catnames){
 
 ###################################################################################################
 ###################################################################################################
-#set wd
-setwd("./data/")
-
-#import data
-df <- read.csv("data_master_11121.csv", na.strings = "NA")
-dfnona <- df[!is.na(df$multiple.founders),]
-
-df_nodups <- dfnona[(dfnona$include.main == '') & (dfnona$exclude.repeatstudy == ''),]
+# Import data
+setwd("./data")
+df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF()
 
 
-#my colours
+# Set colour palettes 
 mycols_founder <- RColorBrewer::brewer.pal(name = 'RdBu', n = 8)[c(2,7)]
 nb.cols <- 12
 mycols_method <- colorRampPalette(brewer.pal(10, "RdBu"))(nb.cols)
-#remove NAs from founder.multiplicity column
 
 
 ###################################################################################################
 ###################################################################################################
+# Basic plots for panel 1 (four bar plots to panel displaying frequencies of grouped method, 
+# seropositivity, subtype and number of sequences)
 
-##basic plots for panel 1 (four bar plots to panel displaying frequencies of grouped method, seropositivity, subtype and number of sequences)
-#method
-p1 <- ggplot(df, aes(grouped.method))+
+# 1.1 Method
+p1.method <- ggplot(df, aes(grouped.method))+
   geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders)), colour = forcats::fct_rev(factor(multiple.founders))))+
   scale_color_manual(values = mycols_founder)+
   scale_fill_manual(values = mycols_founder)+
@@ -94,8 +89,8 @@ p1 <- ggplot(df, aes(grouped.method))+
   ylab('Frequency')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
-#Seroconversion #stack infant and NA together
-p2 <- ggplot(df, aes(participant.seropositivity))+ 
+# 1.2 Seroconversion (poss stack infant and NA together)
+p1.seropos <- ggplot(df, aes(participant.seropositivity))+ 
   geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders)), colour = forcats::fct_rev(factor(multiple.founders))))+
   scale_color_manual(values = mycols_founder)+
   scale_fill_manual(values = mycols_founder)+
@@ -106,8 +101,8 @@ p2 <- ggplot(df, aes(participant.seropositivity))+
   ylab('Frequency')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
-#subtype
-p3 <- ggplot(df, aes(grouped.subtype))+
+# 1.3 Subtype
+p1.subtype <- ggplot(df, aes(grouped.subtype))+
   geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders)), colour = forcats::fct_rev(factor(multiple.founders))))+
   scale_color_manual(values = mycols_founder)+
   scale_fill_manual(values = mycols_founder)+
@@ -118,10 +113,10 @@ p3 <- ggplot(df, aes(grouped.subtype))+
   ylab('Frequency')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
-#number of sequences
+# 1.4 Number of consensus sequences analysed
 numseqs_df <- GetNumSeqs(df)
 
-p4 <- ggplot(numseqs_df , aes(sequencing.number))+
+p1.numseq <- ggplot(numseqs_df , aes(sequencing.number))+
   geom_histogram(binwidth=5, (aes(fill = forcats::fct_rev(factor(multiple.founders)), colour = forcats::fct_rev(factor(multiple.founders)))))+
   scale_color_manual(values = mycols_founder)+
   scale_fill_manual(values = mycols_founder)+
@@ -132,12 +127,12 @@ p4 <- ggplot(numseqs_df , aes(sequencing.number))+
   ylab('Frequency') +
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
-#direction of transission
+# 1.5 Route of transmission (reported.exposure)
 names <- c('reported.exposure' , 'multiple.founders' , 'frequency')
 exposure_grouped <- cbind.data.frame(df$reported.exposure, df$multiple.founders) %>% split_transission(. ,names)
 colnames(exposure_grouped ) <- c('reported.exposure' , 'multiple.founders' )
 
-p5 <- ggplot(exposure_grouped, aes(reported.exposure))+
+p1.exposure <- ggplot(exposure_grouped, aes(reported.exposure))+
   geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders)), colour = forcats::fct_rev(factor(multiple.founders))))+
   scale_color_manual(values = mycols_founder)+
   scale_fill_manual(values = mycols_founder)+
@@ -149,16 +144,25 @@ p5 <- ggplot(exposure_grouped, aes(reported.exposure))+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity") 
 
 # Combine basic covariate plots into figure (with labels and axis)
-legend <- get_legend(p2 + guides(color = guide_legend(nrow = 2)) +
+legend <- get_legend(p1.seropos + guides(color = guide_legend(nrow = 2)) +
                        theme(legend.position = "bottom"))
 
 
-tile1.top <- plot_grid(p1+ theme(legend.position="none"),p2+ theme(legend.position="none"),p3+ theme(legend.position="none"), 
-                       p4+ theme(legend.position="none"), ncol = 2 , nrow = 2,align = "hv", axis = "bt" , labels = "AUTO") 
-tile1.bottom <- plot_grid(p5+ theme(legend.position="none"),  legend, ncol = 2 , nrow = 1, labels = c("E"),rel_widths =c(1, 1, .3)) 
+tile1.top <- plot_grid(p1.exposure+ theme(legend.position="none"),
+                       p1.method+ theme(legend.position="none"),
+                       p1.subtype+ theme(legend.position="none"), 
+                       p1.seropos+ theme(legend.position="none"),
+                       ncol = 2 , nrow = 2,align = "hv", axis = "bt" , labels = "AUTO") 
+
+tile1.bottom <- plot_grid(p1.numseq+ theme(legend.position="none"),
+                          legend, ncol = 2 , nrow = 1, labels = c("E"),rel_widths =c(1, 1, .3)) 
 
 
-cowplot::plot_grid(tile1.top, tile1.bottom , align = "hv", axis = "bt", nrow= 2, ncol = 1, rel_heights =  c(2, 1))
+figure1 <- cowplot::plot_grid(tile1.top, 
+                              tile1.bottom, 
+                              align = "hv", axis = "bt", nrow= 2, ncol = 1, rel_heights =  c(2, 1))
+
+# Print to file
 
 
 ###################################################################################################
