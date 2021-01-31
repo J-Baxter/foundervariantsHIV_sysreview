@@ -35,6 +35,26 @@ library(kableExtra)
 source('generalpurpose_funcs.R')
 
 
+# Add increment to studies with only single founder infections (for one-step models)
+AddIncr <- function(df, incr){
+  split_df <- split.data.frame(df , df$publication)
+  
+  list_incr = list()
+  for (i in 1:length(split_df)){
+    data = split_df[[i]]
+    if(!(1 %in% data$multiple.founders)){
+      data$multiple.founders = incr
+    }else{
+      data = data}
+    list_incr[[i]] = data
+  }
+  df_incr = do.call(rbind.data.frame,list_incr)
+  stopifnot(nrow(df) == nrow(df_incr))
+  
+  return(df_incr)
+}
+
+
 # Two-step binomial/normal model, pooling studies using Inverse Variance method,
 # random effects, REML estimator of tau2.
 CalcTwostepBiNorm <- function(data, study_list){
@@ -53,10 +73,10 @@ CalcTwostepBiNorm <- function(data, study_list){
 # One-step GLMM accounting for clustering of studies using a statified intercept (
 # random slope, correlated intercept)
 CalcOnestepBiStrat <- function(data){
-  model <- glmer(multiple.founders ~  factor(publication) + (1| publication),
+  model <- glmer(multiple.founders ~  1 + factor(publication) + (1| publication),
                  data = data,
                  family = binomial(link = "logit"),
-                 control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 100000)))
+                 control = glmerControl(optCtrl = list(maxfun = 1000000)))
   return(model)
 }
 
@@ -149,9 +169,10 @@ DFInfluence <- function(model){
     }
   }else if (class(model[[1]]) =="glmerMod"){
     for (i in 1:length(model)){
+      ci <- confint(model[[i]])
       beta[i] <- summary(model[[i]])$coefficients[1,1]
-      ci.lb[i] <-confint(model[[i]])[nrow(model[[i]]),1]
-      ci.ub[i] <- confint(model[[i]])[nrow(model[[i]]),2]
+      ci.lb[i] <-ci[nrow(model[[i]]),1]
+      ci.ub[i] <- ci[nrow(model[[i]]),2]
     }
   }else if (class(model[[1]]) =="glmerMod"){
     #Bootstrapped Binomial CIs-check Chuang-Stein 1993
@@ -245,7 +266,12 @@ twostep_binorm.sum
 # Laplace approximate ML estimation
 # assumes conditional independence and follow binomial distribution
 
-df_onestage <- onehotEncode(df, covar = "publication", names = publist)
+df_onestage <- df
+df_onestage$z <- df_onestage$multiple.founders -0.5
+
+df_onestage <- AddIncr(df, incr = 0.0005)
+
+
 
 onestep_bi_strat <- CalcOnestepBiStrat(df_onestage)
 onestep_bi_strat.sum <- summary(onestep_bi_strat)
@@ -264,7 +290,7 @@ onestep_bi_strat.tau2_se <-
 # assumes conditional independence and follow binomial distribution
 # (1 | random.factor) + (0 + fixed.factor | random.factor) = fixed.factor + (fixed.factor || random.factor)
 
-onestep_bi_rand <- CalcOnestepBiRand(df) 
+onestep_bi_rand <- CalcOnestepBiRand(df_onestep) 
 onestep_bi_rand.sum <- summary(onestep_bi_rand)
 onestep_bi_rand.sum
 
