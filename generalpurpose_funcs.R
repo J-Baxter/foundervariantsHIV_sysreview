@@ -26,7 +26,8 @@ formatDF <-  function(df){
 CalcProps <- function(.data, ...){
   .data %>% 
     group_by(publication, ...) %>%
-    summarise(subjects = n(), multiplefounders = sum(multiple.founders))
+    summarise(subjects = n(), multiplefounders = sum(multiple.founders)) %>% 
+    as.data.frame()
   
 }
 
