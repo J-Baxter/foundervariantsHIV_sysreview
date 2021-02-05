@@ -18,7 +18,7 @@ formatDF <-  function(df){
   df_nona <- df[!is.na(df$multiple.founders),]
   df_nodups <- df_nona[(df_nona$include.main == '') & (df_nona$exclude.repeatstudy == ''),]
   df_labelled <- unite(df_nodups, "publication", c(author ,year), sep = '_')
-  df_splittrans <- colsplit(df$reported.exposure, ":" , c("riskgroup" , "direction")) %>% cbind.data.frame(.,df_labelled)
+  df_splittrans <- colsplit(df_labelled$reported.exposure, ":" , c("riskgroup" , "direction")) %>% cbind.data.frame(.,df_labelled)
   return(df_splittrans)
 }
 
