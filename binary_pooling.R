@@ -84,7 +84,7 @@ CalcOnestepBiStrat <- function(data){
 # One-step GLMM accounting for clustering of studies using a random intercept (
 # random slope, random & uncorrelated intercept)
 CalcOnestepBiRand <- function(data){
-  model <- glmer(multiple.founders ~  1 + (1|publication) + (0 + 1|publication),
+  model <- glmer(multiple.founders ~  1 + (1|publication),
                  data = data,
                  family = binomial(link = "logit"),
                  control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 100000)))
@@ -239,7 +239,8 @@ testlist <- sample(publist , 20) #c("Keele_2008", "Abrahams_2009", "Haaland_2009
 testset_df <- lapply(testlist, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
 nosmith <- publist[publist != "AbigailSmith_2016"]
 nosmith_df <- lapply(nosmith, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
-#set seed
+
+# Set seed
 set.seed(4472)
 
 
