@@ -43,21 +43,6 @@ GetNumSeqs <- function(df){
 }
 
 
-# Group transmission variable at higher level (remove direction)
-split_transmission <- function(x , catnames){
-  t1 <- as.character(x[,1]) %>% 
-    strsplit(. , '[:]') %>% do.call(rbind.data.frame, .) %>% 
-    cbind.data.frame(., x[,2])
-  
-  t2 <- t1[,c(1,3)]
-  freq <- t2 %>%
-    group_by(t2[,1] , t2[,2]) %>%
-    summarise(frequency = n())
-  colnames(freq) <- catnames
-  return(t2)
-}
-
-
 ###################################################################################################
 ###################################################################################################
 # Import data
@@ -140,11 +125,8 @@ p1.numseq <- ggplot(numseqs_df , aes(sequencing.number))+
 
 ###################################################################################################
 # 1.5 Route of transmission (reported.exposure)
-names <- c('reported.exposure' , 'multiple.founders' , 'frequency')
-exposure_grouped <- cbind.data.frame(df$reported.exposure, df$multiple.founders) %>% split_transmission(. ,names)
-colnames(exposure_grouped ) <- c('reported.exposure' , 'multiple.founders' )
 
-p1.exposure <- ggplot(exposure_grouped, aes(reported.exposure))+
+p1.exposure <- ggplot(df, aes(riskgroup))+
   geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders)), colour = forcats::fct_rev(factor(multiple.founders))))+
   scale_color_manual(values = mycols_founder, labels = labs)+
   scale_fill_manual(values = mycols_founder, labels = labs)+
@@ -179,7 +161,7 @@ plot_grid(p1.method + theme(legend.position="none"),
           p1.numseq + theme(legend.position="none"),
           p1.exposure + theme(legend.position="none"),
           p1.6,
-          ncol = 2 , nrow = 3,align = "hv", axis = "bt" , labels = "AUTO") 
+          ncol = 3 , nrow = 3,align = "hv", axis = "bt" , labels = "AUTO") 
 
 # Print to file
 tiff("covar_barplot.tiff" , width = 14 , height = 20)
