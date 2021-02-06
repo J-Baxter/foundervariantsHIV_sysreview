@@ -144,10 +144,12 @@ colnames(convergence) <- c("model" , "converged", "gradient")
 print(convergence)
 
 # 2. Check binned residuals
-#plot to check binned residuals
 binned <- lapply(test_reg , binned_residuals)
 
 binnedplots <- PlotBinned(binned)
+
+# 3. Extract AIC and compare
+
 
 #plot distribution of within study estimates (eg forest plot) next to modelled modifier
 ran.eff <- ranef(test_reg_2)[[1]] %>% gather()
