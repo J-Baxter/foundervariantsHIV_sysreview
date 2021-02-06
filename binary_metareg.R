@@ -1,14 +1,10 @@
 ###################################################################################################
 ###################################################################################################
 # IPD meta analysis of HIV founder variant multiplicity
-# Framework for IPD meta-regression under one-step and two-step approaches
-# models implemented:
+# Framework for IPD meta-regression under a one-step and two-step approaches
 # 1. Two-step binomial-normal model (Random effects, inverse variance pooling, reml estimator of tau)
-# 2. One-step binomial GLMM allowing for clustering by study. stratified intercepts and random effects
-#    for between study heterogeneity, approx ML fit
-# OR. One-step binomial GLMM allowing for clustering by study. uncorrelated random effects between studies
+# 2. One-step binomial GLMM allowing for clustering by study. uncorrelated random effects between studies
 #    (uncorrelated intercept and slope). approx ML fit
-# OR. Two-step beta-binomial GLMM, dispersion param for study labels. Laplace approximate ML estimation
 
 ###################################################################################################
 ###################################################################################################
@@ -49,12 +45,12 @@ set.seed(4472)
 ###################################################################################################
 
 # Outline formulas for meta-regression. 
-forms <- c(f0 = as.formula("multiple.founders ~  1 + (1|publication)"),
-           f1 = as.formula("multiple.founders ~  riskgroup + (1| cohort) + (1 |publication) -1"),
-           f2 = as.formula("multiple.founders ~  riskgroup + grouped.method + (1| cohort) + (1 |publication) -1"),
-           f3 = as.formula("multiple.founders ~  riskgroup + (1|grouped.method) + (1| cohort) + (1 |publication) -1"),
-           f4 = as.formula("multiple.founders ~  riskgroup + grouped.method + sequencing.region + (1| cohort) + (1 |publication) -1"),
-           f5 = as.formula("multiple.founders ~  reported.exposure + grouped.method + sequencing.region  + (1| cohort) + (1 |publication) -1")
+forms <- c(f0 = as.formula("multiple.founders ~  1 + (1 | publication)"),
+           f1 = as.formula("multiple.founders ~  riskgroup + (1 | cohort) + (1 | publication) - 1"),
+           f2 = as.formula("multiple.founders ~  riskgroup + grouped.method + (1| cohort) + (1 | publication) - 1"),
+           f3 = as.formula("multiple.founders ~  riskgroup + (1 | grouped.method) + (1 | cohort) + (1 | publication) - 1"),
+           f4 = as.formula("multiple.founders ~  riskgroup + grouped.method + sequencing.region + (1 | cohort) + (1 | publication) - 1"),
+           f5 = as.formula("multiple.founders ~  reported.exposure + grouped.method + sequencing.region  + (1 | cohort) + (1 | publication) - 1")
            )
 
 # Set up cluster
@@ -68,7 +64,7 @@ clusterEvalQ(cl,library(lme4))
 start <- Sys.time()
 start
 
-test_reg <- parLapply(cl = cl ,forms, CalcRandMetaReg , data = df_splittrans)
+test_reg <- parLapply(cl = cl, forms, CalcRandMetaReg, data = df_splittrans)
 
 end <- Sys.time()
 elapsed <- end-start
