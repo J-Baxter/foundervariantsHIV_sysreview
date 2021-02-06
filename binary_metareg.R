@@ -32,6 +32,39 @@ CalcRandMetaReg <- function(data, formula){
   return(model)
 }
 
+
+# Plot binned residuals
+# Y = average residual, X = Founder Variant Multiplicity, Ribbon = SE
+PlotBinned <- function(data){
+  
+  if (class(data) == "list"){
+    plt_list <- list()
+    
+    for (i in 1:length(data)){
+      plt_list[[i]] <- ggplot(data = data[[i]]) + 
+        geom_ribbon(aes(x = xbar, ymin = -se, ymax = se), fill = "white", colour = "grey60") + 
+        geom_point(aes(x = xbar, y = ybar , colour = group), shape = 4, size = 3)+
+        geom_abline(intercept = 0, slope = 0, linetype = "dashed")+
+        theme_classic() +
+        theme(panel.background = element_rect(fill = 'gray95' )) +
+        scale_color_npg() +
+        scale_x_continuous(name = element_blank(), 
+                           labels = scales::percent,
+                           limits = c(0,0.73),
+                           expand = c(0, 0.005)) +
+        scale_y_continuous(name = element_blank())+
+        theme(legend.position = "none")
+    }
+  }else{
+    warning('data supplied is not a list')
+  }
+  
+  plts <- cowplot::plot_grid(plotlist = plt_list , labels = "AUTO")
+  print(plts)
+  return(plts)
+}
+
+
 ###################################################################################################
 ###################################################################################################
 
@@ -64,18 +97,21 @@ forms <- c(f0 = as.formula("multiple.founders ~  1 +
            f3a = as.formula("multiple.founders ~  riskgroup + grouped.method + sequencing.region + 
                            (1 | cohort) + (1 | publication) - 1"),
            f3b = as.formula("multiple.founders ~ reported.exposure + grouped.method + sequencing.region + 
-                           (1 | cohort) + (1 | publication) - 1"),
+                           (1 | cohort) + (1 | publication) - 1")#,
            
            #f5 = as.formula("multiple.founders ~  riskgroup*grouped.subtype + grouped.method + sequencing.region  + seropositivity + (1 | cohort) + (1 | publication) - 1"),
            #f6 = as.formula("multiple.founders ~  reported.exposure*grouped.subtype + grouped.method + sequencing.region  + seropositivity + (1 | cohort) + (1 | publication) - 1")
            )
 
-# Set up cluster
+
+###################################################################################################
+
+# Set up cluster (socket)
 cl <- detectCores() %>%
   `-` (2) %>%
   makeCluster()
 
-clusterEvalQ(cl,library(lme4))
+clusterEvalQ(cl, c(library(lme4), set.seed(4472)))
 
 # Set time and run models
 start <- Sys.time()
@@ -96,25 +132,22 @@ remove(cl)
 # Model Evaluation
 # 1. Check Convergence
 # 2. Binned residuals (ideally >95% within SE)
+# 3. Compare AIC
 
 # 1. Check Convergence
+convergence <- lapply(test_reg, check_convergence, tolerance = 0.05) %>%
+  {cbind.data.frame(melt(lapply(., attributes)), melt(.))} %>%
+  .[,c(3,4,1)]
 
+colnames(convergence) <- c("model" , "converged", "gradient")
 
+print(convergence)
+
+# 2. Check binned residuals
 #plot to check binned residuals
-binned <- performance::binned_residuals(test_reg)
-ggplot(data = binned) + 
-  geom_ribbon(aes(x = xbar, ymin = -se, ymax = se), fill = "white", colour = "grey60") + 
-  geom_point(aes(x = xbar, y = ybar , colour = group), shape = 4, size = 3)+
-  geom_abline(intercept = 0, slope = 0, linetype = "dashed")+
-  theme_classic() +
-  theme(panel.background = element_rect(fill = 'gray95' )) +
-  scale_color_npg() +
-  scale_x_continuous(name = "Estimated Probability of Multiple Founder Variants", 
-                     labels = scales::percent,
-                     limits = c(0,0.73),
-                     expand = c(0, 0.005)) +
-  scale_y_continuous(name = "Average Residual")+
-  theme(legend.position = "none")
+binned <- lapply(test_reg , binned_residuals)
+
+binnedplots <- PlotBinned(binned)
 
 #plot distribution of within study estimates (eg forest plot) next to modelled modifier
 ran.eff <- ranef(test_reg_2)[[1]] %>% gather()
