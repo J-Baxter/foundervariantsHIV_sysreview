@@ -44,13 +44,30 @@ set.seed(4472)
 
 ###################################################################################################
 
-# Outline formulas for meta-regression. 
-forms <- c(f0 = as.formula("multiple.founders ~  1 + (1 | publication)"),
-           f1 = as.formula("multiple.founders ~  riskgroup + (1 | cohort) + (1 | publication) - 1"),
-           f2 = as.formula("multiple.founders ~  riskgroup + grouped.method + (1| cohort) + (1 | publication) - 1"),
-           f3 = as.formula("multiple.founders ~  riskgroup + (1 | grouped.method) + (1 | cohort) + (1 | publication) - 1"),
-           f4 = as.formula("multiple.founders ~  riskgroup + grouped.method + sequencing.region + (1 | cohort) + (1 | publication) - 1"),
-           f5 = as.formula("multiple.founders ~  reported.exposure + grouped.method + sequencing.region  + (1 | cohort) + (1 | publication) - 1")
+# Outline formulas for meta-regression (Hierarchical model fitting)
+# Models 'A' use broadly defined risk groups (MSM, HSX etc) whereas models 'B', subgroup by direction
+# and/or timing
+
+forms <- c(f0 = as.formula("multiple.founders ~  1 + 
+                           (1 | publication)"),
+           
+           f1a = as.formula("multiple.founders ~  riskgroup + 
+                           (1 | cohort) + (1 | publication) - 1"),
+           f1b = as.formula("multiple.founders ~  reported.exposure + 
+                           (1 | cohort) + (1 | publication) - 1"),
+           
+           f2a = as.formula("multiple.founders ~  riskgroup + grouped.method + 
+                           (1| cohort) + (1 | publication) - 1"),
+           f2b = as.formula("multiple.founders ~  reported.exposure + grouped.method + 
+                           (1| cohort) + (1 | publication) - 1"),
+           
+           f3a = as.formula("multiple.founders ~  riskgroup + grouped.method + sequencing.region + 
+                           (1 | cohort) + (1 | publication) - 1"),
+           f3b = as.formula("multiple.founders ~ reported.exposure + grouped.method + sequencing.region + 
+                           (1 | cohort) + (1 | publication) - 1"),
+           
+           #f5 = as.formula("multiple.founders ~  riskgroup*grouped.subtype + grouped.method + sequencing.region  + seropositivity + (1 | cohort) + (1 | publication) - 1"),
+           #f6 = as.formula("multiple.founders ~  reported.exposure*grouped.subtype + grouped.method + sequencing.region  + seropositivity + (1 | cohort) + (1 | publication) - 1")
            )
 
 # Set up cluster
