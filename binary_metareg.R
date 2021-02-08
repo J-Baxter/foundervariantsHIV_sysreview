@@ -18,6 +18,7 @@ library(influence.ME)
 library(kableExtra)
 library(parallel)
 library(performance)
+library(reshape2)
 source('generalpurpose_funcs.R')
 
 # One-step GLMM accounting for clustering of studies using a random intercept
@@ -117,7 +118,7 @@ clusterEvalQ(cl, c(library(lme4), set.seed(4472)))
 start <- Sys.time()
 start
 
-test_reg <- parLapply(cl = cl, forms, CalcRandMetaReg, data = df_splittrans)
+test_reg <- parLapply(cl = cl, forms, CalcRandMetaReg, data = df)
 
 end <- Sys.time()
 elapsed <- end-start
