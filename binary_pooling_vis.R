@@ -1,4 +1,4 @@
- ###################################################################################################
+###################################################################################################
 ###################################################################################################
 # Visualisation for pooling and sensitivity analyses
 
@@ -35,15 +35,17 @@ models <- c('Two-Step Binomial Normal',
             'One-Step Binomial (uncorrelated random intercept and slope)',
             "Two-Step Beta-Binomial")
 og_models <- cbind(pooled_models[1:4,1], mapply(transf.ilogit, pooled_models[1:4,3:5]) %>% round(digits = 3))
-og_models_formatted <- cbind.data.frame("probability" = paste0(og_models$estimate, ' ' ,
-                                                               '[' , og_models$estimate.lb ,' - ',
-                                                               og_models$estimate.ub, ']'),
-                                        row.names =models )
+
 # resampling data
 
 ###################################################################################################
 ###################################################################################################
 # Panel: Table of estimate and tau for pooling
+
+og_models_formatted <- cbind.data.frame("probability" = paste0(og_models$estimate, ' ' ,
+                                                               '[' , og_models$estimate.lb ,' - ',
+                                                               og_models$estimate.ub, ']'),
+                                        row.names =models )
 
 tbl <- kbl(og_models_formatted, longtable = T, booktabs = T, col.names = c("Probability of Multiple Founders")) %>%
   kable_classic(html_font = "Arial")
@@ -68,7 +70,7 @@ senseplot <- ggplot(cbind.data.frame(pooled_models[,1:2],mapply(metafor::transf.
     twostep.bn = "BN",
     twostep.bb = "BB",
     onestep.strat = "Stratified",
-    onestep.rand = "Random "))+
+    onestep.rand = "Random"))+
   theme_classic() + 
   coord_flip()+
   geom_linerange(aes(ymin=estimate.lb, ymax= estimate.ub, color = analysis), position = position_dodge(0.5)) +
@@ -85,15 +87,47 @@ senseplot <- ggplot(cbind.data.frame(pooled_models[,1:2],mapply(metafor::transf.
 
 # Resampling histograms
 plt_boot.list <- mapply(PltBoot, data = t, 
-                        intercept = mapply(transf.ilogit, og_models[,3]), 
-                        ci.lb = mapply(transf.ilogit, og_models[,4]),
-                        ci.ub = mapply(transf.ilogit, og_models[,5]),
+                        intercept = og_models[,2], 
+                        ci.lb = og_models[,3],
+                        ci.ub = og_models[,4],
                         SIMPLIFY = FALSE)
 
 plt_boot.grid <- cowplot::plot_grid(plotlist = plt_boot.list , align = "hv" , nrow = 2, ncol = 2 , labels = c("B" , 'C' , "D" , "E"))
 
 cowplot::plot_grid(senseplot, 
                    plt_boot.grid , nrow = 2,  rel_heights = c(1, 1) ,labels = "A")
+
+# Influence of study, faceted by model
+influence_df$trial <- gsub("_" , " ", influence_df$trial)
+
+plt <- ggplot(influence_df,aes(x = trial , y = estimate) ) +
+  geom_point() + 
+  scale_y_continuous(limits=c(0,0.4),expand = c(0, 0),name = "Probability of Multiple Founders") +
+  scale_x_discrete(labels = influence.labs)+
+  theme_classic() + 
+  coord_flip()+
+  facet_grid(cols = vars(model), labeller = labeller(model = c(
+    twostep_binorm = "Binomial-Normal",
+    twostep_betabi = "Beta-Binomial",
+    onestep_strat = "GLMM Stratified",
+    onestep_rand = "GLMM Random")))+
+  geom_errorbar(data =influence_df, aes(x = trial ,ymin=ci.lb, ymax=ci.ub))+
+  geom_hline(data = og_models, aes(yintercept = estimate),linetype="dashed", 
+             color = "#DC0000FF", size=0.75) +
+  geom_rect(data = og_models, inherit.aes = FALSE,aes(ymin=estimate.lb, ymax=estimate.ub, xmin = -Inf, xmax = Inf), fill = "#DC000033")+
+  theme(
+    axis.line.y =element_blank(),
+    axis.title.y =element_blank(),
+    axis.ticks.y=element_blank(),
+    strip.text.x = element_text(face = "bold" , colour = 'black' , size = 10.5),
+    panel.spacing.x = unit(0.6 , 'cm'),
+    strip.background = element_rect(fill = NA, colour= NA)
+  )
+tiff(filename = 'influenceplot.tif', res = 180, width=2750, height=2650 , units = 'cm', pointsize = 10)
+
+plt
+
+dev.off()
 
 ###################################################################################################
 # Panel: Sensitivity analyses (Faceted Influence Plots)

@@ -156,7 +156,9 @@ LOOCV.dat <- function(data){
 
 
 #extract estimates from LOOCV to create dataframe (input for influence plot)
-DFInfluence <- function(model){
+DFInfluence <- function(model,labs){
+  
+  names <- paste("Omitting" , labs %>% names(), sep = " ") %>% as.factor()
   beta = numeric()
   ci.lb = numeric()
   ci.ub = numeric() 
@@ -171,17 +173,15 @@ DFInfluence <- function(model){
     for (i in 1:length(model)){
       ci <- confint(model[[i]])
       beta[i] <- summary(model[[i]])$coefficients[1,1]
-      ci.lb[i] <-ci[nrow(model[[i]]),1]
-      ci.ub[i] <- ci[nrow(model[[i]]),2]
+      ci.lb[i] <-ci[nrow(ci),1]
+      ci.ub[i] <- ci[nrow(ci),2]
     }
-  }else if (class(model[[1]]) =="glmerMod"){
+  }else if (class(model[[1]]) =="glimML"){
     #Bootstrapped Binomial CIs-check Chuang-Stein 1993
-    #NB calls from outside function
-    binom.ci <- varbin(subjects,multiplefounders, data = df_props)@tab[5,c(3,4)] %>%
-      as.numeric() %>%
-      transf.logit()
-    
     for (i in 1:length(model)){
+      binom.ci <- varbin(subjects,multiplefounders, data = model[[i]]@data)@tab[5,c(3,4)] %>%
+        as.numeric() %>%
+        transf.logit()
       beta[i] <- model[[i]]@param[1]
       ci.lb[i] <- binom.ci[1]
       ci.ub[i] <- binom.ci[2]
@@ -190,41 +190,13 @@ DFInfluence <- function(model){
     stop('no valid model detected.')
   }
   
-  influence_out <- cbind.data.frame('trial'= paste("Omitting" ,unique(df$publication), sep = " ") %>% as.factor(),
+  influence_out <- cbind.data.frame('trial'= names,
                                     "estimate" = transf.ilogit(beta),
                                     "ci.lb" = transf.ilogit(ci.lb),
                                     "ci.ub"= transf.ilogit(ci.ub)) 
   return(influence_out)
 }
 
-
-#print influence plot of leave one out cross validation
-PlotInfluence <- function(df, original){
-  influence.labs <- paste0(round(df$estimate, digits = 3), " " ,"[",round(df$ci.lb, digits= 3), "-" ,round(df$ci.lb,digits= 3), "]")
-  
-  orig.estimate <- original[1]
-  orig.ci.lb <- original[2]
-  orig.ci.ub <- original[3]
-  
-  plt <- ggplot(df,aes(x = trial , y = estimate) ) +
-    geom_point() + 
-    scale_y_continuous(limits=c(0,0.75),expand = c(0, 0)) +
-    scale_x_discrete()+
-    theme_classic() + 
-    coord_flip()+
-    geom_errorbar(aes(x = trial ,ymin=ci.lb, ymax=ci.ub))+
-    annotate( "rect", xmin=0, xmax=Inf, ymin=orig.ci.lb, ymax=orig.ci.ub ,alpha = .2, fill = 'blue') +
-    geom_hline(yintercept = orig.estimate,linetype="dashed", 
-               color = "blue", size=0.5)+
-    annotate("text", label = influence.labs, x = influence_out$trial , y = 0.7, size = 2.5, colour = "black", hjust = 1)+
-    theme(
-      axis.line.y =element_blank(),
-      axis.title.y =element_blank(),
-      axis.ticks.y=element_blank()
-    )
-  
-  print(plt)
-}
 
 
 
@@ -412,34 +384,21 @@ colnames(modelcomp_df) <- c('Model', 'Estimate', 'props.ci95_lb', 'props.ci95_ub
 # SA1. Influence of Individual Studies (LOOCV)
 df_loocv <- LOOCV.dat(df)[[1]]
 publist_loocv <- LOOCV.dat(df)[[2]]
+dfp_loocv <- LOOCV.dat(df_props)[[1]]
 
-twostep_binorm.influence <- mapply(function(x,y) CalcTwostepBiNorm(data = x, study_list = y)[[2]] , x = df_loocv , y = publist_loocv, SIMPLIFY = FALSE) %>%
-  DFInfluence()
-
-pdf("testinfluence.pdf" , width = 14 , height = 20) 
-PlotInfluence(twostep_binorm.influence)
-dev.off()
+twostep_binorm.influence <- lapply(dfp_loocv, function(x) CalcTwostepBiNorm(data = x)[[2]]) %>%
+  DFInfluence(., labs = publist_loocv) %>% {cbind.data.frame(.,'model' = 'twostep_binorm')}
 
 onestep_bi_strat.influence <- lapply(df_loo ,CalcOnestepBiStrat) %>%
   DFInfluence()
 
-pdf("testinfluence.pdf" , width = 14 , height = 20) 
-PlotInfluence(onestep_bi_strat.influence)
-dev.off()
+onestep_bi_rand.influence <-  lapply(df_loocv ,CalcOnestepBiRand) %>%
+  DFInfluence(., labs =publist_loocv) %>% {cbind.data.frame(.,'model' = 'onestep_rand')}
 
-onestep_bi_rand.influence <-  lapply(df_loo ,CalcOnestepBiRand) %>%
-  DFInfluence()##TBC due to CIs
+twostep_betabi.influence <-  lapply(dfp_loocv ,CalcTwostepBetaBi) %>%
+  DFInfluence(., labs = publist_loocv) %>% {cbind.data.frame(.,'model' = 'twostep_betabi')}
 
-pdf("testinfluence.pdf" , width = 14 , height = 20) 
-PlotInfluence(onestep_bi_rand.influence)
-dev.off()
-
-twostep_betabi.influence <-  lapply(df_loo ,CalcOnestepBiRand) %>%
-  DFInfluence() ##TBC due to CIs
-
-pdf("testinfluence.pdf" , width = 14 , height = 20) 
-PlotInfluence(twostep_betabi.influence)
-dev.off()
+influence_df <- rbind.data.frame(twostep_binorm.influence,onestep_bi_rand.influence,twostep_betabi.influence)
   
 
 # SA2. Exclusion of small sample sizes (less than n = 10)
@@ -480,10 +439,7 @@ SA3_results <- CalcEstimates(twostep_binorm.nozeros[[2]],
 # SA5. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
 resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(., noreps = FALSE)
 
-
-
 boot_participant <- BootParticipant(resampling_df , 500) 
-
 
 t <- lapply(boot_participant , function(x) { transf.ilogit(x[,1]) %>% data.frame(estimate = .)}) #not necessary as this has now been incorported into BootParticiapnt
 
