@@ -233,7 +233,7 @@ PlotInfluence <- function(df, original){
 # Import data
 setwd("./data")
 df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(., noreps = TRUE)
-  
+df_props <- CalcProps(df)  
 # Set test data
 publist <- unique(df$publication)
 testlist <- sample(publist , 20) #c("Keele_2008", "Abrahams_2009", "Haaland_2009","Li_2010", "Janes_2015", "Rolland_2011", "Macharia_2020", "Nofemala_2011", "Novitsky_2011","Novitsky_2009","Chaillon_2016","Zanini_2015","VillabonaArenas_2020")#
@@ -273,7 +273,7 @@ twostep_binorm.sum
 testset_df <- lapply(testlist, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
 df_onestage <- AddIncr(df, incr = 0.0005)
 onestep_bi_strat <- glmer(multiple.founders ~   publication  + (1| publication),
-      data = df,
+      data = df_onestage,
       family = binomial(link = "logit"),
       control = glmerControl(optCtrl = list(maxfun = 1000000)))
 
@@ -309,7 +309,7 @@ onestep_bi_rand.tau2 <- VarCorr(onestep_bi_rand)[[1]][1]
 # distribution B(ni;pi) (From Chuang-Stein 1993).
 # Laplace approximate ML estimation
 
-df_props <- CalcProps(df)
+
 df_props$multiplefounders[df_props$multiplefounders == 0 ] <- 0.0005 # refactor to CalcProps function
 
 twostep_betabi <- CalcTwostepBetaBi(df_props)
@@ -429,8 +429,8 @@ BootParticipant <- function(data, replicates){
   require(lme4)
   require(metafor)
   
-  resampled <- lapply(1:replicates, function(x,y) {data %>% group_by(participant.id) %>% slice_sample(n=1)},
-                      y = df)
+  resampled <- lapply(1:replicates, function(x,y) {y %>% group_by(participant.id) %>% slice_sample(n=1)},
+                      y = data)
   
   resampled_props <- lapply(resampled , CalcProps)
   
@@ -457,35 +457,42 @@ BootParticipant <- function(data, replicates){
   stopCluster(cl)
   remove(cl)
   
-  twostep_boot.est <- lapply(twostep_boot, function(model) model$beta) %>% do.call(rbind.data.frame,.) %>%
-    {cbind.data.frame("estimate"=.[,1])}
+  twostep_boot.est <- lapply(twostep_boot, function(model) model[[2]]$beta) %>% do.call(rbind.data.frame,.) %>%
+    {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
   
   rand_boot.est <- lapply(rand_boot, function(model) summary(model)$coefficients[1,1]) %>% do.call(rbind.data.frame,.) %>%
-    {cbind.data.frame("estimate"=.[,1])}
+    {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
   
   strat_boot.est <- lapply(strat_boot, function(model) summary(model)$coefficients[1,1]) %>% do.call(rbind.data.frame,.) %>%
-    {cbind.data.frame("estimate"=.[,1])}
+    {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
   
   beta_boot.est <- lapply(beta_boot, function(model) model@param[1]) %>% do.call(rbind.data.frame,.) %>%
-    {cbind.data.frame("estimate"=.[,1])}
+    {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
   
-  boot_estimates <- list(twostep_boot.est,
-                         rand_boot.est,
-                         strat_boot.est,
-                         beta_boot.est)
+  boot_estimates <- list('twostep' = twostep_boot.est,
+                         'rand' = rand_boot.est,
+                         'strat' = strat_boot.est,
+                         'beta' = beta_boot.est)
   
   return(boot_estimates)
 }
 
-boot_participant <- BootParticipant(resampling_df , 500)
+boot_participant <- BootParticipant(resampling_df , 500) 
 
-ggplot(test) + 
-  geom_histogram(aes(x = transformed.estimate),color="black", fill="grey96", binwidth = 0.0005) + 
-  geom_vline(aes(xintercept=mean(transformed.estimate)),color="#DC0000B2", linetype="dashed", size=1.2) +
-  geom_vline(aes(xintercept= 0.239),color="#4DBBD5B2", linetype="dashed", size=1.2) +
-  theme_classic() +
-  scale_y_continuous(expand = c(0, 0))
+PltBoot <- function(data, intercept){
+  plt <- ggplot(data) + 
+    geom_histogram(aes(x = estimate),color="black", fill="grey96", binwidth = 0.0005) + 
+    geom_vline(aes(xintercept=mean(estimate)),color="#DC0000B2", linetype="dashed", size=1.2) +
+    geom_vline(aes(xintercept= intercept),color="#4DBBD5B2", linetype="dashed", size=1.2) +
+    theme_classic() +
+    scale_y_continuous(expand = c(0, 0))
+  
+  return(plt)
+}
 
+t <- lapply(boot_participant , function(x) { transf.ilogit(x[,1]) %>% data.frame(estimate = .)})
+plt_boot.list <- mapply(PltBoot, data = t, intercept = c(0.283,0.239,0.001,0.259), SIMPLIFY = FALSE)
+cowplot::plot_grid(plotlist = plt_boot.list , align = "hv" , nrow = 2, ncol = 2 , labels = "AUTO")
 
 ###################################################################################################
 ###################################################################################################
