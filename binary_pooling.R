@@ -111,31 +111,35 @@ CalcCI <- function(u,se,threshold){
 
 #extracts estimates of summary effect from models
 #can potentially refactor around DFInfluence
-CalcEstimates <- function(model1, model2, model3, model4){
-  summary_estimates <- c(model1$beta,
-                         summary(model2)$coefficients[1,1],
-                         summary(model3)$coefficients[1,1], 
-                         model4@param[1]) %>% 
-    as.numeric() %>% 
-    transf.ilogit() %>% cbind.data.frame()
+CalcEstimates <- function(model , analysis = "original"){
+  if (class(model) == "rma" || class(model) == "rma.uni"){
+    beta <- model$beta
+    ci.lb <- model$ci.lb
+    ci.ub <- model$ci.ub
+  }
+  else if (class(model) =="glmerMod"){
+    beta <- summary(model)$coefficients[1,1]
+    ci <- confint(model)
+    ci.lb <- ci[nrow(ci),1]
+    ci.ub <- ci[nrow(ci),2]
+  }
+  else if (class(model) =="glimML"){
+    beta <- model@param[1]
+    ci <- varbin(subjects,multiplefounders, data = model@data)@tab[5,c(3,4)]
+    ci.lb <- as.numeric(ci[1]) %>% transf.logit()
+    ci.ub <- as.numeric(ci[2]) %>% transf.logit()
+  }
+
+  results <- cbind.data.frame("estimate" = beta,
+                              "estimate.lb" = ci.lb,
+                              "estimate.ub" = ci.ub) %>%
+    mapply(transf.ilogit, ., SIMPLIFY = FALSE)
   
-  binom.ci <- varbin(subjects,multiplefounders, data = df_props)@tab[5,c(3,4)] %>% as.numeric()
-  #Bootstrapped Binomial CIs-check Chuang-Stein 1993
-  #NB calls from outside function
+  results_lab <- cbind.data.frame("model" = substitute(model) %>% deparse(),
+                                  "analysis" = analysis,
+                                  results)
   
-  summary_props.ci95 <- list(c(model1$ci.lb , model1$ci.ub),
-                             c(confint(model2)[2,c(1,2)]), 
-                             c(confint(model3)[3,c(1,2)])) %>% 
-    lapply(.,as.numeric) %>% 
-    lapply(.,transf.ilogit) %>% do.call(rbind.data.frame,.) %>%
-    rbind(.,binom.ci)
-  
-  results <- cbind.data.frame(summary_props,
-                              summary_props.ci95[,1],
-                              summary_props.ci95[,2])
-  
-  colnames(results) <- c("Estimate", "95% CI Lower", "95% CI Upper" )
-  return(results)
+  return(results_lab)
 }
 
 
@@ -194,6 +198,8 @@ DFInfluence <- function(model,labs){
                                     "estimate" = transf.ilogit(beta),
                                     "ci.lb" = transf.ilogit(ci.lb),
                                     "ci.ub"= transf.ilogit(ci.ub)) 
+  
+
   return(influence_out)
 }
 
@@ -274,14 +280,14 @@ set.seed(4472)
 # step 2: pooling across studies using random effects (normal model). Inverse variance method used to pool. 
 # REML estimator of Tau. 
 
-twostep_binorm <- CalcTwostepBiNorm(df_props)
+twostep_binorm.all <- CalcTwostepBiNorm(df_props)
 twostep_binorm.step1 <- twostep_binorm[[1]]
-twostep_binorm.step2 <- twostep_binorm[[2]]
+twostep_binorm <- twostep_binorm[[2]]
 
 twostep_binorm.sum <- summary(twostep_binorm.step2)
 twostep_binorm.sum
 
-
+twostep_binorm.est <- CalcEstimates(twostep_binorm)
 ###################################################################################################
 
 # 2. One-step binomial GLMM allowing for clustering by study. 
@@ -289,10 +295,6 @@ twostep_binorm.sum
 # Laplace approximate ML estimation
 # assumes conditional independence and follow binomial distribution
 
-#df_onestage <- df
-#df_onestage$z <- df_onestage$multiple.founders -0.5
-#testlist <- sample(publist , 35)
-testset_df <- lapply(testlist, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
 df_onestage <- AddIncr(df, incr = 0.0005)
 onestep_bi_strat <- glmer(multiple.founders ~   publication  + (1| publication),
       data = df_onestage,
@@ -304,6 +306,7 @@ onestep_bi_strat <- CalcOnestepBiStrat(df)
 onestep_bi_strat.sum <- summary(onestep_bi_strat)
 onestep_bi_strat.sum
 
+onestep_bi_rand.est <- CalcEstimates(onestep_bi_strat)
 onestep_bi_strat.tau2 <- VarCorr(onestep_bi_strat)[[1]][1] 
 onestep_bi_strat.tau2_se <- 
 
@@ -321,6 +324,7 @@ onestep_bi_rand <- CalcOnestepBiRand(df_onestage)
 onestep_bi_rand.sum <- summary(onestep_bi_rand)
 onestep_bi_rand.sum
 
+onestep_bi_rand.est <- CalcEstimates(onestep_bi_rand)
 onestep_bi_rand.tau2 <- VarCorr(onestep_bi_rand)[[1]][1] 
 
 ###################################################################################################
@@ -338,33 +342,20 @@ twostep_betabi <- CalcTwostepBetaBi(df_props)
 
 twostep_betabi.sum <- summary(twostep_betabi)
 twostep_betabi.sum
-
+twostep_betabi.est <- CalcEstimates(twostep_betabi)
  
 ###################################################################################################
 ###################################################################################################
 # Model comparison: Estimated sumary effects (prop, CI), between study variance (tau, I^)
 # Tau2 = Var(theta_i), theta_i = E[theta_i]
-summary_results <- CalcEstimates(twostep_binorm.step2,
-                                 onestep_bi_strat,
-                                 onestep_bi_rand,
-                                 twostep_betabi)
+estimates <- rbind.data.frame(twostep_binorm.est, onestep_bi_rand.est,
+                                    onestep_bi_rand.est,twostep_betabi.est)
 
 
-tau2 <- c(twostep_binorm$tau2, onestep_bi_strat.tau2, onestep_bi_rand.tau2 )
+tau2 <- rbind.data.frame(twostep_binorm.tau2, onestep_bi_rand.tau2,
+                         onestep_bi_rand.tau2,twostep_betabi.tau2 )
 
-tau2.ci <- 
   
-
-
-modelcomp_df <- cbind.data.frame(Model = c('Two-Step Binomial Normal',
-                                             'One-Step Binomial (random slope) and correlated intercept',
-                                             'One-Step Binomial (uncorrelated random intercept and slope)',
-                                             "Two-Step Beta-Binomial"),
-                                 summary_results)
-
-colnames(modelcomp_df) <- c('Model', 'Estimate', 'props.ci95_lb', 'props.ci95_ub')
-
-
 ###################################################################################################
 ###################################################################################################
 # Sensitivity Analyses
@@ -395,46 +386,76 @@ influence_df <- rbind.data.frame(twostep_binorm.influence,onestep_bi_rand.influe
 
 
 # SA2. Exclusion of small sample sizes (less than n = 10)
-publist.nosmallsample <- subset(df_props , subjects > 9 , select = publication) %>% pull(.,var=publication) %>% unique()
-df.nosmallsample <- lapply(publist.nosmallsample, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
+publist.nosmallsample <- subset(df_props , subjects > 9 , select = publication) %>%
+  pull(.,var=publication) %>%
+  unique()
+
+df.nosmallsample <- lapply(publist.nosmallsample, function(x,y) subset(x, publication == y), x = df) %>%
+  do.call(rbind.data.frame,.)
+
 df_props.nosmallsample <- subset(df_props , subjects > 9)
 
-twostep_binorm.nosamllsample <- CalcTwostepBiNorm(df_props.nosmallsample)
-onestep_bi_strat.nosamllsample <- CalcOnestepBiStrat(df.nosmallsample)
-onestep_bi_rand.nosamllsample <- CalcOnestepBiRand(df.nosmallsample)
-twostep_betabi.nosamllsample <- CalcTwostepBetaBi(df_props.nosmallsample)
+twostep_binorm.nosamllsample <- CalcTwostepBiNorm(df_props.nosmallsample)[[2]] %>% 
+  CalcEstimates(., analysis = "no_small")
 
-SA2_results <- CalcEstimates(twostep_binorm.nosamllsample[[2]],
-                             onestep_bi_strat.nosamllsample,
-                             onestep_bi_rand.nosamllsample,
-                             twostep_betabi.nosamllsample)
+onestep_bi_strat.nosamllsample <- CalcOnestepBiStrat(df.nosmallsample) %>%
+  CalcEstimates(., analysis = "no_small")
+
+onestep_bi_rand.nosamllsample <- CalcOnestepBiRand(df.nosmallsample) %>% 
+  CalcEstimates(., analysis = "no_small")
+
+twostep_betabi.nosamllsample <- CalcTwostepBetaBi(df_props.nosmallsample) %>%
+  CalcEstimates(., analysis = "no_small")
+
+SA2_results <-  rbind.data.frame(twostep_binorm.nosamllsample, onestep_bi_rand.nosamllsample,
+                                 onestep_bi_rand.nosamllsample,twostep_betabi.nosamllsample)
 
 
 # SA3. Exclusion of studies with 0 multiple founder variants
-publist.nozeros <- subset(df_props , multiplefounders != 0 , select = publication) %>% pull(.,var=publication) %>% unique()
-df.nozeros <- lapply(publist.nozeros, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
+publist.nozeros <- subset(df_props , multiplefounders != 0 , select = publication) %>%
+  pull(.,var=publication) %>%
+  unique()
+
+df.nozeros <- lapply(publist.nozeros, function(x,y) subset(x, publication == y), x = df) %>%
+  do.call(rbind.data.frame,.)
+
 df_props.nozeros <- subset(df_props , multiplefounders != 0)
 
-twostep_binorm.nozeros <- CalcTwostepBiNorm(df_props.nozeros)
-onestep_bi_strat.nozeros <- CalcOnestepBiStrat(df.nozeros)
-onestep_bi_rand.nozeros <- CalcOnestepBiRand(df.nozeros)
-twostep_betabi.nozeros <- CalcTwostepBetaBi(df_props.nozeros) #expectation is this is no better than binomial models
+twostep_binorm.nozeros <- CalcTwostepBiNorm(df_props.nozeros)[[2]] %>%
+  CalcEstimates(., analysis = "no_zeros")
 
-SA3_results <- CalcEstimates(twostep_binorm.nozeros[[2]],
-                             onestep_bi_strat.nozeros,
-                             onestep_bi_rand.nozeros,
-                             twostep_betabi.nozeros)
+onestep_bi_strat.nozeros <- CalcOnestepBiStrat(df.nozeros) %>%
+  CalcEstimates(., analysis = "no_zeros")
+
+onestep_bi_rand.nozeros <- CalcOnestepBiRand(df.nozeros) %>%
+  CalcEstimates(., analysis = "no_zeros")
+
+twostep_betabi.nozeros <- CalcTwostepBetaBi(df_props.nozeros) %>%
+  CalcEstimates(., analysis = "no_zeros") #expectation is this is no better than binomial models
+
+SA3_results <- rbind.data.frame(twostep_binorm.nozeros, onestep_bi_rand.nozeros,
+                                onestep_bi_rand.nozeros,twostep_betabi.nozeros)
 
 
 # SA4. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
 resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(., noreps = FALSE)
 
-boot_participant <- BootParticipant(resampling_df , 500) #Out to file
+boot_participant <- BootParticipant(resampling_df , 500) #Out to file: save as df -> csv with indexes denoting list structure
 
 ###################################################################################################
 ###################################################################################################
 # Outputs
-# CSV of pooling model results (with SAs 2 + 3)
+# CSV of pooling model results (estimates only) with SAs 2 + 3
+pooled_mods <- rbind.data.frame(estimates,
+                                SA2_results,
+                                SA3_results)
+
+write.csv(pooled_mods, file = 'bp_estsa2sa3.csv')
+
+# CSV of pooling model results (estimates and tau2)
+model_comp_df <- cbind.data.frame(estimates, tau2)
+
+write.csv(model_comp_df , file = 'bp_esttau.csv')
 
 # CSV study influence
 write.csv(influence_df, file = 'bp_sa1.csv')
