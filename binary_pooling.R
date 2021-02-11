@@ -227,6 +227,61 @@ PlotInfluence <- function(df, original){
 }
 
 
+
+BootParticipant <- function(data, replicates){
+  require(parallel)
+  require(lme4)
+  require(metafor)
+  
+  resampled <- lapply(1:replicates, function(x,y) {y %>% group_by(participant.id) %>% slice_sample(n=1)},
+                      y = data)
+  
+  resampled_props <- lapply(resampled , CalcProps)
+  
+  cl <- detectCores() %>%
+    `-` (2) %>%
+    makeCluster()
+  
+  clusterEvalQ(cl, c(library(lme4), library(metafor), library(aod), library(dplyr),
+                     set.seed(4472),'CalcOnestepBiRand', 'CalcTwostepBiNorm',
+                     'CalcOnestepBiStrat','CalcTwostepBetaBi'))
+  
+  start <- Sys.time()
+  print(start)
+  
+  twostep_boot <- parLapply(cl = cl, resampled_props, CalcTwostepBiNorm)
+  rand_boot <- parLapply(cl = cl, resampled, CalcOnestepBiRand)
+  strat_boot <- parLapply(cl = cl, resampled, CalcOnestepBiStrat)
+  beta_boot <- parLapply(cl = cl, resampled_props, CalcTwostepBetaBi)
+  
+  end <- Sys.time()
+  elapsed <- end-start
+  print(elapsed)
+  
+  stopCluster(cl)
+  remove(cl)
+  
+  twostep_boot.est <- lapply(twostep_boot, function(model) model[[2]]$beta) %>% do.call(rbind.data.frame,.) %>%
+    {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
+  
+  rand_boot.est <- lapply(rand_boot, function(model) summary(model)$coefficients[1,1]) %>% do.call(rbind.data.frame,.) %>%
+    {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
+  
+  strat_boot.est <- lapply(strat_boot, function(model) summary(model)$coefficients[1,1]) %>% do.call(rbind.data.frame,.) %>%
+    {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
+  
+  beta_boot.est <- lapply(beta_boot, function(model) model@param[1]) %>% do.call(rbind.data.frame,.) %>%
+    {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
+  
+  boot_estimates <- list('twostep' = twostep_boot.est,
+                         'rand' = rand_boot.est,
+                         'strat' = strat_boot.est,
+                         'beta' = beta_boot.est)
+  
+  return(boot_estimates)
+}
+
+
 ###################################################################################################
 ###################################################################################################
 
@@ -424,84 +479,17 @@ SA3_results <- CalcEstimates(twostep_binorm.nozeros[[2]],
 # SA5. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
 resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(., noreps = FALSE)
 
-BootParticipant <- function(data, replicates){
-  require(parallel)
-  require(lme4)
-  require(metafor)
-  
-  resampled <- lapply(1:replicates, function(x,y) {y %>% group_by(participant.id) %>% slice_sample(n=1)},
-                      y = data)
-  
-  resampled_props <- lapply(resampled , CalcProps)
-  
-  cl <- detectCores() %>%
-    `-` (2) %>%
-    makeCluster()
-  
-  clusterEvalQ(cl, c(library(lme4), library(metafor), library(aod), library(dplyr),
-                     set.seed(4472),'CalcOnestepBiRand', 'CalcTwostepBiNorm',
-                     'CalcOnestepBiStrat','CalcTwostepBetaBi'))
-  
-  start <- Sys.time()
-  print(start)
-  
-  twostep_boot <- parLapply(cl = cl, resampled_props, CalcTwostepBiNorm)
-  rand_boot <- parLapply(cl = cl, resampled, CalcOnestepBiRand)
-  strat_boot <- parLapply(cl = cl, resampled, CalcOnestepBiStrat)
-  beta_boot <- parLapply(cl = cl, resampled_props, CalcTwostepBetaBi)
-  
-  end <- Sys.time()
-  elapsed <- end-start
-  print(elapsed)
-  
-  stopCluster(cl)
-  remove(cl)
-  
-  twostep_boot.est <- lapply(twostep_boot, function(model) model[[2]]$beta) %>% do.call(rbind.data.frame,.) %>%
-    {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
-  
-  rand_boot.est <- lapply(rand_boot, function(model) summary(model)$coefficients[1,1]) %>% do.call(rbind.data.frame,.) %>%
-    {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
-  
-  strat_boot.est <- lapply(strat_boot, function(model) summary(model)$coefficients[1,1]) %>% do.call(rbind.data.frame,.) %>%
-    {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
-  
-  beta_boot.est <- lapply(beta_boot, function(model) model@param[1]) %>% do.call(rbind.data.frame,.) %>%
-    {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
-  
-  boot_estimates <- list('twostep' = twostep_boot.est,
-                         'rand' = rand_boot.est,
-                         'strat' = strat_boot.est,
-                         'beta' = beta_boot.est)
-  
-  return(boot_estimates)
-}
+
 
 boot_participant <- BootParticipant(resampling_df , 500) 
 
-PltBoot <- function(data, intercept){
-  plt <- ggplot(data) + 
-    geom_histogram(aes(x = estimate),color="black", fill="grey96", binwidth = 0.0005) + 
-    geom_vline(aes(xintercept=mean(estimate)),color="#DC0000B2", linetype="dashed", size=1.2) +
-    geom_vline(aes(xintercept= intercept),color="#4DBBD5B2", linetype="dashed", size=1.2) +
-    theme_classic() +
-    scale_y_continuous(expand = c(0, 0))
-  
-  return(plt)
-}
 
-t <- lapply(boot_participant , function(x) { transf.ilogit(x[,1]) %>% data.frame(estimate = .)})
-plt_boot.list <- mapply(PltBoot, data = t, intercept = c(0.283,0.239,0.001,0.259), SIMPLIFY = FALSE)
-cowplot::plot_grid(plotlist = plt_boot.list , align = "hv" , nrow = 2, ncol = 2 , labels = "AUTO")
+t <- lapply(boot_participant , function(x) { transf.ilogit(x[,1]) %>% data.frame(estimate = .)}) #not necessary as this has now been incorported into BootParticiapnt
+
 
 ###################################################################################################
 ###################################################################################################
 #Visualisation
-
-
-# plot log odds of individual studies. should be normally distiributed to satisfy binomial-normal model.
-ggplot(twostep_binorm.step1, aes(x=log_or)) + geom_histogram(binwidth = 0.25,color="black", fill="white")+
-  theme_classic() + scale_x_continuous(expand = c(0, 0)) + scale_y_continuous(expand = c(0, 0))
 
 # Forest Plot 2-step BN
 pdf("testplot.pdf" , width = 14 , height = 20)
@@ -556,6 +544,3 @@ plt2 <- ggplot(modelcomp_df,aes(x= Models, y = Estimate) ) +
     axis.ticks.y=element_blank()
   )
                                     
-                                    
-#modify to include number of papers in each analyses
-#aim is to include bracketed cis in table that include heterogeneity estimates (tau2 and I2) in addition to raw estimate
