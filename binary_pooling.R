@@ -143,6 +143,36 @@ CalcEstimates <- function(model , analysis = "original"){
 }
 
 
+
+CalcTau2 <- function(model , analysis = "original"){
+  if (class(model) == "rma" || class(model) == "rma.uni"){
+    tau2 <- model$beta
+    tau2.lb <- model$ci.lb
+    tau2.ub <- model$ci.ub
+  }
+  else if (class(model) =="glmerMod"){
+    tau2 <- summary(model)$coefficients[1,1]
+     <- confint(model)
+    tau2.lb <- ci[nrow(ci),1]
+    tau2.ub <- ci[nrow(ci),2]
+  }
+  else if (class(model) =="glimML"){
+    beta <- model@param[1]
+    tau2 <- varbin(subjects,multiplefounders, data = model@data)@tab[5,c(3,4)]
+    tau2.lb <- as.numeric(ci[1]) %>% transf.logit()
+    tau2.ub <- as.numeric(ci[2]) %>% transf.logit()
+  }
+  
+  results <- cbind.data.frame("model" = substitute(model) %>% deparse(),
+                              "tau2" = tau2,
+                              "tau2.lb" = tau2.lb,
+                              "tau2.ub" = tau2.ub,
+                              "analysis" = analysis)
+  
+  return(results)
+}
+
+
 # Create list of dataframes for leave-one-out cross validation
 LOOCV.dat <- function(data){
   pubs <- unique(data$publication)
