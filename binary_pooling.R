@@ -432,16 +432,23 @@ BootParticipant <- function(data, replicates){
   resampled <- lapply(1:replicates, function(x,y) {data %>% group_by(participant.id) %>% slice_sample(n=1)},
                       y = df)
   
+  resampled_props <- lapply(resampled , CalcProps)
+  
   cl <- detectCores() %>%
     `-` (2) %>%
     makeCluster()
   
-  clusterEvalQ(cl, c(library(lme4), set.seed(4472),'CalcOnestepBiRand'))
+  clusterEvalQ(cl, c(library(lme4), library(metafor), library(aod), library(dplyr),
+                     set.seed(4472),'CalcOnestepBiRand', 'CalcTwostepBiNorm',
+                     'CalcOnestepBiStrat','CalcTwostepBetaBi'))
   
   start <- Sys.time()
   print(start)
   
-  test_boot <- parLapply(cl = cl, resampled, CalcOnestepBiRand)
+  twostep_boot <- parLapply(cl = cl, resampled_props, CalcTwostepBiNorm)
+  rand_boot <- parLapply(cl = cl, resampled, CalcOnestepBiRand)
+  strat_boot <- parLapply(cl = cl, resampled, CalcOnestepBiStrat)
+  beta_boot <- parLapply(cl = cl, resampled_props, CalcTwostepBetaBi)
   
   end <- Sys.time()
   elapsed <- end-start
@@ -450,20 +457,35 @@ BootParticipant <- function(data, replicates){
   stopCluster(cl)
   remove(cl)
   
-  boot_estimates <- lapply(test_boot, function(x) summary(x)$coefficients[1,1]) %>% do.call(rbind.data.frame,.) %>%
-    {cbind.data.frame("estimate"=.[,1] , "transformed.estimate" = transf.ilogit(.[,1]))}
+  twostep_boot.est <- lapply(twostep_boot, function(model) model$beta) %>% do.call(rbind.data.frame,.) %>%
+    {cbind.data.frame("estimate"=.[,1])}
+  
+  rand_boot.est <- lapply(rand_boot, function(model) summary(model)$coefficients[1,1]) %>% do.call(rbind.data.frame,.) %>%
+    {cbind.data.frame("estimate"=.[,1])}
+  
+  strat_boot.est <- lapply(strat_boot, function(model) summary(model)$coefficients[1,1]) %>% do.call(rbind.data.frame,.) %>%
+    {cbind.data.frame("estimate"=.[,1])}
+  
+  beta_boot.est <- lapply(beta_boot, function(model) model@param[1]) %>% do.call(rbind.data.frame,.) %>%
+    {cbind.data.frame("estimate"=.[,1])}
+  
+  boot_estimates <- list(twostep_boot.est,
+                         rand_boot.est,
+                         strat_boot.est,
+                         beta_boot.est)
+  
   return(boot_estimates)
 }
 
-test <- BootParticipant(resampling_df , 500)
+boot_participant <- BootParticipant(resampling_df , 500)
 
 ggplot(test) + 
   geom_histogram(aes(x = transformed.estimate),color="black", fill="grey96", binwidth = 0.0005) + 
   geom_vline(aes(xintercept=mean(transformed.estimate)),color="#DC0000B2", linetype="dashed", size=1.2) +
   geom_vline(aes(xintercept= 0.239),color="#4DBBD5B2", linetype="dashed", size=1.2) +
   theme_classic() +
-  #scale_x_continuous(expand = c(0, 0)) + 
   scale_y_continuous(expand = c(0, 0))
+
 
 ###################################################################################################
 ###################################################################################################
