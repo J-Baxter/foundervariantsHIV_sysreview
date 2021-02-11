@@ -110,6 +110,7 @@ CalcCI <- function(u,se,threshold){
 }
 
 # Extracts estimates of summary effect from models
+# CURRENTLY FULLY FUNCTIONAL ONLY FOR METAFOR MODELS  
 CalcEstimates <- function(model , analysis = "original"){
   if (class(model) == "rma" || class(model) == "rma.uni"){
     beta <- model$beta
@@ -145,21 +146,19 @@ CalcEstimates <- function(model , analysis = "original"){
 # Extracts estimates of heterogeneity (tau2) from models
 CalcTau2 <- function(model , analysis = "original"){
   if (class(model) == "rma" || class(model) == "rma.uni"){
-    tau2 <- model$beta
-    tau2.lb <- model$ci.lb
-    tau2.ub <- model$ci.ub
+    tau2 <- model$tau2
+    tau2.lb <- model$tau2.lb
+    tau2.ub <- model$tau2.ub
   }
   else if (class(model) =="glmerMod"){
-    tau2 <- summary(model)$coefficients[1,1]
-     <- confint(model)
-    tau2.lb <- ci[nrow(ci),1]
-    tau2.ub <- ci[nrow(ci),2]
+    tau2 <- VarCorr(model)[[1]][1] 
+    tau2.lb <- 
+    tau2.ub <- c
   }
   else if (class(model) =="glimML"){
-    beta <- model@param[1]
-    tau2 <- varbin(subjects,multiplefounders, data = model@data)@tab[5,c(3,4)]
-    tau2.lb <- as.numeric(ci[1]) %>% transf.logit()
-    tau2.ub <- as.numeric(ci[2]) %>% transf.logit()
+    tau2 <- 
+    tau2.lb <- 
+    tau2.ub <- 
   }
   
   results <- cbind.data.frame("model" = substitute(model) %>% deparse(),
@@ -328,19 +327,14 @@ twostep_binorm.est <- CalcEstimates(twostep_binorm)
 # assumes conditional independence and follow binomial distribution
 
 df_onestage <- AddIncr(df, incr = 0.0005)
-onestep_bi_strat <- glmer(multiple.founders ~   publication  + (1| publication),
-      data = df_onestage,
-      family = binomial(link = "logit"),
-      control = glmerControl(optCtrl = list(maxfun = 1000000)))
 
-
-onestep_bi_strat <- CalcOnestepBiStrat(df)
+onestep_bi_strat <- CalcOnestepBiStrat(df_onestage )
 onestep_bi_strat.sum <- summary(onestep_bi_strat)
 onestep_bi_strat.sum
 
 onestep_bi_rand.est <- CalcEstimates(onestep_bi_strat)
-onestep_bi_strat.tau2 <- VarCorr(onestep_bi_strat)[[1]][1] 
-onestep_bi_strat.tau2_se <- 
+onestep_bi_strat.tau2 <- 
+
 
 
 ###################################################################################################
@@ -357,7 +351,7 @@ onestep_bi_rand.sum <- summary(onestep_bi_rand)
 onestep_bi_rand.sum
 
 onestep_bi_rand.est <- CalcEstimates(onestep_bi_rand)
-onestep_bi_rand.tau2 <- VarCorr(onestep_bi_rand)[[1]][1] 
+onestep_bi_rand.tau2 <- 
 
 ###################################################################################################
 
