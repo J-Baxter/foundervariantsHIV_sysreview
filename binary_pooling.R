@@ -324,7 +324,7 @@ twostep_betabi.sum
 # Tau2 = Var(theta_i), theta_i = E[theta_i]
 summary_results <- CalcEstimates(twostep_binorm.step2,
                                  onestep_bi_strat,
-                                 onestep_bi_ind,
+                                 onestep_bi_rand,
                                  twostep_betabi)
 
 
