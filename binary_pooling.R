@@ -109,8 +109,7 @@ CalcCI <- function(u,se,threshold){
   return(ci)
 }
 
-#extracts estimates of summary effect from models
-#can potentially refactor around DFInfluence
+# Extracts estimates of summary effect from models
 CalcEstimates <- function(model , analysis = "original"){
   if (class(model) == "rma" || class(model) == "rma.uni"){
     beta <- model$beta
@@ -143,7 +142,7 @@ CalcEstimates <- function(model , analysis = "original"){
 }
 
 
-
+# Extracts estimates of heterogeneity (tau2) from models
 CalcTau2 <- function(model , analysis = "original"){
   if (class(model) == "rma" || class(model) == "rma.uni"){
     tau2 <- model$beta
@@ -189,7 +188,7 @@ LOOCV.dat <- function(data){
 }
 
 
-#extract estimates from LOOCV to create dataframe (input for influence plot)
+# Extract estimates from LOOCV to create dataframe (input for influence plot)
 DFInfluence <- function(model,labs){
   
   names <- paste("Omitting" , labs %>% names(), sep = " ") %>% as.factor()
@@ -233,9 +232,8 @@ DFInfluence <- function(model,labs){
   return(influence_out)
 }
 
-
-
-
+# Generate resampled datasets and calculate model estimates for psuedo-bootstrap 
+# sensitivity analysis of inclusion/exclusion criteria
 BootParticipant <- function(data, replicates){
   require(parallel)
   require(lme4)
@@ -270,16 +268,20 @@ BootParticipant <- function(data, replicates){
   stopCluster(cl)
   remove(cl)
   
-  twostep_boot.est <- lapply(twostep_boot, function(model) model[[2]]$beta) %>% do.call(rbind.data.frame,.) %>%
+  twostep_boot.est <- lapply(twostep_boot, function(model) model[[2]]$beta) %>% 
+    do.call(rbind.data.frame,.) %>%
     {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
   
-  strat_boot.est <- lapply(strat_boot, function(model) summary(model)$coefficients[1,1]) %>% do.call(rbind.data.frame,.) %>%
+  strat_boot.est <- lapply(strat_boot, function(model) summary(model)$coefficients[1,1]) %>% 
+    do.call(rbind.data.frame,.) %>%
     {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
   
-  rand_boot.est <- lapply(rand_boot, function(model) summary(model)$coefficients[1,1]) %>% do.call(rbind.data.frame,.) %>%
+  rand_boot.est <- lapply(rand_boot, function(model) summary(model)$coefficients[1,1]) %>% 
+    do.call(rbind.data.frame,.) %>%
     {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
   
-  beta_boot.est <- lapply(beta_boot, function(model) model@param[1]) %>% do.call(rbind.data.frame,.) %>%
+  beta_boot.est <- lapply(beta_boot, function(model) model@param[1]) %>% 
+    do.call(rbind.data.frame,.) %>%
     {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
   
   boot_estimates <- list('twostep' = twostep_boot.est,
