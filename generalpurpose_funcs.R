@@ -6,7 +6,7 @@
 ###################################################################################################
 
 # Formats data spreadsheet for analysis. Removes duplicates and NAs.
-formatDF <-  function(df){
+formatDF <-  function(df, noreps = TRUE){
   require(tidyr)
   require(reshape2)
   #create dummy variables in founder multiplicity col
@@ -16,8 +16,12 @@ formatDF <-  function(df){
     stop('founder multiplicity is not a factor')
   }
   df_nona <- df[!is.na(df$multiple.founders),]
-  df_nodups <- df_nona[(df_nona$include.main == '') & (df_nona$exclude.repeatstudy == ''),]
-  df_labelled <- unite(df_nodups, "publication", c(author ,year), sep = '_')
+  if (noreps == TRUE){
+    df_nodups <- df_nona[(df_nona$include.main == '') & (df_nona$exclude.repeatstudy == ''),]
+    df_labelled <- unite(df_nodups, "publication", c(author ,year), sep = '_')
+  }else{
+    df_labelled <- unite(df_nona, "publication", c(author ,year), sep = '_')
+  }
   df_splittrans <- colsplit(df_labelled$reported.exposure, ":" , c("riskgroup" , "direction")) %>% cbind.data.frame(.,df_labelled)
   return(df_splittrans)
 }

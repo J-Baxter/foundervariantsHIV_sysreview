@@ -85,7 +85,7 @@ CalcOnestepBiStrat <- function(data){
 # One-step GLMM accounting for clustering of studies using a random intercept (
 # random slope, random & uncorrelated intercept)
 CalcOnestepBiRand <- function(data){
-  model <- glmer(multiple.founders ~  1 + (1|publication),
+  model <- lme4::glmer(multiple.founders ~  1 + (1|publication),
                  data = data,
                  family = binomial(link = "logit"),
                  control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 100000)))
@@ -232,7 +232,7 @@ PlotInfluence <- function(df, original){
 
 # Import data
 setwd("./data")
-df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF()
+df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(., noreps = TRUE)
   
 # Set test data
 publist <- unique(df$publication)
@@ -350,7 +350,7 @@ colnames(modelcomp_df) <- c('Model', 'Estimate', 'props.ci95_lb', 'props.ci95_ub
 # SA2. Exclusion of small sample sizes (less than n = 10)
 # SA3. Exclusion of studies with 0 multiple founder variants
 # SA4. Flipped exclusion criteria for repeat measurements
-# SA5. Resampling of participants for which we have multiple measurments 
+# SA5. Resampling of participants for which we have multiple measurments (takes pre-formatted DF)
 
 
 # SA1. Influence of Individual Studies (LOOCV)
@@ -422,7 +422,48 @@ SA3_results <- CalcEstimates(twostep_binorm.nozeros[[2]],
 
 
 # SA5. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
+resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(., noreps = FALSE)
 
+BootParticipant <- function(data, replicates){
+  require(parallel)
+  require(lme4)
+  require(metafor)
+  
+  resampled <- lapply(1:replicates, function(x,y) {data %>% group_by(participant.id) %>% slice_sample(n=1)},
+                      y = df)
+  
+  cl <- detectCores() %>%
+    `-` (2) %>%
+    makeCluster()
+  
+  clusterEvalQ(cl, c(library(lme4), set.seed(4472),'CalcOnestepBiRand'))
+  
+  start <- Sys.time()
+  print(start)
+  
+  test_boot <- parLapply(cl = cl, resampled, CalcOnestepBiRand)
+  
+  end <- Sys.time()
+  elapsed <- end-start
+  print(elapsed)
+  
+  stopCluster(cl)
+  remove(cl)
+  
+  boot_estimates <- lapply(test_boot, function(x) summary(x)$coefficients[1,1]) %>% do.call(rbind.data.frame,.) %>%
+    {cbind.data.frame("estimate"=.[,1] , "transformed.estimate" = transf.ilogit(.[,1]))}
+  return(boot_estimates)
+}
+
+test <- BootParticipant(resampling_df , 500)
+
+ggplot(test) + 
+  geom_histogram(aes(x = transformed.estimate),color="black", fill="grey96", binwidth = 0.0005) + 
+  geom_vline(aes(xintercept=mean(transformed.estimate)),color="#DC0000B2", linetype="dashed", size=1.2) +
+  geom_vline(aes(xintercept= 0.239),color="#4DBBD5B2", linetype="dashed", size=1.2) +
+  theme_classic() +
+  #scale_x_continuous(expand = c(0, 0)) + 
+  scale_y_continuous(expand = c(0, 0))
 
 ###################################################################################################
 ###################################################################################################
