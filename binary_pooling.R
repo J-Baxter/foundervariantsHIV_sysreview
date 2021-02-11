@@ -232,6 +232,7 @@ BootParticipant <- function(data, replicates){
   require(parallel)
   require(lme4)
   require(metafor)
+  require(dplyr)
   
   resampled <- lapply(1:replicates, function(x,y) {y %>% group_by(participant.id) %>% slice_sample(n=1)},
                       y = data)
@@ -264,10 +265,10 @@ BootParticipant <- function(data, replicates){
   twostep_boot.est <- lapply(twostep_boot, function(model) model[[2]]$beta) %>% do.call(rbind.data.frame,.) %>%
     {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
   
-  rand_boot.est <- lapply(rand_boot, function(model) summary(model)$coefficients[1,1]) %>% do.call(rbind.data.frame,.) %>%
+  strat_boot.est <- lapply(strat_boot, function(model) summary(model)$coefficients[1,1]) %>% do.call(rbind.data.frame,.) %>%
     {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
   
-  strat_boot.est <- lapply(strat_boot, function(model) summary(model)$coefficients[1,1]) %>% do.call(rbind.data.frame,.) %>%
+  rand_boot.est <- lapply(rand_boot, function(model) summary(model)$coefficients[1,1]) %>% do.call(rbind.data.frame,.) %>%
     {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
   
   beta_boot.est <- lapply(beta_boot, function(model) model@param[1]) %>% do.call(rbind.data.frame,.) %>%
@@ -501,28 +502,7 @@ text(c(-0.9,-0.4), 79, c('Multiple Founders' , 'Subjects') , font = 2)
 dev.off()
 
 
-# Table summarising sensitivity analyses 2 & 3 & 4 compared to original estimations of effect size
-Models <- c('Two-Step Binomial Normal',
-            'One-Step Binomial (random slope) and correlated intercept',
-            'One-Step Binomial (uncorrelated random intercept and slope)',
-            "Two-Step Beta-Binomial")
 
-sensitivity_df <- cbind.data.frame(summary_results,
-                                   SA2_results,
-                                   SA3_results, 
-                                   #SA4_results, 
-                                   row.names = Models)
-
-tbl <- kbl(sensitivity_df, digits = 3) %>%
-  kable_classic(html_font = "Arial") %>%
-  add_header_above(c(" " = 1, 
-                     'Summary Estimate' = 3,
-                     'Exclusion of Small (<10) Studies' = 3,
-                     'Exclusion of Studies reporting 0 MF' = 3))
-  
-  
-tbl
-summ
 ggplot(modelcomp_df) + geom_dotplot(aes(x= Models, y = Estimate))
 plt2 <- ggplot(modelcomp_df,aes(x= Models, y = Estimate) ) +
   geom_point() + 

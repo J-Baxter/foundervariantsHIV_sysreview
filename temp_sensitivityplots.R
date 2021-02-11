@@ -30,19 +30,24 @@ PltBoot <- function(data, intercept, ci.lb, ci.ub){
 ###################################################################################################
 # Import data
 pooled_models <-  readxl::read_xlsx("pooled_models.xlsx")
-og_models <- pooled_models[1:4,]
+models <- c('Two-Step Binomial Normal',
+            'One-Step Binomial (random slope) and correlated intercept',
+            'One-Step Binomial (uncorrelated random intercept and slope)',
+            "Two-Step Beta-Binomial")
+og_models <- cbind(pooled_models[1:4,1], mapply(transf.ilogit, pooled_models[1:4,3:5]) %>% round(digits = 3))
+og_models_formatted <- cbind.data.frame("probability" = paste0(og_models$estimate, ' ' ,
+                                                               '[' , og_models$estimate.lb ,' - ',
+                                                               og_models$estimate.ub, ']'),
+                                        row.names =models )
 # resampling data
 
 ###################################################################################################
 ###################################################################################################
 # Panel: Table of estimate and tau for pooling
 
-tbl <- kbl(sensitivity_df, digits = 3) %>%
-  kable_classic(html_font = "Arial") %>%
-  add_header_above(c(" " = 1, 
-                     'Summary Estimate' = 3,
-                     'Exclusion of Small (<10) Studies' = 3,
-                     'Exclusion of Studies reporting 0 MF' = 3))
+tbl <- kbl(og_models_formatted, longtable = T, booktabs = T, col.names = c("Probability of Multiple Founders")) %>%
+  kable_classic(html_font = "Arial")
+
 
 ###################################################################################################
 # Plot log odds of individual studies. should be normally distiributed to satisfy binomial-normal model.
