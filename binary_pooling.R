@@ -262,12 +262,6 @@ BootParticipant <- function(data, replicates){
 setwd("./data")
 df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(., noreps = TRUE)
 df_props <- CalcProps(df)  
-# Set test data
-publist <- unique(df$publication)
-testlist <- sample(publist , 20) #c("Keele_2008", "Abrahams_2009", "Haaland_2009","Li_2010", "Janes_2015", "Rolland_2011", "Macharia_2020", "Nofemala_2011", "Novitsky_2011","Novitsky_2009","Chaillon_2016","Zanini_2015","VillabonaArenas_2020")#
-testset_df <- lapply(testlist, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
-nosmith <- publist[publist != "AbigailSmith_2016"]
-nosmith_df <- lapply(nosmith, function(x,y) subset(x, publication == y), x = df) %>% do.call(rbind.data.frame,.)
 
 # Set seed
 set.seed(4472)
@@ -377,8 +371,7 @@ colnames(modelcomp_df) <- c('Model', 'Estimate', 'props.ci95_lb', 'props.ci95_ub
 # SA1. Influence of Individual Studies
 # SA2. Exclusion of small sample sizes (less than n = 10)
 # SA3. Exclusion of studies with 0 multiple founder variants
-# SA4. Flipped exclusion criteria for repeat measurements
-# SA5. Resampling of participants for which we have multiple measurments (takes pre-formatted DF)
+# SA4. Resampling of participants for which we have multiple measurments (takes pre-formatted DF)
 
 
 # SA1. Influence of Individual Studies (LOOCV)
@@ -399,7 +392,7 @@ twostep_betabi.influence <-  lapply(dfp_loocv ,CalcTwostepBetaBi) %>%
   DFInfluence(., labs = publist_loocv) %>% {cbind.data.frame(.,'model' = 'twostep_betabi')}
 
 influence_df <- rbind.data.frame(twostep_binorm.influence,onestep_bi_rand.influence,twostep_betabi.influence)
-  
+
 
 # SA2. Exclusion of small sample sizes (less than n = 10)
 publist.nosmallsample <- subset(df_props , subjects > 9 , select = publication) %>% pull(.,var=publication) %>% unique()
@@ -433,20 +426,19 @@ SA3_results <- CalcEstimates(twostep_binorm.nozeros[[2]],
                              twostep_betabi.nozeros)
 
 
-# SA4. Flipped exclusion criteria for repeat measurements
-
-
-# SA5. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
+# SA4. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
 resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(., noreps = FALSE)
 
-boot_participant <- BootParticipant(resampling_df , 500) 
-
-t <- lapply(boot_participant , function(x) { transf.ilogit(x[,1]) %>% data.frame(estimate = .)}) #not necessary as this has now been incorported into BootParticiapnt
-
+boot_participant <- BootParticipant(resampling_df , 500) #Out to file
 
 ###################################################################################################
 ###################################################################################################
-#Visualisation
+# Outputs
+# CSV of pooling model results (with SAs 2 + 3)
+
+# CSV study influence
+write.csv(influence_df, file = 'bp_sa1.csv')
+
 
 # Forest Plot 2-step BN
 pdf("testplot.pdf" , width = 14 , height = 20)
@@ -457,26 +449,8 @@ text(c(-0.9,-0.4), 79, c('Multiple Founders' , 'Subjects') , font = 2)
 
 dev.off()
 
-
-
-ggplot(modelcomp_df) + geom_dotplot(aes(x= Models, y = Estimate))
-plt2 <- ggplot(modelcomp_df,aes(x= Models, y = Estimate) ) +
-  geom_point() + 
-  scale_y_continuous(limits=c(0,.6),expand = c(0, 0)) +
-  scale_x_discrete()+
-  theme_classic() + 
-  coord_flip()+
-  geom_pointrange(aes(ymin=props.ci95_lb, ymax= props.ci95_ub))
-  geom_errorbar(aes(x = Models , ymin=props.ci95_lb, ymax= props.ci95_ub))
-
-+
-  annotate( "rect", xmin=0, xmax=Inf, ymin=orig.ci.lb, ymax=orig.ci.ub ,alpha = .2, fill = 'blue') +
-  geom_hline(yintercept = orig.estimate,linetype="dashed", 
-             color = "blue", size=0.5)+
-  annotate("text", label = influence.labs, x = influence_out$trial , y = 0.7, size = 2.5, colour = "black", hjust = 1)+
-  theme(
-    axis.line.y =element_blank(),
-    axis.title.y =element_blank(),
-    axis.ticks.y=element_blank()
-  )
-                                    
+###################################################################################################
+###################################################################################################
+# END #
+###################################################################################################
+###################################################################################################
