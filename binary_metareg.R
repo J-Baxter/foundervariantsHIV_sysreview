@@ -160,33 +160,50 @@ ggplot(data = ran.df,aes( value, key)) + geom_boxplot() +theme_classic()
 
 
 
-singlevar_forms <-c(f1a = as.formula("multiple.founders ~  riskgroup  + (1 | publication) - 1"),
-                    f1b = as.formula("multiple.founders ~  riskgroup + (1 | publication)"),
-                    f2a = as.formula("multiple.founders ~  reported.exposure + (1 | publication) - 1"),
-                    f2b = as.formula("multiple.founders ~  reported.exposure  + (1 | publication)")),
-                    f3a = as.formula("multiple.founders ~  riskgroup + grouped.method + (1 | publication) - 1"),
-                    f3a = as.formula("multiple.founders ~  riskgroup + grouped.method + (1 | publication)"),
-           f2b = as.formula("multiple.founders ~  reported.exposure + grouped.method + 
-                           (1| cohort) + (1 | publication) - 1"),
-           
-           f3a = as.formula("multiple.founders ~  riskgroup + grouped.method + sequencing.region + 
-                           (1 | cohort) + (1 | publication) - 1"),
-           f3b = as.formula("multiple.founders ~ reported.exposure + grouped.method + sequencing.region + 
-                           (1 | cohort) + (1 | publication) - 1"))
+simple <-c(f1a = as.formula("multiple.founders ~  riskgroup  + (1 | publication) - 1"),
+           f1a = as.formula("multiple.founders ~  riskgroup  + (1 | publication) + (1|cohort) - 1"),
+           f1a = as.formula("multiple.founders ~  riskgroup  + grouped.method + (1 | publication) + (1|cohort) - 1"),
+           f1a = as.formula("multiple.founders ~  riskgroup  + grouped.method + participant.seropositivity + (1 | publication) + (1|cohort) - 1")
+          )
 
 
 
+test_reg <- lapply(simple, CalcRandMetaReg, data = df)
 
-fix.eff <- cbind.data.frame(var = names(fixef(test_reg)), est = fixef(test_reg), se = sqrt(diag(vcov(test_reg))))
-fe.ci <- mapply(CalcCI, u=fix.eff[,2], se=fix.eff[,3],threshold = 0.05) %>% t()
-fix_df <- cbind.data.frame(var = fix.eff[,1], mapply(transf.ilogit, fix.eff[,2:3]) , transf.ilogit(fe.ci) ,analysis = "original")
-colnames(fix_df)[4:5] <- c('fix.ub','fix.lb')
+GetFE <- function(model, label = "original"){
+  fix_df <- mapply(CalcCI, u=fixef(model), se=sqrt(diag(vcov(model))),threshold = 0.05) %>% 
+    t() %>% 
+    {cbind.data.frame(var = names(fixef(model)),
+                      est = transf.ilogit(fixef(model)),
+                      se = transf.ilogit(sqrt(diag(vcov(model)))),
+                      transf.ilogit(.),
+                      analysis = label)}
+  colnames(fix_df)[4:5] <- c('fix.ub','fix.lb')
+  
+  return(fix_df)
+}
 
-ggplot(data = fix_df) + 
+
+fe <- mapply(GetFE, model = test_reg, label = c("~  riskgroup  + (1 | publication) - 1", "~  riskgroup  + (1 | publication) + (1|cohort) - 1",
+                                                '~  riskgroup  + grouped.method + (1 | publication) + (1|cohort) - 1',
+                                               '~  riskgroup  + grouped.method + participant.seropositivity + (1 | publication) + (1|cohort) - 1' ), SIMPLIFY = F) %>% do.call(rbind.data.frame, .)
+
+p1 <- ggplot(data = fe) + 
+  geom_point(aes(x= var, y = est , colour = analysis) ,position = position_dodge(0.5)) + 
+  theme_classic() + 
+  geom_linerange( aes(x = var, ymin=fix.lb,ymax=fix.ub, color = analysis),position = position_dodge(0.5))+
+  theme(
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )+guides(col = guide_legend(nrow=2))+
+  coord_flip()
+p2 <- ggplot(data = fe[[2]]) + 
   geom_point(aes(x= var, y = est)) + 
   theme_classic() + 
   geom_linerange( aes(x = var, ymin=fix.lb,ymax=fix.ub))+
   coord_flip()
+
+cowplot::plot_grid(p1,p2)
 #compare crude model to moderator model
 
 split_transission(props_metareg ,names)
