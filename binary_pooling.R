@@ -101,14 +101,6 @@ CalcTwostepBetaBi <- function(proportions){
 }
 
 
-CalcCI <- function(u,se,threshold){
-  value <- 1-(threshold/2)
-  upper <- u + se*qnorm(value)
-  lower <- u - se*qnorm(value)
-  ci <- c(lower,upper)
-  return(ci)
-}
-
 # Extracts estimates of summary effect from models
 # CURRENTLY FULLY FUNCTIONAL ONLY FOR METAFOR MODELS  
 CalcEstimates <- function(model , analysis = "original"){
