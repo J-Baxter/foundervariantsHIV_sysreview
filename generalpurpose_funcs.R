@@ -40,4 +40,15 @@ CalcProps <- function(.data, ...){
 
 
 ###################################################################################################
+# Does what is says on the tin
+# Assumes sampling distribution of parameters is multivariate normal
+CalcCI <- function(u,se,threshold){
+  value <- 1-(threshold/2)
+  upper <- u + se*qnorm(value)
+  lower <- u - se*qnorm(value)
+  ci <- c(lower,upper)
+  return(ci)
+}
+
+###################################################################################################
 ###################################################################################################
