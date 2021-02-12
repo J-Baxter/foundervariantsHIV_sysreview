@@ -33,6 +33,31 @@ CalcRandMetaReg <- function(data, formula){
   return(model)
 }
 
+# Execute a list of lme4 models in parallel
+RunMetaReg <- function(formulas, data){
+  # Set up cluster (socket)
+  cl <- detectCores() %>%
+    `-` (2) %>%
+    makeCluster()
+  
+  clusterEvalQ(cl, c(library(lme4), set.seed(4472)))
+  
+  # Set time and run models
+  start <- Sys.time()
+  start
+  
+  metareg <- parLapply(cl = cl, formulas, CalcRandMetaReg, data = data)
+  
+  end <- Sys.time()
+  elapsed <- end-start
+  elapsed
+  
+  stopCluster(cl)
+  remove(cl)
+  
+  return(metareg)
+}
+
 
 # Plot binned residuals
 # Y = average residual, X = Founder Variant Multiplicity, Ribbon = SE
@@ -66,6 +91,21 @@ PlotBinned <- function(data){
 }
 
 
+# Extract fixed effects from the models
+GetFE <- function(model, label = "original"){
+  fix_df <- mapply(CalcCI, u=fixef(model), se=sqrt(diag(vcov(model))),threshold = 0.05) %>% 
+    t() %>% 
+    {cbind.data.frame(var = names(fixef(model)),
+                      est = transf.ilogit(fixef(model)),
+                      se = transf.ilogit(sqrt(diag(vcov(model)))),
+                      transf.ilogit(.),
+                      analysis = label)}
+  colnames(fix_df)[4:5] <- c('fix.ub','fix.lb')
+  
+  return(fix_df)
+}
+
+
 ###################################################################################################
 ###################################################################################################
 
@@ -75,6 +115,25 @@ df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF()
 
 # Set seed
 set.seed(4472)
+
+###################################################################################################
+# Initial regression models with one fixed effect covariate with random effects for publication and cohort
+# Equivalent to a subgroup analysis
+
+subgroup_forms <- c(as.formula("multiple.founders ~  riskgroup  + (1 | publication) + (1|cohort) - 1"),
+                    as.formula("multiple.founders ~ reported.exposure + (1 | publication) + (1|cohort) - 1"),
+                    as.formula("multiple.founders ~ grouped.method + (1 | publication) + (1|cohort) - 1"),
+                    as.formula("multiple.founders ~ participant.seropositivity + (1 | publication) + (1|cohort) - 1"),
+                    as.formula("multiple.founders ~ grouped.subtype + (1 | publication) + (1|cohort) - 1"),
+                    as.formula("multiple.founders ~ sequencing.region + (1 | publication) + (1|cohort) - 1")
+                    )
+
+subgroup_metareg <- RunMetaReg(subgroup_forms, df)
+subgroup_fe <-mapply(GetFE, model = subgroup_metareg, label = as.character(subgroup_forms), SIMPLIFY = F)
+
+subgroup_plotlist <- lapply(subgroup_fe, fplot)
+plot_grid(plotlist = subgroup_plotlist , labels = "AUTO" , align = 'hv', ncol = 2)
+
 
 ###################################################################################################
 
@@ -107,25 +166,6 @@ forms <- c(f0 = as.formula("multiple.founders ~  1 +
 
 ###################################################################################################
 
-# Set up cluster (socket)
-cl <- detectCores() %>%
-  `-` (2) %>%
-  makeCluster()
-
-clusterEvalQ(cl, c(library(lme4), set.seed(4472)))
-
-# Set time and run models
-start <- Sys.time()
-start
-
-test_reg <- parLapply(cl = cl, forms, CalcRandMetaReg, data = df)
-
-end <- Sys.time()
-elapsed <- end-start
-elapsed
-
-stopCluster(cl)
-remove(cl)
 
 ###################################################################################################
 ###################################################################################################
@@ -166,27 +206,24 @@ simple <-c(f1a = as.formula("multiple.founders ~  riskgroup  + (1 | publication)
            f1a = as.formula("multiple.founders ~  riskgroup  + grouped.method + participant.seropositivity + (1 | publication) + (1|cohort) - 1")
           )
 
+simple2 <-c(as.formula("multiple.founders ~  riskgroup  + (1 | publication) + (1|cohort) - 1"),
+            as.formula("multiple.founders ~ reported.exposure + (1 | publication) + (1|cohort) - 1"),
+            as.formula("multiple.founders ~ grouped.method + (1 | publication) + (1|cohort) - 1"),
+            as.formula("multiple.founders ~ participant.seropositivity + (1 | publication) + (1|cohort) - 1"),
+            as.formula("multiple.founders ~ grouped.subtype + (1 | publication) + (1|cohort) - 1"),
+            as.formula("multiple.founders ~ sequencing.region + (1 | publication) + (1|cohort) - 1")
+)
+
+test_reg2 <- lapply(simple2, CalcRandMetaReg, data = df)
 
 
-test_reg <- lapply(simple, CalcRandMetaReg, data = df)
 
-GetFE <- function(model, label = "original"){
-  fix_df <- mapply(CalcCI, u=fixef(model), se=sqrt(diag(vcov(model))),threshold = 0.05) %>% 
-    t() %>% 
-    {cbind.data.frame(var = names(fixef(model)),
-                      est = transf.ilogit(fixef(model)),
-                      se = transf.ilogit(sqrt(diag(vcov(model)))),
-                      transf.ilogit(.),
-                      analysis = label)}
-  colnames(fix_df)[4:5] <- c('fix.ub','fix.lb')
-  
-  return(fix_df)
-}
-
-
-fe <- mapply(GetFE, model = test_reg, label = c("~  riskgroup  + (1 | publication) - 1", "~  riskgroup  + (1 | publication) + (1|cohort) - 1",
-                                                '~  riskgroup  + grouped.method + (1 | publication) + (1|cohort) - 1',
-                                               '~  riskgroup  + grouped.method + participant.seropositivity + (1 | publication) + (1|cohort) - 1' ), SIMPLIFY = F) %>% do.call(rbind.data.frame, .)
+fe2 <- mapply(GetFE, model = test_reg2, label = c("~  riskgroup  + (1 | publication) + (1|cohort) - 1",
+                                                  "~  reported.exposure + (1 | publication) + (1|cohort) - 1",
+                                                '~ grouped.method + (1 | publication) + (1|cohort) - 1',
+                                               '~ participant.seropositivity + (1 | publication) + (1|cohort) - 1',
+                                               "~ grouped.subtype + (1 | publication) + (1|cohort) - 1",
+                                               "~ sequencing.region + (1 | publication) + (1|cohort) - 1"), SIMPLIFY = F) %>% do.call(rbind.data.frame, .)
 
 p1 <- ggplot(data = fe) + 
   geom_point(aes(x= var, y = est , colour = analysis) ,position = position_dodge(0.5)) + 
@@ -197,13 +234,17 @@ p1 <- ggplot(data = fe) +
     legend.title = element_blank()
   )+guides(col = guide_legend(nrow=2))+
   coord_flip()
-p2 <- ggplot(data = fe[[2]]) + 
-  geom_point(aes(x= var, y = est)) + 
-  theme_classic() + 
-  geom_linerange( aes(x = var, ymin=fix.lb,ymax=fix.ub))+
-  coord_flip()
 
-cowplot::plot_grid(p1,p2)
+fplot <- function(data){
+  p2 <- ggplot(data = data) + 
+    geom_point(aes(x= var, y = est)) + 
+    theme_classic() + 
+    geom_linerange( aes(x = var, ymin=fix.lb,ymax=fix.ub))+
+    coord_flip()
+  return(p2)
+}
+
+
 #compare crude model to moderator model
 
 split_transission(props_metareg ,names)
