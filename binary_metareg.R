@@ -19,6 +19,7 @@ library(kableExtra)
 library(parallel)
 library(performance)
 library(reshape2)
+library(cowplot)
 source('generalpurpose_funcs.R')
 
 # One-step GLMM accounting for clustering of studies using a random intercept
@@ -93,16 +94,32 @@ PlotBinned <- function(data){
 
 # Extract fixed effects from the models
 GetFE <- function(model, label = "original"){
-  fix_df <- mapply(CalcCI, u=fixef(model), se=sqrt(diag(vcov(model))),threshold = 0.05) %>% 
+  fe <- fixef(model)
+  se <- sqrt(diag(vcov(model)))
+  nom <- names(fe) %>% 
+    gsub("participant.seropositivity|grouped.method|riskgroup|grouped.subtype|sequencing.region|reported.exposure" , "" , .)
+  
+  fix_df <- mapply(CalcCI, u=fe, se=se,threshold = 0.05) %>% 
     t() %>% 
-    {cbind.data.frame(var = names(fixef(model)),
-                      est = transf.ilogit(fixef(model)),
-                      se = transf.ilogit(sqrt(diag(vcov(model)))),
+    {cbind.data.frame(var = nom,
+                      est = transf.ilogit(fe),
+                      se = transf.ilogit(se),
                       transf.ilogit(.),
                       analysis = label)}
   colnames(fix_df)[4:5] <- c('fix.ub','fix.lb')
+  fix_df
   
   return(fix_df)
+}
+
+
+fplot <- function(data){
+  p2 <- ggplot(data = data) + 
+    geom_point(aes(x= var, y = est)) + 
+    theme_classic() + 
+    geom_linerange( aes(x = var, ymin=fix.lb,ymax=fix.ub))+
+    coord_flip()
+  return(p2)
 }
 
 
@@ -235,31 +252,5 @@ p1 <- ggplot(data = fe) +
   )+guides(col = guide_legend(nrow=2))+
   coord_flip()
 
-fplot <- function(data){
-  p2 <- ggplot(data = data) + 
-    geom_point(aes(x= var, y = est)) + 
-    theme_classic() + 
-    geom_linerange( aes(x = var, ymin=fix.lb,ymax=fix.ub))+
-    coord_flip()
-  return(p2)
-}
 
-
-#compare crude model to moderator model
-
-split_transission(props_metareg ,names)
-plot<- tibble(x = props_metareg$multiplefounders/props_metareg$subjects, y = props_metareg$reported.exposure)
-ggplot(data = plot, aes(x = x , y = y)) +geom_violin() + theme_classic() + geom_point(data = cbind.data.frame("exposure" = gsub("reported.exposure", "", test_reg@cnms[[2]]), "estimate" = transf.ilogit(test_reg@beta)),aes(y= exposure, x = estimate))
-
-
-step1 <- escalc(xi = multiplefounders , ni = subjects , data= props_metareg , add = 0.0005, measure = "PLO")
-step2 <- rma.uni(yi, vi, 
-                 data = step1,
-                 method = "REML",
-                 knha = TRUE, 
-                 measure = "PLO",
-                 mods = ~ reported.exposure,
-                 intercept = TRUE
-                 )
-ggplot(data = df_props , aesx = reported.exposure, y = (multiplefounders/subjects)) +geom_density_ridges()
 
