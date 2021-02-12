@@ -157,9 +157,36 @@ ran.eff <- ranef(test_reg_2)[[1]] %>% gather()
 ran.eff$key <- gsub("reported.exposure", "", ran.eff$key)
 ran.df <- ran.eff[ran.eff$key != "(Intercept)", ]
 ggplot(data = ran.df,aes( value, key)) + geom_boxplot() +theme_classic() 
-fix.eff <- cbind.data.frame(gsub("reported.exposure", "", test_reg@cnms[[2]]),fixef(test_reg))
 
-ggplot(data = fix.eff) + geom_point(aes(y= exposure, x = estimate)) +theme_classic
+
+
+singlevar_forms <-c(f1a = as.formula("multiple.founders ~  riskgroup  + (1 | publication) - 1"),
+                    f1b = as.formula("multiple.founders ~  riskgroup + (1 | publication)"),
+                    f2a = as.formula("multiple.founders ~  reported.exposure + (1 | publication) - 1"),
+                    f2b = as.formula("multiple.founders ~  reported.exposure  + (1 | publication)")),
+                    f3a = as.formula("multiple.founders ~  riskgroup + grouped.method + (1 | publication) - 1"),
+                    f3a = as.formula("multiple.founders ~  riskgroup + grouped.method + (1 | publication)"),
+           f2b = as.formula("multiple.founders ~  reported.exposure + grouped.method + 
+                           (1| cohort) + (1 | publication) - 1"),
+           
+           f3a = as.formula("multiple.founders ~  riskgroup + grouped.method + sequencing.region + 
+                           (1 | cohort) + (1 | publication) - 1"),
+           f3b = as.formula("multiple.founders ~ reported.exposure + grouped.method + sequencing.region + 
+                           (1 | cohort) + (1 | publication) - 1"))
+
+
+
+
+fix.eff <- cbind.data.frame(var = names(fixef(test_reg)), est = fixef(test_reg), se = sqrt(diag(vcov(test_reg))))
+fe.ci <- mapply(CalcCI, u=fix.eff[,2], se=fix.eff[,3],threshold = 0.05) %>% t()
+fix_df <- cbind.data.frame(var = fix.eff[,1], mapply(transf.ilogit, fix.eff[,2:3]) , transf.ilogit(fe.ci) ,analysis = "original")
+colnames(fix_df)[4:5] <- c('fix.ub','fix.lb')
+
+ggplot(data = fix_df) + 
+  geom_point(aes(x= var, y = est)) + 
+  theme_classic() + 
+  geom_linerange( aes(x = var, ymin=fix.lb,ymax=fix.ub))+
+  coord_flip()
 #compare crude model to moderator model
 
 split_transission(props_metareg ,names)

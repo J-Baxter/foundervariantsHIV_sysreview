@@ -51,6 +51,7 @@ PltBoot <- function(data, intercept, ci.lb, ci.ub){
 ###################################################################################################
 ###################################################################################################
 # Import data
+# Note that boot st
 influence_df <- read.csv("bp_sa1.csv")
 
 pooled_models <-  readxl::read_xlsx("pooled_models.xlsx")
