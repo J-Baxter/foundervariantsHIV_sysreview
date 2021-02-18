@@ -118,7 +118,18 @@ fplot <- function(data){
     geom_point(aes(x= var, y = est)) + 
     theme_classic() + 
     geom_linerange( aes(x = var, ymin=fix.lb,ymax=fix.ub))+
-    coord_flip()
+    scale_y_continuous(limits = c(0,0.75) , 
+                       expand = c(0,0), 
+                       name = 'Probability of Multiple Founders')+
+    scale_x_discrete(name = 'Covariate Level')+
+    coord_flip() +
+    theme(
+      axis.text = element_text(size = 10.5,  family = "sans"),
+      legend.text = element_text(size = 10.5,  family = "sans"),
+      axis.title = element_text(size = 13,  family = "sans"),
+      plot.margin = unit(c(2,4,2,1), "lines")
+    )
+
   return(p2)
 }
 
@@ -128,7 +139,9 @@ fplot <- function(data){
 
 # Import data
 setwd("./data")
-df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF()
+df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(.,filter = c('reported.exposure',
+                                                                                     'grouped.subtype',
+                                                                                     'sequencing.region'))
 
 # Set seed
 set.seed(4472)
