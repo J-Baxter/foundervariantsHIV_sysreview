@@ -1,7 +1,7 @@
 ###################################################################################################
 ###################################################################################################
 # Visualisation for pooling and sensitivity analyses
-
+# Requires some model inputs from binary_pooling.R
 ###################################################################################################
 # Dependencies
 library(ggplot2)
@@ -55,10 +55,12 @@ PltBoot <- function(data, intercept, ci.lb, ci.ub){
 influence_df <- read.csv("bp_sa1.csv")
 
 pooled_models <-  readxl::read_xlsx("pooled_models.xlsx")
+
 models <- c('Two-Step Binomial Normal',
             'One-Step Binomial (random slope) and correlated intercept',
             'One-Step Binomial (uncorrelated random intercept and slope)',
             "Two-Step Beta-Binomial")
+
 og_models <- cbind(pooled_models[1:4,1], mapply(transf.ilogit, pooled_models[1:4,3:5]) %>% round(digits = 3))
 
 # resampling data
@@ -126,7 +128,7 @@ senseplot <- ggplot(cbind.data.frame(pooled_models[,1:2],mapply(metafor::transf.
         plot.margin = unit(c(2,4,2,1), "lines")
   )
 
-# Resampling histograms
+# Resampling histograms - requires model input from binary_pooling.R
 plt_boot.list <- mapply(PltBoot, data = t, 
                         intercept = og_models[,2], 
                         ci.lb = og_models[,3],
