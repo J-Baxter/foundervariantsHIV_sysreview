@@ -2,9 +2,9 @@
 ###################################################################################################
 # IPD meta analysis of HIV founder variant multiplicity
 # Framework for IPD meta-regression under a one-step and two-step approaches
-# 1. Two-step binomial-normal model (Random effects, inverse variance pooling, reml estimator of tau)
-# 2. One-step binomial GLMM allowing for clustering by study. uncorrelated random effects between studies
-#    (uncorrelated intercept and slope). approx ML fit
+# One-step binomial GLMM allowing for clustering by study. uncorrelated random effects between studies
+# 1. Initial regression models with one fixed effect covariate with random effects for publication and cohort
+# 2. Hierachichal Model Building with additional parameters
 
 ###################################################################################################
 ###################################################################################################
