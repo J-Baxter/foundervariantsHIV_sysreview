@@ -171,26 +171,45 @@ plot_grid(plotlist = subgroup_plotlist , labels = "AUTO" , align = 'hv', ncol = 
 # Models 'A' use broadly defined risk groups (MSM, HSX etc) whereas models 'B', subgroup by direction
 # and/or timing
 
-forms <- c(f0 = as.formula("multiple.founders ~  1 + 
-                           (1 | publication)"),
-           
-           f1a = as.formula("multiple.founders ~  riskgroup + 
-                           (1 | cohort) + (1 | publication) - 1"),
-           f1b = as.formula("multiple.founders ~  reported.exposure + 
-                           (1 | cohort) + (1 | publication) - 1"),
-           
-           f2a = as.formula("multiple.founders ~  riskgroup + grouped.method + 
-                           (1| cohort) + (1 | publication) - 1"),
-           f2b = as.formula("multiple.founders ~  reported.exposure + grouped.method + 
-                           (1| cohort) + (1 | publication) - 1"),
-           
-           f3a = as.formula("multiple.founders ~  riskgroup + grouped.method + sequencing.region + 
-                           (1 | cohort) + (1 | publication) - 1"),
-           f3b = as.formula("multiple.founders ~ reported.exposure + grouped.method + sequencing.region + 
-                           (1 | cohort) + (1 | publication) - 1")#,
-           
-           #f5 = as.formula("multiple.founders ~  riskgroup*grouped.subtype + grouped.method + sequencing.region  + seropositivity + (1 | cohort) + (1 | publication) - 1"),
-           #f6 = as.formula("multiple.founders ~  reported.exposure*grouped.subtype + grouped.method + sequencing.region  + seropositivity + (1 | cohort) + (1 | publication) - 1")
+modelbuild_forms <- c(f0 = as.formula("multiple.founders ~  1  + (1 | publication) + (1|cohort) - 1"),
+                      
+                      f1 = as.formula("multiple.founders ~ reported.exposure + 
+                                      (1 | publication) + (1|cohort) - 1"),
+                      
+                      f2 = as.formula("multiple.founders ~ reported.exposure + grouped.method + 
+                                      (1 | publication) + (1|cohort) - 1"),
+                      
+                      f3 = as.formula("multiple.founders ~ reported.exposure + grouped.method + 
+                      participant.seropositivity + 
+                                      (1 | publication) + (1|cohort) - 1"),
+                      
+                      f4 = as.formula("multiple.founders ~ reported.exposure + grouped.method + 
+                      participant.seropositivity + sequencing.region + 
+                                      (1 | publication) + (1|cohort) - 1"),
+                      
+                      f5 = as.formula("multiple.founders ~ reported.exposure + grouped.method +
+                      participant.seropositivity + sequencing.region + sequencing.number + grouped.subtype + 
+                                      (1 | publication) + (1|cohort) - 1"),
+                      
+                      f6 = as.formula("multiple.founders ~ reported.exposure*grouped.subtype + 
+                      grouped.method + participant.seropositivity + sequencing.region + sequencing.number + 
+                                      (1 | publication) + (1|cohort) - 1"),
+                      
+                      f7 = as.formula("multiple.founders ~ reported.exposure + grouped.method +
+                      participant.seropositivity + sequencing.ic + grouped.subtype + 
+                                      (1 | publication) + (1|cohort) - 1"),
+                      
+                      f8 = as.formula("multiple.founders ~ reported.exposure*grouped.subtype + 
+                      grouped.method + participant.seropositivity + sequencing.ic + 
+                                      (1 | publication) + (1|cohort) - 1"),
+                      
+                      f9 = as.formula("multiple.founders ~ reported.exposure + grouped.method +
+                      participant.seropositivity + sequencing.ic + grouped.subtype + study.design +
+                                      (1 | publication) + (1|cohort) - 1"),
+                      
+                      f10 = as.formula("multiple.founders ~ reported.exposure*grouped.subtype +
+                      grouped.method + participant.seropositivity + sequencing.ic + study.design +
+                                      (1 | publication) + (1|cohort) - 1"),
            )
 
 
