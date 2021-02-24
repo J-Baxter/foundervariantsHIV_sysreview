@@ -108,25 +108,41 @@ GetFE <- function(model, label = "original"){
                       analysis = label)}
   colnames(fix_df)[4:5] <- c('fix.ub','fix.lb')
   fix_df
-  
+
   return(fix_df)
 }
 
 
-fplot <- function(data){
+GetName <- function(x) {
+  require(stringr)
+  
+  formula <- levels(x$analysis)
+  
+  name <-gsub(".*[:~:] (.+?) [:+:].*", "\\1", formula) %>%
+    gsub("[:.:]" , " " , .) %>%
+    str_to_title()
+  
+  return(name)
+}
+
+
+FPlot <- function(data,plotname){
+  
   p2 <- ggplot(data = data) + 
     geom_point(aes(x= var, y = est)) + 
     theme_classic() + 
     geom_linerange( aes(x = var, ymin=fix.lb,ymax=fix.ub))+
     scale_y_continuous(limits = c(0,0.75) , 
                        expand = c(0,0), 
-                       name = 'Probability of Multiple Founders')+
-    scale_x_discrete(name = 'Covariate Level')+
-    coord_flip() +
+                       name = "Probability of Multiple Founders")+
+    scale_x_discrete(name = plotname, 
+                     guide = guide_axis(angle = 50))+
+    #coord_flip()+
     theme(
-      axis.text = element_text(size = 10.5,  family = "sans"),
-      legend.text = element_text(size = 10.5,  family = "sans"),
-      axis.title = element_text(size = 13,  family = "sans"),
+      axis.text = element_text(size = 10,  family = "sans"),
+      legend.text = element_text(size = 10,  family = "sans"),
+      axis.title.y = element_text(size = 11,  family = "sans"),
+      axis.title.x = element_text(size = 12,  family = "sans"),
       plot.margin = unit(c(2,4,2,1), "lines")
     )
 
@@ -159,11 +175,15 @@ subgroup_forms <- c(as.formula("multiple.founders ~  riskgroup  + (1 | publicati
                     )
 
 subgroup_metareg <- RunMetaReg(subgroup_forms, df)
-subgroup_fe <-mapply(GetFE, model = subgroup_metareg, label = as.character(subgroup_forms), SIMPLIFY = F)
+subgroup_fe <-mapply(GetFE, model = subgroup_metareg, label = as.character(subgroup_forms), SIMPLIFY = F) 
 
-subgroup_plotlist <- lapply(subgroup_fe, fplot)
-plot_grid(plotlist = subgroup_plotlist , labels = "AUTO" , align = 'hv', ncol = 2)
 
+plotnames <- lapply(subgroup_fe, GetName)
+  
+subgroup_plotlist <- mapply(FPlot,subgroup_fe ,plotnames, SIMPLIFY = F )
+subgroup_plot <- plot_grid(plotlist = subgroup_plotlist , labels = "AUTO" , align = 'hv', ncol = 2)
+
+subgroup_plot
 
 ###################################################################################################
 
@@ -184,15 +204,15 @@ modelbuild_forms <- c(f0 = as.formula("multiple.founders ~  1  + (1 | publicatio
                                       (1 | publication) + (1|cohort) - 1"),
                       
                       f4 = as.formula("multiple.founders ~ reported.exposure + grouped.method + 
-                      participant.seropositivity + sequencing.region + 
+                      participant.seropositivity + sequencing.gene + 
                                       (1 | publication) + (1|cohort) - 1"),
                       
                       f5 = as.formula("multiple.founders ~ reported.exposure + grouped.method +
-                      participant.seropositivity + sequencing.region + sequencing.number + grouped.subtype + 
+                      participant.seropositivity + sequencing.gene + sequencing.number + grouped.subtype + 
                                       (1 | publication) + (1|cohort) - 1"),
                       
                       f6 = as.formula("multiple.founders ~ reported.exposure*grouped.subtype + 
-                      grouped.method + participant.seropositivity + sequencing.region + sequencing.number + 
+                      grouped.method + participant.seropositivity + sequencing.gene + sequencing.number + 
                                       (1 | publication) + (1|cohort) - 1"),
                       
                       f7 = as.formula("multiple.founders ~ reported.exposure + grouped.method +
