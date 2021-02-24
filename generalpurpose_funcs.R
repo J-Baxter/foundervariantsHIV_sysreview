@@ -35,7 +35,7 @@ formatDF <-  function(df, noreps = TRUE, filter = NULL){
     for (i in 1:length(filter)){
       fac <- filter[i]
       tbl <- table(looped_df[fac])
-      looped_df <- looped_df[!looped_df[[fac]] %in% names(tbl)[tbl < 5],]
+      looped_df <- looped_df[!looped_df[[fac]] %in% names(tbl)[tbl < 6],]
     }
     
     df_splittrans <- colsplit(looped_df$reported.exposure, ":" , c("riskgroup" , "direction")) %>%
