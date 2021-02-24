@@ -143,12 +143,14 @@ CalcTau2 <- function(model , analysis = "original"){
     tau2.ub <- model$tau2.ub
   }
   else if (class(model) =="glmerMod"){
-    tau2 <- VarCorr(model)[[1]][1] 
-    tau2.lb <- 
-    tau2.ub <- c
+    tau2 <- VarCorr(model)[[1]][1]
+    weights = 
+    A = (df + 2 *(sum(weights)-(sum(weights2/sum(weights))))*tau2 +(sum(weights2)-2*(sum(weights3)/sum(weights))+((sum(weights2)^2)/(sum(weights)^2))*tau2^2))
+    tau2.lb <- CalcCI(tau2, se = , 0.95)[1]
+    tau2.ub <- CalcCI(tau2, se = ?, 0.95)[2]
   }
   else if (class(model) =="glimML"){
-    tau2 <- 
+    tau2 <- S
     tau2.lb <- 
     tau2.ub <- 
   }
@@ -304,10 +306,10 @@ set.seed(4472)
 # REML estimator of Tau. 
 
 twostep_binorm.all <- CalcTwostepBiNorm(df_props)
-twostep_binorm.step1 <- twostep_binorm[[1]]
-twostep_binorm <- twostep_binorm[[2]]
+twostep_binorm.step1 <- twostep_binorm.all[[1]]
+twostep_binorm <- twostep_binorm.all[[2]]
 
-twostep_binorm.sum <- summary(twostep_binorm.step2)
+twostep_binorm.sum <- summary(twostep_binorm)
 twostep_binorm.sum
 
 twostep_binorm.est <- CalcEstimates(twostep_binorm)
