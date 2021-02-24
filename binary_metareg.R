@@ -20,6 +20,7 @@ library(parallel)
 library(performance)
 library(reshape2)
 library(cowplot)
+library(stringr)
 source('generalpurpose_funcs.R')
 
 # One-step GLMM accounting for clustering of studies using a random intercept
@@ -113,6 +114,8 @@ GetFE <- function(model, label = "original"){
 }
 
 
+# Note required regex for covariate names in order for this to work efficiently
+# Extracts th name of the 1st covariate (as written) from lmer function syntax
 GetName <- function(x) {
   require(stringr)
   
