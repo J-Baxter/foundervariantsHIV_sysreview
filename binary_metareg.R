@@ -97,7 +97,7 @@ GetFE <- function(model, label = "original"){
   fe <- fixef(model)
   se <- sqrt(diag(vcov(model)))
   nom <- names(fe) %>% 
-    gsub("participant.seropositivity|grouped.method|riskgroup|grouped.subtype|sequencing.region|reported.exposure" , "" , .)
+    gsub("participant.seropositivity|grouped.method|riskgroup|grouped.subtype|sequencing.gene|reported.exposure" , "" , .)
   
   fix_df <- mapply(CalcCI, u=fe, se=se,threshold = 0.05) %>% 
     t() %>% 
@@ -141,7 +141,7 @@ fplot <- function(data){
 setwd("./data")
 df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(.,filter = c('reported.exposure',
                                                                                      'grouped.subtype',
-                                                                                     'sequencing.region'))
+                                                                                     'sequencing.gene'))
 
 # Set seed
 set.seed(4472)
@@ -155,7 +155,7 @@ subgroup_forms <- c(as.formula("multiple.founders ~  riskgroup  + (1 | publicati
                     as.formula("multiple.founders ~ grouped.method + (1 | publication) + (1|cohort) - 1"),
                     as.formula("multiple.founders ~ participant.seropositivity + (1 | publication) + (1|cohort) - 1"),
                     as.formula("multiple.founders ~ grouped.subtype + (1 | publication) + (1|cohort) - 1"),
-                    as.formula("multiple.founders ~ sequencing.region + (1 | publication) + (1|cohort) - 1")
+                    as.formula("multiple.founders ~ sequencing.gene + (1 | publication) + (1|cohort) - 1")
                     )
 
 subgroup_metareg <- RunMetaReg(subgroup_forms, df)
@@ -203,13 +203,6 @@ modelbuild_forms <- c(f0 = as.formula("multiple.founders ~  1  + (1 | publicatio
                       grouped.method + participant.seropositivity + sequencing.ic + 
                                       (1 | publication) + (1|cohort) - 1"),
                       
-                      f9 = as.formula("multiple.founders ~ reported.exposure + grouped.method +
-                      participant.seropositivity + sequencing.ic + grouped.subtype + study.design +
-                                      (1 | publication) + (1|cohort) - 1"),
-                      
-                      f10 = as.formula("multiple.founders ~ reported.exposure*grouped.subtype +
-                      grouped.method + participant.seropositivity + sequencing.ic + study.design +
-                                      (1 | publication) + (1|cohort) - 1"),
            )
 
 
