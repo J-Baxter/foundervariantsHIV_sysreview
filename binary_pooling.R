@@ -271,6 +271,9 @@ BootParticipant <- function(data, replicates){
     do.call(rbind.data.frame,.) %>%
     {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
   
+  #twostep_boot.het <- lapply(twostep_boot, function(model) CalcHet(model[[2]])) %>%
+    #do.call(rbind.data.frame,.)
+  
   rand_boot.est <- lapply(rand_boot, function(model) model$beta) %>% 
     do.call(rbind.data.frame,.) %>%
     {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
