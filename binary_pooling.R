@@ -267,26 +267,39 @@ BootParticipant <- function(data, replicates){
   stopCluster(cl)
   remove(cl)
   
-  twostep_boot.est <- lapply(twostep_boot, function(model) model[[2]]$beta) %>% 
+  twostep_boot.est <- lapply(twostep_boot, function(mod) mod[[2]]$beta) %>%
     do.call(rbind.data.frame,.) %>%
     {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
   
-  #twostep_boot.het <- lapply(twostep_boot, function(model) CalcHet(model[[2]])) %>%
-    #do.call(rbind.data.frame,.)
+  twostep_boot.het <- lapply(twostep_boot, function(mod) CalcHet(mod[[2]], analysis = "twostep_binorm")) %>%
+    do.call(rbind.data.frame,.)
   
-  rand_boot.est <- lapply(rand_boot, function(model) model$beta) %>% 
+  rand_boot.est <- lapply(rand_boot, function(mod) mod$beta) %>%
     do.call(rbind.data.frame,.) %>%
     {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
   
-  beta_boot.est <- lapply(beta_boot, function(model) model@param[1]) %>% 
+  rand_boot.het <- lapply(rand_boot, function(mod) CalcHet(mod, analysis = "onestep_bi_rand")) %>%
+    do.call(rbind.data.frame,.)
+  
+  beta_boot.est <- lapply(beta_boot, function(mod) mod@param[1]) %>%
     do.call(rbind.data.frame,.) %>%
     {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
   
-  boot_estimates <- list('twostep' = twostep_boot.est,
-                         'rand' = rand_boot.est,
-                         'beta' = beta_boot.est)
+  beta_boot.het <- lapply(beta_boot, function(mod) CalcHet(mod, analysis = "twostep_betabi")) %>%
+    do.call(rbind.data.frame,.)
   
-  return(boot_estimates)
+  boot_estimates <- rbind.data.frame(twostep_boot.est,
+                                     rand_boot.est,
+                                     beta_boot.est)
+  
+  boot_het <- rbind.data.frame(twostep_boot.het,
+                               rand_boot.het,
+                               beta_boot.het)
+  
+  out <- cbind.data.frame(boot_estimates, boot_het) %>% .[,-2]
+
+  
+  return(out)
 }
 
 
@@ -458,9 +471,8 @@ SA3_results <- rbind.data.frame(twostep_binorm.nozeros.out,
 # SA4. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
 resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(., noreps = FALSE)
 
-boot_participant <- BootParticipant(resampling_df , 1000) %>%
-  do.call(cbind.data.frame,.)%>%
-  `colnames<-` (c('twostep_binorm', 'onestep_bi_rand','twostep_betabi'))
+boot_participant <- BootParticipant(resampling_df , 1000)
+
 
 ###################################################################################################
 ###################################################################################################
