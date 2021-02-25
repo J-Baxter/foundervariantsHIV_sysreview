@@ -251,14 +251,13 @@ BootParticipant <- function(data, replicates){
   
   clusterEvalQ(cl, c(library(lme4), library(metafor), library(aod), library(dplyr),
                      set.seed(4472),'CalcOnestepBiRand', 'CalcTwostepBiNorm',
-                     'CalcOnestepBiStrat','CalcTwostepBetaBi'))
+                     'CalcTwostepBetaBi'))
   
   start <- Sys.time()
   print(start)
   
   twostep_boot <- parLapply(cl = cl, resampled_props, CalcTwostepBiNorm)
-  rand_boot <- parLapply(cl = cl, resampled, CalcOnestepBiRand)
-  strat_boot <- parLapply(cl = cl, resampled, CalcOnestepBiStrat)
+  rand_boot <- parLapply(cl = cl, resampled_props, CalcOnestepBiRand)
   beta_boot <- parLapply(cl = cl, resampled_props, CalcTwostepBetaBi)
   
   end <- Sys.time()
@@ -272,11 +271,7 @@ BootParticipant <- function(data, replicates){
     do.call(rbind.data.frame,.) %>%
     {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
   
-  strat_boot.est <- lapply(strat_boot, function(model) summary(model)$coefficients[1,1]) %>% 
-    do.call(rbind.data.frame,.) %>%
-    {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
-  
-  rand_boot.est <- lapply(rand_boot, function(model) summary(model)$coefficients[1,1]) %>% 
+  rand_boot.est <- lapply(rand_boot, function(model) model$beta) %>% 
     do.call(rbind.data.frame,.) %>%
     {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
   
@@ -286,7 +281,6 @@ BootParticipant <- function(data, replicates){
   
   boot_estimates <- list('twostep' = twostep_boot.est,
                          'rand' = rand_boot.est,
-                         'strat' = strat_boot.est,
                          'beta' = beta_boot.est)
   
   return(boot_estimates)
@@ -461,7 +455,9 @@ SA3_results <- rbind.data.frame(twostep_binorm.nozeros.out,
 # SA4. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
 resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(., noreps = FALSE)
 
-boot_participant <- BootParticipant(resampling_df , 500) #Out to file: save as df -> csv with indexes denoting list structure
+boot_participant <- BootParticipant(resampling_df , 1000) %>%
+  do.call(cbind.data.frame,.)%>%
+  `colnames<-` (c('twostep_binorm', 'onestep_bi_rand','twostep_betabi'))
 
 ###################################################################################################
 ###################################################################################################
@@ -478,6 +474,8 @@ write.csv(pooled_est , file = 'bp_estsa2sa3.csv')
 # CSV study influence
 write.csv(influence_df, file = 'bp_sa1.csv')
 
+# CSV resampling (pseudo bootstrapping)
+write.csv(boot_participant, file = 'bp_resampl.csv')
 
 # Forest Plot 2-step BN
 pdf("testplot.pdf" , width = 14 , height = 20)
