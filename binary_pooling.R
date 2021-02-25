@@ -402,7 +402,7 @@ twostep_binorm.influence <- lapply(dfp_loocv, function(x) CalcTwostepBiNorm(data
   DFInfluence(., labs = publist_loocv) %>% {cbind.data.frame(.,'model' = 'twostep_binorm')}
 
 onestep_bi_rand.influence <-  lapply(dfp_loocv ,CalcOnestepBiRand) %>%
-  DFInfluence(., labs =publist_loocv) %>% {cbind.data.frame(.,'model' = 'onestep_rand')}
+  DFInfluence(., labs =publist_loocv) %>% {cbind.data.frame(.,'model' = 'onestep_bi_rand')}
 
 twostep_betabi.influence <-  lapply(dfp_loocv ,CalcTwostepBetaBi) %>%
   DFInfluence(., labs = publist_loocv) %>% {cbind.data.frame(.,'model' = 'twostep_betabi')}

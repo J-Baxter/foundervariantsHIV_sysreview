@@ -8,6 +8,7 @@ library(ggplot2)
 library(ggsci)
 library(kableExtra)
 library(metafor)
+library(dplyr)
 
 
 # Plot for pseudo-bootstrap replicates of participant selection
@@ -27,11 +28,11 @@ PltBoot <- function(data, intercept, ci.lb, ci.ub){
     theme_classic() +
     
     scale_y_continuous(name = "Frequency" ,
-                       limits=c(0,50),
+                       limits=c(0,75),
                        expand = c(0, 0)) +
     
     scale_x_continuous(name = "Probability of Multiple Founders",
-                       limits=c(0,0.4), 
+                       limits=c(0,0.35), 
                        expand = c(0.01, 0.01)) +
     
     annotate( "rect",
@@ -51,8 +52,9 @@ PltBoot <- function(data, intercept, ci.lb, ci.ub){
 ###################################################################################################
 ###################################################################################################
 # Import data
-# Note that boot st
-influence_df <- read.csv("bp_sa1.csv")
+setwd("./data")
+
+influence_df <- read.csv("bp_sa1.csv") %>% arrange(., model)
 
 pooled_models <-  read.csv('bp_estsa2sa3.csv')
 
@@ -62,7 +64,7 @@ models <- c('Two-Step Binomial Normal',
             'One-Step Binomial',
             "Two-Step Beta-Binomial")
 
-og_models <- cbind("model" = pooled_models[1:3,1], pooled_models[1:3,3:9] %>% round(digits = 3))
+og_models <- cbind("model" = pooled_models[1:3,1], pooled_models[1:3,3:9] %>% round(digits = 3)) %>% arrange(., model)
 
 ###################################################################################################
 ###################################################################################################
@@ -98,7 +100,7 @@ ggplot(twostep_binorm.step1, aes(x=log_or)) + geom_histogram(binwidth = 0.25,col
 
 
 # Exclusion critera dot and whisker plot
-senseplot <- ggplot(cbind.data.frame(pooled_models[,1:2],mapply(metafor::transf.ilogit, pooled_models[,3:5])),
+senseplot <- ggplot(pooled_models,
                     aes(x= model, y = estimate, color = analysis)) +
   
   geom_point( shape = 4, 
@@ -111,10 +113,9 @@ senseplot <- ggplot(cbind.data.frame(pooled_models[,1:2],mapply(metafor::transf.
   
   scale_x_discrete(name = "Model", 
                    labels = c(
-                     twostep.bn = "BN",
-                     twostep.bb = "BB",
-                     onestep.strat = "Stratified",
-                     onestep.rand = "Random")) +
+                     twostep_binorm = "BN",
+                     twostep_betabi = "BB",
+                     onestep_bi_rand= "Random")) +
   theme_classic() + 
   
   coord_flip() +
@@ -137,7 +138,9 @@ senseplot <- ggplot(cbind.data.frame(pooled_models[,1:2],mapply(metafor::transf.
   )
 
 # Resampling histograms - requires model input from binary_pooling.R
-plt_boot.list <- mapply(PltBoot, data = t, 
+resampled_models.list <- split.data.frame(resampled_models, resampled_models$analysis) %>%
+
+plt_boot.list <- mapply(PltBoot, data = resampled_models.list, 
                         intercept = og_models[,2], 
                         ci.lb = og_models[,3],
                         ci.ub = og_models[,4],
@@ -160,7 +163,7 @@ plt <- ggplot(influence_df,aes(x = trial , y = estimate) ) +
                      expand = c(0, 0),
                      name = "Probability of Multiple Founders") +
   
-  scale_x_discrete(labels = influence.labs) +
+  scale_x_discrete(labels = influence_df$trial) +
   
   theme_classic() + 
   
@@ -170,8 +173,7 @@ plt <- ggplot(influence_df,aes(x = trial , y = estimate) ) +
              labeller = labeller(model = c(
                twostep_binorm = "Binomial-Normal",
                twostep_betabi = "Beta-Binomial",
-               onestep_strat = "GLMM Stratified",
-               onestep_rand = "GLMM Random"))) +
+               onestep_bi_rand = "GLMM Random"))) +
   
   geom_errorbar(data =influence_df, 
                 aes(x = trial,
@@ -198,7 +200,7 @@ plt <- ggplot(influence_df,aes(x = trial , y = estimate) ) +
     strip.background = element_rect(fill = NA, colour= NA)
   )
 
-tiff(filename = 'influenceplot.tif', res = 180, width=2750, height=2650 , units = 'cm', pointsize = 10)
+jpeg(filename = 'influenceplot.jpeg', res = 350, width=2750, height=4000 , units = 'px', pointsize = 10)
 
 plt
 
