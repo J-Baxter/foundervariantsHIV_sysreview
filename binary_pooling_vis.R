@@ -8,7 +8,7 @@ library(ggplot2)
 library(ggsci)
 library(kableExtra)
 library(metafor)
-library(readxl)
+
 
 # Plot for pseudo-bootstrap replicates of participant selection
 PltBoot <- function(data, intercept, ci.lb, ci.ub){
@@ -54,30 +54,38 @@ PltBoot <- function(data, intercept, ci.lb, ci.ub){
 # Note that boot st
 influence_df <- read.csv("bp_sa1.csv")
 
-pooled_models <-  readxl::read_xlsx("pooled_models.xlsx")
+pooled_models <-  read.csv('bp_estsa2sa3.csv')
+
+resampled_models <- read.csv('bp_resampl.csv')
 
 models <- c('Two-Step Binomial Normal',
-            'One-Step Binomial (random slope) and correlated intercept',
-            'One-Step Binomial (uncorrelated random intercept and slope)',
+            'One-Step Binomial',
             "Two-Step Beta-Binomial")
 
-og_models <- cbind(pooled_models[1:4,1], mapply(transf.ilogit, pooled_models[1:4,3:5]) %>% round(digits = 3))
-
-# resampling data
+og_models <- cbind("model" = pooled_models[1:3,1], pooled_models[1:3,3:9] %>% round(digits = 3))
 
 ###################################################################################################
 ###################################################################################################
 # Panel: Table of estimate and tau for pooling
 
-og_models_formatted <- cbind.data.frame("probability" = paste0(og_models$estimate, ' ' ,
+og_models_formatted <- cbind.data.frame("Estimate" = paste0(og_models$estimate, ' ' ,
                                                                '[' , og_models$estimate.lb ,' - ',
                                                                og_models$estimate.ub, ']'),
-                                        row.names =models )
+                                        og_models[,5:8],
+                                        row.names =models ) 
+og_models_formatted[is.na(og_models_formatted )] <- "-"
 
-tbl <- kbl(og_models_formatted, longtable = T, booktabs = T, col.names = c("Probability of Multiple Founders")) %>%
-  kable_classic(html_font = "Arial")
+# Not hapy with formatting
+tbl <- kbl(og_models_formatted , 
+          booktabs = T,
+           col.names = c('Estimate', '$$\\hat{\\tau}^2$$', "$$\\text{Q}$$", "$$\\text{I}^2$$", "$$\\phi$$"),
+           escape = FALSE,
+           align = 'c', 
+           ) %>%
+  add_header_above(c(" " = 1, "Probability of Multiple Founders" = 1, "Heterogeneity" = 4), bold = T, line = T) %>%
+ kable_classic(full_width = F, html_font = 'arial')
 
-
+  
 ###################################################################################################
 # Plot log odds of individual studies. should be normally distiributed to satisfy binomial-normal model.
 ggplot(twostep_binorm.step1, aes(x=log_or)) + geom_histogram(binwidth = 0.25,color="black", fill="white")+
