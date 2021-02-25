@@ -126,7 +126,9 @@ CalcEstimates <- function(model , analysis = "original"){
                               "estimate.ub" = ci.ub) %>%
     mapply(transf.ilogit, ., SIMPLIFY = FALSE)
   
-  results_lab <- cbind.data.frame("model" = substitute(model) %>% deparse(),
+  results_lab <- cbind.data.frame("model" = substitute(model) %>% 
+                                    deparse() %>% 
+                                    gsub("[:.:].*", "", .),
                                   "analysis" = analysis,
                                   results)
   
@@ -161,7 +163,9 @@ CalcHet <- function(model , analysis = "original"){
     phi <- model@param[2] %>% as.numeric()
   }
   
-  results <- cbind.data.frame("model" = substitute(model) %>% deparse(),
+  results <- cbind.data.frame("model" = substitute(model) %>% 
+                                deparse() %>% 
+                                gsub("[:.:].*", "", .),
                               "tau2" = tau2,
                               "Q" = q,
                               "I2" = i2,
@@ -483,14 +487,14 @@ pooled_est <- rbind.data.frame(originals,
                                 SA2_results,
                                 SA3_results) %>% .[,-c(6,11)]
 
-write.csv(pooled_est , file = 'bp_estsa2sa3.csv')
+write.csv(pooled_est , file = 'bp_estsa2sa3.csv', row.names = F)
 
 
 # CSV study influence
-write.csv(influence_df, file = 'bp_sa1.csv')
+write.csv(influence_df, file = 'bp_sa1.csv',row.names = F)
 
 # CSV resampling (pseudo bootstrapping)
-write.csv(boot_participant, file = 'bp_resampl.csv')
+write.csv(boot_participant, file = 'bp_resampl.csv',row.names = F)
 
 # Forest Plot 2-step BN
 pdf("testplot.pdf" , width = 14 , height = 20)
