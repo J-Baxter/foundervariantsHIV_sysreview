@@ -59,36 +59,36 @@ AddIncr <- function(df, incr){
 # Two-step binomial/normal model, pooling studies using Inverse Variance method,
 # random effects, REML estimator of tau2.
 CalcTwostepBiNorm <- function(data){
-  step1 <- escalc(xi = multiplefounders , ni = subjects , data= data , add = 0.0005, measure = "PLO")
+  step1 <- escalc(xi = multiplefounders ,
+                  ni = subjects , 
+                  data= data ,
+                  drop00 = FALSE,
+                  add = 0.0005, 
+                  to = "only0",
+                  measure = "PLO")
+  
   step2 <- rma.uni(yi, vi, 
                    data = step1,
                    method = "REML",
-                   knha = TRUE, 
-                   measure = "PLO")
+                   knha = TRUE,
+                   measure = "PLO",
+                   nAGQ = 7)
   
   list(step1, step2) %>%
     return()
 }
 
 
-# One-step GLMM accounting for clustering of studies using a statified intercept (
-# random slope, correlated intercept)
-CalcOnestepBiStrat <- function(data){
-  model <- glmer(multiple.founders ~  1 + factor(publication) + (1| publication),
-                 data = data,
-                 family = binomial(link = "logit"),
-                 control = glmerControl(optCtrl = list(maxfun = 1000000)))
-  return(model)
-}
-
-
 # One-step GLMM accounting for clustering of studies using a random intercept (
 # random slope, random & uncorrelated intercept)
 CalcOnestepBiRand <- function(data){
-  model <- lme4::glmer(multiple.founders ~  1 + (1|publication),
-                 data = data,
-                 family = binomial(link = "logit"),
-                 control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 100000)))
+  model <- rma.glmm(xi = multiplefounders,
+                    ni = subjects, 
+                    data = data , 
+                    drop00 = FALSE, 
+                    add = 0.0005, 
+                    measure= 'PLO', 
+                    nAGQ = 7)
   return(model)
 }
 
@@ -102,9 +102,8 @@ CalcTwostepBetaBi <- function(proportions){
 
 
 # Extracts estimates of summary effect from models
-# CURRENTLY FULLY FUNCTIONAL ONLY FOR METAFOR MODELS  
 CalcEstimates <- function(model , analysis = "original"){
-  if (class(model) == "rma" || class(model) == "rma.uni"){
+  if (class(model) == "rma" || class(model) == "rma.uni" || class(model) == "rma.glmm"){
     beta <- model$beta
     ci.lb <- model$ci.lb
     ci.ub <- model$ci.ub
@@ -136,29 +135,37 @@ CalcEstimates <- function(model , analysis = "original"){
 
 
 # Extracts estimates of heterogeneity (tau2) from models
-CalcTau2 <- function(model , analysis = "original"){
-  if (class(model) == "rma" || class(model) == "rma.uni"){
-    tau2 <- model$tau2
-    tau2.lb <- model$tau2.lb
-    tau2.ub <- model$tau2.ub
+CalcHet <- function(model , analysis = "original"){
+  if (class(model)[1] == "rma.uni"){
+    tau2 <- model$tau2 
+    q <- model$QE
+    i2 <- model$I2
+    phi <- NA
+  }
+  else   if (class(model)[1] == "rma.glmm"){
+    tau2 <- model$tau2 
+    q <- model$QE.Wld
+    i2 <- model$I2
+    phi <- NA
   }
   else if (class(model) =="glmerMod"){
     tau2 <- VarCorr(model)[[1]][1]
-    weights = 
-    A = (df + 2 *(sum(weights)-(sum(weights2/sum(weights))))*tau2 +(sum(weights2)-2*(sum(weights3)/sum(weights))+((sum(weights2)^2)/(sum(weights)^2))*tau2^2))
-    tau2.lb <- CalcCI(tau2, se = , 0.95)[1]
-    tau2.ub <- CalcCI(tau2, se = ?, 0.95)[2]
+    q <- NA
+    i2 <- NA
+    phi <- NA
   }
   else if (class(model) =="glimML"){
-    tau2 <- S
-    tau2.lb <- 
-    tau2.ub <- 
+    tau2 <- NA
+    q <- NA
+    i2 <- NA
+    phi <- model@param[2] %>% as.numeric()
   }
   
   results <- cbind.data.frame("model" = substitute(model) %>% deparse(),
                               "tau2" = tau2,
-                              "tau2.lb" = tau2.lb,
-                              "tau2.ub" = tau2.ub,
+                              "Q" = q,
+                              "I2" = i2,
+                              "phi" = phi,
                               "analysis" = analysis)
   
   return(results)
@@ -189,7 +196,7 @@ DFInfluence <- function(model,labs){
   ci.lb = numeric()
   ci.ub = numeric() 
   
-  if (class(model[[1]]) == "rma" || class(model[[1]]) == "rma.uni"){
+  if (class(model[[1]]) == "rma" || class(model[[1]]) == "rma.uni" || class(model[[1]]) == "rma.glmm"){
     for (i in 1:length(model)){
       beta[i] <- model[[i]]$beta
       ci.lb[i] <-model[[i]]$ci.lb
@@ -313,43 +320,27 @@ twostep_binorm.sum <- summary(twostep_binorm)
 twostep_binorm.sum
 
 twostep_binorm.est <- CalcEstimates(twostep_binorm)
+twostep_binorm.het <- CalcHet(twostep_binorm)
+###################################################################################################
 ###################################################################################################
 
 # 2. One-step binomial GLMM allowing for clustering by study. 
-# random slope of x within group with correlated intercept
-# Laplace approximate ML estimation
-# assumes conditional independence and follow binomial distribution
-
-df_onestage <- AddIncr(df, incr = 0.0005)
-
-onestep_bi_strat <- CalcOnestepBiStrat(df_onestage )
-onestep_bi_strat.sum <- summary(onestep_bi_strat)
-onestep_bi_strat.sum
-
-onestep_bi_rand.est <- CalcEstimates(onestep_bi_strat)
-onestep_bi_strat.tau2 <- 
-
-
-
-###################################################################################################
-
-# 3. One-step binomial GLMM allowing for clustering by study. 
 # uncorrelated random intercept and random slope within group 
 # approx ML fit
 # Laplace approximate ML estimation
 # assumes conditional independence and follow binomial distribution
 # (1 | random.factor) + (0 + fixed.factor | random.factor) = fixed.factor + (fixed.factor || random.factor)
 
-onestep_bi_rand <- CalcOnestepBiRand(df_onestage) 
+onestep_bi_rand <- CalcOnestepBiRand(df_props) 
 onestep_bi_rand.sum <- summary(onestep_bi_rand)
 onestep_bi_rand.sum
 
 onestep_bi_rand.est <- CalcEstimates(onestep_bi_rand)
-onestep_bi_rand.tau2 <- 
+onestep_bi_rand.het <- CalcHet(onestep_bi_rand)
 
 ###################################################################################################
 
-# 4. Beta-binomial model
+# 3. Beta-binomial model
 # the event rate pi for the ith study is drawn from a beta distirbution. conditional on pi, the number of 
 # individuals xi in the ith study of size ni who experience the events of interest follows a binomial 
 # distribution B(ni;pi) (From Chuang-Stein 1993).
@@ -363,17 +354,20 @@ twostep_betabi <- CalcTwostepBetaBi(df_props)
 twostep_betabi.sum <- summary(twostep_betabi)
 twostep_betabi.sum
 twostep_betabi.est <- CalcEstimates(twostep_betabi)
+twostep_betabi.het <- CalcHet(twostep_betabi)
  
 ###################################################################################################
 ###################################################################################################
 # Model comparison: Estimated sumary effects (prop, CI), between study variance (tau, I^)
 # Tau2 = Var(theta_i), theta_i = E[theta_i]
-estimates <- rbind.data.frame(twostep_binorm.est, onestep_bi_rand.est,
-                                    onestep_bi_rand.est,twostep_betabi.est)
+estimates <- rbind.data.frame(twostep_binorm.est,
+                              onestep_bi_rand.est,
+                              twostep_betabi.est)
 
 
-tau2 <- rbind.data.frame(twostep_binorm.tau2, onestep_bi_rand.tau2,
-                         onestep_bi_rand.tau2,twostep_betabi.tau2 )
+heterogeneity <- rbind.data.frame(twostep_binorm.het,
+                                  onestep_bi_rand.het,
+                                  twostep_betabi.het )
 
   
 ###################################################################################################
@@ -393,16 +387,15 @@ dfp_loocv <- LOOCV.dat(df_props)[[1]]
 twostep_binorm.influence <- lapply(dfp_loocv, function(x) CalcTwostepBiNorm(data = x)[[2]]) %>%
   DFInfluence(., labs = publist_loocv) %>% {cbind.data.frame(.,'model' = 'twostep_binorm')}
 
-onestep_bi_strat.influence <- lapply(df_loo ,CalcOnestepBiStrat) %>%
-  DFInfluence()
-
-onestep_bi_rand.influence <-  lapply(df_loocv ,CalcOnestepBiRand) %>%
+onestep_bi_rand.influence <-  lapply(dfp_loocv ,CalcOnestepBiRand) %>%
   DFInfluence(., labs =publist_loocv) %>% {cbind.data.frame(.,'model' = 'onestep_rand')}
 
 twostep_betabi.influence <-  lapply(dfp_loocv ,CalcTwostepBetaBi) %>%
   DFInfluence(., labs = publist_loocv) %>% {cbind.data.frame(.,'model' = 'twostep_betabi')}
 
-influence_df <- rbind.data.frame(twostep_binorm.influence,onestep_bi_rand.influence,twostep_betabi.influence)
+influence_df <- rbind.data.frame(twostep_binorm.influence,
+                                 onestep_bi_rand.influence,
+                                 twostep_betabi.influence)
 
 
 # SA2. Exclusion of small sample sizes (less than n = 10)
@@ -415,20 +408,24 @@ df.nosmallsample <- lapply(publist.nosmallsample, function(x,y) subset(x, public
 
 df_props.nosmallsample <- subset(df_props , subjects > 9)
 
-twostep_binorm.nosamllsample <- CalcTwostepBiNorm(df_props.nosmallsample)[[2]] %>% 
-  CalcEstimates(., analysis = "no_small")
+twostep_binorm.nosmallsample <- CalcTwostepBiNorm(df_props.nosmallsample)[[2]]
+twostep_binorm.nosmallsample.out <- list(CalcEstimates(twostep_binorm.nosmallsample, analysis = "no_small"),
+                                         CalcHet(twostep_binorm.nosmallsample)) %>%
+  cbind.data.frame(.)
 
-onestep_bi_strat.nosamllsample <- CalcOnestepBiStrat(df.nosmallsample) %>%
-  CalcEstimates(., analysis = "no_small")
+onestep_bi_rand.nosmallsample <- CalcOnestepBiRand(df_props.nosmallsample)
+onestep_bi_rand.nosmallsample.out <- list(CalcEstimates(onestep_bi_rand.nosmallsample, analysis = "no_small"),
+                                          CalcHet(onestep_bi_rand.nosmallsample)) %>%
+  cbind.data.frame(.)
 
-onestep_bi_rand.nosamllsample <- CalcOnestepBiRand(df.nosmallsample) %>% 
-  CalcEstimates(., analysis = "no_small")
+twostep_betabi.nosamllsample <- CalcTwostepBetaBi(df_props.nosmallsample)
+twostep_betabi.nosamllsample.out <- list(CalcEstimates(twostep_betabi.nosamllsample, analysis = "no_small"),
+                                          CalcHet(twostep_betabi.nosamllsample)) %>%
+  cbind.data.frame(.)
 
-twostep_betabi.nosamllsample <- CalcTwostepBetaBi(df_props.nosmallsample) %>%
-  CalcEstimates(., analysis = "no_small")
-
-SA2_results <-  rbind.data.frame(twostep_binorm.nosamllsample, onestep_bi_rand.nosamllsample,
-                                 onestep_bi_rand.nosamllsample,twostep_betabi.nosamllsample)
+SA2_results <-  rbind.data.frame(twostep_binorm.nosmallsample.out,
+                                 onestep_bi_rand.nosmallsample.out,
+                                 twostep_betabi.nosamllsample.out)
 
 
 # SA3. Exclusion of studies with 0 multiple founder variants
@@ -441,20 +438,24 @@ df.nozeros <- lapply(publist.nozeros, function(x,y) subset(x, publication == y),
 
 df_props.nozeros <- subset(df_props , multiplefounders != 0)
 
-twostep_binorm.nozeros <- CalcTwostepBiNorm(df_props.nozeros)[[2]] %>%
-  CalcEstimates(., analysis = "no_zeros")
+twostep_binorm.nozeros <- CalcTwostepBiNorm(df_props.nozeros)[[2]]
+twostep_binorm.nozeros.out <- list(CalcEstimates(twostep_binorm.nozeros, analysis = "no_zeros"),
+                                   CalcHet(twostep_binorm.nozeros)) %>%
+  cbind.data.frame(.)
 
-onestep_bi_strat.nozeros <- CalcOnestepBiStrat(df.nozeros) %>%
-  CalcEstimates(., analysis = "no_zeros")
+onestep_bi_rand.nozeros <- CalcOnestepBiRand(df_props.nozeros)
+onestep_bi_rand.nozeros.out <- list(CalcEstimates(onestep_bi_rand.nozeros, analysis = "no_zeros"),
+                                    CalcHet(onestep_bi_rand.nozeros)) %>%
+  cbind.data.frame(.)
 
-onestep_bi_rand.nozeros <- CalcOnestepBiRand(df.nozeros) %>%
-  CalcEstimates(., analysis = "no_zeros")
+twostep_betabi.nozeros <- CalcTwostepBetaBi(df_props.nozeros)
+twostep_betabi.nozeros.out <- list(CalcEstimates(twostep_betabi.nozeros , analysis = "no_zeros"),
+                                   CalcHet(twostep_betabi.nozeros)) %>%
+  cbind.data.frame(.) #expectation is this is no better than binomial models
 
-twostep_betabi.nozeros <- CalcTwostepBetaBi(df_props.nozeros) %>%
-  CalcEstimates(., analysis = "no_zeros") #expectation is this is no better than binomial models
-
-SA3_results <- rbind.data.frame(twostep_binorm.nozeros, onestep_bi_rand.nozeros,
-                                onestep_bi_rand.nozeros,twostep_betabi.nozeros)
+SA3_results <- rbind.data.frame(twostep_binorm.nozeros.out, 
+                                onestep_bi_rand.nozeros.out,
+                                twostep_betabi.nozeros.out)
 
 
 # SA4. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
@@ -466,16 +467,13 @@ boot_participant <- BootParticipant(resampling_df , 500) #Out to file: save as d
 ###################################################################################################
 # Outputs
 # CSV of pooling model results (estimates only) with SAs 2 + 3
-pooled_mods <- rbind.data.frame(estimates,
+originals <- cbind.data.frame(estimates, heterogeneity)
+pooled_est <- rbind.data.frame(originals,
                                 SA2_results,
-                                SA3_results)
+                                SA3_results) %>% .[,-c(6,11)]
 
-write.csv(pooled_mods, file = 'bp_estsa2sa3.csv')
+write.csv(pooled_est , file = 'bp_estsa2sa3.csv')
 
-# CSV of pooling model results (estimates and tau2)
-model_comp_df <- cbind.data.frame(estimates, tau2)
-
-write.csv(model_comp_df , file = 'bp_esttau.csv')
 
 # CSV study influence
 write.csv(influence_df, file = 'bp_sa1.csv')
