@@ -110,7 +110,7 @@ CalcEstimates <- function(model , analysis = "original"){
   }
   else if (class(model) =="glmerMod"){
     beta <- summary(model)$coefficients[1,1]
-    ci <- confint(model)
+    ci <- confint.merMod(model, method = 'profile')
     ci.lb <- ci[nrow(ci),1]
     ci.ub <- ci[nrow(ci),2]
   }
@@ -505,6 +505,26 @@ text(c(-0.9,-0.4), 79, c('Multiple Founders' , 'Subjects') , font = 2)
 
 dev.off()
 
+
+# Funnel Plot
+PlotFunnel <- function(model){
+  
+}
+funnel_data <- cbind.data.frame('se' = sqrt(onestep_bi_rand.nozeros$vi), 'b' =  onestep_bi_rand.nozeros$yi)
+lb <- onestep_bi_rand.nozeros$ci.lb
+ub <- onestep_bi_rand.nozeros$ci.ub
+u <- mean(funnel_data$x)
+se <- onestep_bi_rand.nozeros$se
+plt <- ggplot(funnel_data ) +
+  geom_point( aes(y = se, x = b), shape = 4, size = 3)+
+  theme_classic() +
+  scale_x_continuous(limits = c(-5 , 3), expand = c(0,0))+
+  scale_y_reverse(limit=c(1.5,0)) +
+  geom_segment(aes(x=1.9, y =1.5, xend = u, yend=0)) + 
+  geom_segment(aes(x=-3.8, y = 1.5, xend = u, yend=0))  +
+  geom_vline(xintercept = u)+
+  theme(panel.background = element_rect(fill = 'gray95' )) +
+  scale_color_npg()
 ###################################################################################################
 ###################################################################################################
 # END #
