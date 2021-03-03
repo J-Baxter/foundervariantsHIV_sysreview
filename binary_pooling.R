@@ -4,10 +4,8 @@
 # calculates summary proportion of infections initiated by multiple founder variants
 # models implemented:
 # 1. Two-step binomial-normal model (Random effects, inverse variance pooling, reml estimator of tau)
-# 2. One-step binomial GLMM allowing for clustering by study. stratified intercepts and random effects
-#    for between study heterogeneity, approx ML fit
-# 3. One-step binomial GLMM allowing for clustering by study. uncorrelated random effects between studies
-#    (uncorrelated intercept and slope). approx ML fit
+# 3. One-step binomial GLMM allowing for clustering by study. random effects between studies
+#    (random intercepts). approx ML fit
 # 4. Two-step beta-binomial GLMM, dispersion param for study labels. Laplace approximate ML estimation
 
 # estimations of mean effect size, confidence intervals and heterogeneity are presented 
@@ -15,8 +13,8 @@
 # SA1: leave-one-out cross validation of all models
 # SA2: exclude studies with fewer than 10 participants
 # SA3: excluding studies that only report single founder infectioins (ie prop multifounder =0)
-# SA4: alternative inclusion criteria for repeated participants
-# SA5: bootstrap/resampling of participants for whom multiple measurements are available
+# SA4: exclude studies published before 2008 (ie studies that predate SGA)
+# SA6: bootstrap/resampling of participants for whom multiple measurements are available
 
 ###################################################################################################
 ###################################################################################################
@@ -417,10 +415,9 @@ publist.nosmallsample <- subset(df_props , subjects > 9 , select = publication) 
   pull(.,var=publication) %>%
   unique()
 
-df.nosmallsample <- lapply(publist.nosmallsample, function(x,y) subset(x, publication == y), x = df) %>%
-  do.call(rbind.data.frame,.)
+df.nosmallsample <- df[df$publication %in% publist.nosmallsample,]
 
-df_props.nosmallsample <- subset(df_props , subjects > 9)
+df_props.nosmallsample <- df[df$publication %in% publist.nosmallsample,]
 
 twostep_binorm.nosmallsample <- CalcTwostepBiNorm(df_props.nosmallsample)[[2]]
 twostep_binorm.nosmallsample.out <- list(CalcEstimates(twostep_binorm.nosmallsample, analysis = "no_small"),
@@ -442,15 +439,14 @@ SA2_results <-  rbind.data.frame(twostep_binorm.nosmallsample.out,
                                  twostep_betabi.nosamllsample.out)
 
 
-# SA3. Exclusion of studies with 0 multiple founder variants
+# SA3. Exclusion of studies with 0 multiple founder variants 
 publist.nozeros <- subset(df_props , multiplefounders != 0 , select = publication) %>%
   pull(.,var=publication) %>%
   unique()
 
-df.nozeros <- lapply(publist.nozeros, function(x,y) subset(x, publication == y), x = df) %>%
-  do.call(rbind.data.frame,.)
+df.nozeros <- df[df$publication %in% publist.nozeros,]
 
-df_props.nozeros <- subset(df_props , multiplefounders != 0)
+df_props.nozeros <- df[df$publication %in% publist.nozeros,]
 
 twostep_binorm.nozeros <- CalcTwostepBiNorm(df_props.nozeros)[[2]]
 twostep_binorm.nozeros.out <- list(CalcEstimates(twostep_binorm.nozeros, analysis = "no_zeros"),
@@ -471,8 +467,35 @@ SA3_results <- rbind.data.frame(twostep_binorm.nozeros.out,
                                 onestep_bi_rand.nozeros.out,
                                 twostep_betabi.nozeros.out)
 
+# SA4. Exclusion of all studies that do not use SGA
+publist.sgaonly <- subset(df , sample.amplification == 'SGA' , select = publication) %>%
+  pull(.,var=publication) %>%
+  unique()
 
-# SA4. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
+df.sgaonly <- df[df$publication %in% publist.sgaonly,]
+
+df_props.sgaonly <- df_props[df_props$publication %in% publist.sgaonly,]
+
+twostep_binorm.sgaonly <- CalcTwostepBiNorm(df_props.sgaonly)[[2]]
+twostep_binorm.sgaonly.out <- list(CalcEstimates(twostep_binorm.sgaonly, analysis = "no_zeros"),
+                                   CalcHet(twostep_binorm.sgaonly)) %>%
+  cbind.data.frame(.)
+
+onestep_bi_rand.sgaonly <- CalcOnestepBiRand(df_props.sgaonly)
+onestep_bi_rand.sgaonly.out <- list(CalcEstimates(onestep_bi_rand.sgaonly, analysis = "no_zeros"),
+                                    CalcHet(onestep_bi_rand.sgaonly)) %>%
+  cbind.data.frame(.)
+
+twostep_betabi.sgaonly <- CalcTwostepBetaBi(df_props.sgaonly)
+twostep_betabi.sgaonly.out <- list(CalcEstimates(twostep_betabi.sgaonly , analysis = "no_zeros"),
+                                   CalcHet(twostep_betabi.sgaonly)) %>%
+  cbind.data.frame(.) 
+
+SA4_results <- rbind.data.frame(twostep_binorm.sgaonly.out, 
+                                onestep_bi_rand.sgaonly.out,
+                                twostep_betabi.sgaonly.out)
+
+# SA5. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
 resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(., noreps = FALSE)
 
 boot_participant <- BootParticipant(resampling_df , 1000)
