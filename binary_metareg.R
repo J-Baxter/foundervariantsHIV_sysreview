@@ -3,8 +3,14 @@
 # IPD meta analysis of HIV founder variant multiplicity
 # Framework for IPD meta-regression under a one-step and two-step approaches
 # One-step binomial GLMM allowing for clustering by study. uncorrelated random effects between studies
-# 1. Initial regression models with one fixed effect covariate with random effects for publication and cohort
-# 2. Hierachichal Model Building with additional parameters
+# Model Building Process:
+# STAGE 1: Selecting Random Effects
+# STAGE 2: Univariate meta-regression of individual covariates against founder variant multiplicity
+# STAGE 3: Selecting Fixed effects to be included in model (bottom up approach)
+# STAGE 4: Evaluating the inclusion on interactions
+
+# Sensitivity analyses conducted on final model:
+# SA1. 
 
 ###################################################################################################
 ###################################################################################################
@@ -186,50 +192,23 @@ SetIC <- function(data, rates){
   data$sequencing.gene <- 
 }
 
-###################################################################################################
-# Initial regression models with one fixed effect covariate with random effects for publication and cohort
-# Equivalent to a subgroup analysis
-
-subgroup_forms <- c(as.formula("multiple.founders ~  riskgroup  + (1 | publication) + (1|cohort) - 1"),
-                    as.formula("multiple.founders ~ reported.exposure + (1 | publication) + (1|cohort) - 1"),
-                    as.formula("multiple.founders ~ grouped.method + (1 | publication) + (1|cohort) - 1"),
-                    as.formula("multiple.founders ~ participant.seropositivity + (1 | publication) + (1|cohort) - 1"),
-                    as.formula("multiple.founders ~ grouped.subtype + (1 | publication) + (1|cohort) - 1"),
-                    as.formula("multiple.founders ~ sequencing.gene + (1 | publication) + (1|cohort) - 1")
-                    )
-
-subgroup_metareg <- RunMetaReg(subgroup_forms, df)
-subgroup_fe <-mapply(GetFE, model = subgroup_metareg, label = as.character(subgroup_forms), SIMPLIFY = F) 
-
-
-plotnames <- lapply(subgroup_fe, GetName)
-  
-subgroup_plotlist <- mapply(FPlot,subgroup_fe ,plotnames, SIMPLIFY = F )
-subgroup_plot <- plot_grid(plotlist = subgroup_plotlist , labels = "AUTO" , align = 'hv', ncol = 2)
-
-subgroup_plot
 
 ###################################################################################################
-
-# Outline formulas for meta-regression (Hierarchical model fitting)
-# Models 'A' use broadly defined risk groups (MSM, HSX etc) whereas models 'B', subgroup by direction
-# and/or timing
+###################################################################################################
+# STAGE 1: Selecting Random Effects
 
 raneff_modelbuild.forms <- c(f0 = "multiple.founders ~  1 + (1 | publication)",
                              f1 = "multiple.founders ~  1  + (1 | publication) + (1|cohort)",
                              f2 = "multiple.founders ~  1  + (1 | publication) + (1|cohort) + (1| cohort:publication)")
 
-
-###################################################################################################
-# Selecting Random Effects
 raneff_modelbuild.models <- RunMetaReg(raneff_modelbuild.forms,df)
 raneff_modelbuild.models 
 raneff.aic <- lapply(raneff_modelbuild.models, AIC)
 raneff.bic <- lapply(raneff_modelbuild.models, BIC)
 raneff.confint <- lapply(raneff_modelbuild.models, CalcEstimates) %>% do.call(rbind.data.frame, .)
 effectstruct = c("(1 | publication)", 
-          "(1 | publication) + (1|cohort)",
-          "(1 | publication) + (1|cohort) + (1| cohort:publication)")
+                 "(1 | publication) + (1|cohort)",
+                 "(1 | publication) + (1|cohort) + (1| cohort:publication)")
 
 raneff.fit <- rbind.data.frame(raneff.aic, raneff.bic) %>% `colnames<-`(effectstruct) %>%
   cbind.data.frame(.,criteria = c('AIC', 'BIC')) %>% reshape2::melt()
@@ -254,7 +233,33 @@ replot <- ggplot(raneff.plot) +
 # RE Selected = "(1 | publication) + (1|cohort)"
 
 ###################################################################################################
-# Selecting Fixed Effects
+###################################################################################################
+# STAGE 2: Univariate meta-regression of individual covariates against founder variant multiplicity
+# Initial regression models with one fixed effect covariate with random effects for publication and cohort
+# Equivalent to a subgroup analysis with random effects for subgroup and cohort
+
+subgroup_forms <- c(as.formula("multiple.founders ~  riskgroup  + (1 | publication) + (1|cohort) - 1"),
+                    as.formula("multiple.founders ~ reported.exposure + (1 | publication) + (1|cohort) - 1"),
+                    as.formula("multiple.founders ~ grouped.method + (1 | publication) + (1|cohort) - 1"),
+                    as.formula("multiple.founders ~ participant.seropositivity + (1 | publication) + (1|cohort) - 1"),
+                    as.formula("multiple.founders ~ grouped.subtype + (1 | publication) + (1|cohort) - 1"),
+                    as.formula("multiple.founders ~ sequencing.gene + (1 | publication) + (1|cohort) - 1")
+                    )
+
+subgroup_metareg <- RunMetaReg(subgroup_forms, df)
+subgroup_fe <-mapply(GetFE, model = subgroup_metareg, label = as.character(subgroup_forms), SIMPLIFY = F) 
+
+
+plotnames <- lapply(subgroup_fe, GetName)
+  
+subgroup_plotlist <- mapply(FPlot,subgroup_fe ,plotnames, SIMPLIFY = F )
+subgroup_plot <- plot_grid(plotlist = subgroup_plotlist , labels = "AUTO" , align = 'hv', ncol = 2)
+
+subgroup_plot
+
+###################################################################################################
+# STAGE 3: Selecting Fixed effects to be included in model (bottom up approach)
+# Random effects as previously specified
 
 fixeff_modelbuild.forms<- c(f0 = as.formula("multiple.founders ~  1  + (1 | publication) + (1|cohort)"),
                       
@@ -319,6 +324,7 @@ replot <- ggplot(fixeff.plot) +
 
 
 ###################################################################################################
+# STAGE 4: Evaluating the inclusion on interactions
 f6 = as.formula("multiple.founders ~ reported.exposure*grouped.subtype + 
                       grouped.method + participant.seropositivity + sequencing.gene + sequencing.number + 
                                       (1 | publication) + (1|cohort) - 1")#,
@@ -331,11 +337,12 @@ f6 = as.formula("multiple.founders ~ reported.exposure*grouped.subtype +
 # grouped.method + participant.seropositivity + sequencing.ic + 
 # (1 | publication) + (1|cohort) - 1")
 
-)
-# Model Evaluation
+
+###################################################################################################
+###################################################################################################
+# Evaluation of selected model
 # 1. Check Convergence
 # 2. Binned residuals (ideally >95% within SE)
-# 3. Compare AIC
 
 # 1. Check Convergence
 convergence <- lapply(test_reg, check_convergence, tolerance = 0.05) %>%
@@ -351,51 +358,15 @@ binned <- lapply(test_reg , binned_residuals)
 
 binnedplots <- PlotBinned(binned)
 
-# 3. Extract AIC and compare
 
-
-#plot distribution of within study estimates (eg forest plot) next to modelled modifier
-ran.eff <- ranef(test_reg_2)[[1]] %>% gather()
-ran.eff$key <- gsub("reported.exposure", "", ran.eff$key)
-ran.df <- ran.eff[ran.eff$key != "(Intercept)", ]
-ggplot(data = ran.df,aes( value, key)) + geom_boxplot() +theme_classic() 
-
-
-
-simple <-c(f1a = as.formula("multiple.founders ~  riskgroup  + (1 | publication) - 1"),
-           f1a = as.formula("multiple.founders ~  riskgroup  + (1 | publication) + (1|cohort) - 1"),
-           f1a = as.formula("multiple.founders ~  riskgroup  + grouped.method + (1 | publication) + (1|cohort) - 1"),
-           f1a = as.formula("multiple.founders ~  riskgroup  + grouped.method + participant.seropositivity + (1 | publication) + (1|cohort) - 1")
-          )
-
-simple2 <-c(as.formula("multiple.founders ~  riskgroup  + (1 | publication) + (1|cohort) - 1"),
-            as.formula("multiple.founders ~ reported.exposure + (1 | publication) + (1|cohort) - 1"),
-            as.formula("multiple.founders ~ grouped.method + (1 | publication) + (1|cohort) - 1"),
-            as.formula("multiple.founders ~ participant.seropositivity + (1 | publication) + (1|cohort) - 1"),
-            as.formula("multiple.founders ~ grouped.subtype + (1 | publication) + (1|cohort) - 1"),
-            as.formula("multiple.founders ~ sequencing.region + (1 | publication) + (1|cohort) - 1")
-)
-
-test_reg2 <- lapply(simple2, CalcRandMetaReg, data = df)
-
-
-
-fe2 <- mapply(GetFE, model = test_reg2, label = c("~  riskgroup  + (1 | publication) + (1|cohort) - 1",
-                                                  "~  reported.exposure + (1 | publication) + (1|cohort) - 1",
-                                                '~ grouped.method + (1 | publication) + (1|cohort) - 1',
-                                               '~ participant.seropositivity + (1 | publication) + (1|cohort) - 1',
-                                               "~ grouped.subtype + (1 | publication) + (1|cohort) - 1",
-                                               "~ sequencing.region + (1 | publication) + (1|cohort) - 1"), SIMPLIFY = F) %>% do.call(rbind.data.frame, .)
-
-p1 <- ggplot(data = fe) + 
-  geom_point(aes(x= var, y = est , colour = analysis) ,position = position_dodge(0.5)) + 
-  theme_classic() + 
-  geom_linerange( aes(x = var, ymin=fix.lb,ymax=fix.ub, color = analysis),position = position_dodge(0.5))+
-  theme(
-    legend.position = "bottom",
-    legend.title = element_blank()
-  )+guides(col = guide_legend(nrow=2))+
-  coord_flip()
+###################################################################################################
+###################################################################################################
+# Sensitivity Analyses
+# SA1. Influence of Individual Studies
+# SA2. Exclusion of small sample sizes (less than n = 10)
+# SA3. Exclusion of studies with 0 multiple founder variants
+# SA4. Resampling of participants for which we have multiple measurments (takes pre-formatted DF)
+# SA5. Optimisation Algorithm selected by glmerCrtl
 
 
 
