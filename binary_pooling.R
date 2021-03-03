@@ -388,7 +388,8 @@ heterogeneity <- rbind.data.frame(twostep_binorm.het,
 # SA1. Influence of Individual Studies
 # SA2. Exclusion of small sample sizes (less than n = 10)
 # SA3. Exclusion of studies with 0 multiple founder variants
-# SA4. Resampling of participants for which we have multiple measurments (takes pre-formatted DF)
+# SA4. Exclusion of all studies that do not use SGA
+# SA5. Resampling of participants for which we have multiple measurments (takes pre-formatted DF)
 
 
 # SA1. Influence of Individual Studies (LOOCV)
@@ -507,8 +508,9 @@ boot_participant <- BootParticipant(resampling_df , 1000)
 # CSV of pooling model results (estimates only) with SAs 2 + 3
 originals <- cbind.data.frame(estimates, heterogeneity)
 pooled_est <- rbind.data.frame(originals,
-                                SA2_results,
-                                SA3_results) %>% .[,-c(6,11)]
+                               SA2_results,
+                               SA3_results,
+                               SA4_results) %>% .[,-c(6,11)]
 
 write.csv(pooled_est , file = 'bp_estsa2sa3.csv', row.names = F)
 
