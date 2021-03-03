@@ -507,23 +507,22 @@ dev.off()
 
 
 # Funnel Plot
-PlotFunnel <- function(model){
-  
-}
 funnel_data <- cbind.data.frame('se' = sqrt(onestep_bi_rand.nozeros$vi), 'b' =  onestep_bi_rand.nozeros$yi)
-lb <- onestep_bi_rand.nozeros$ci.lb
-ub <- onestep_bi_rand.nozeros$ci.ub
-u <- mean(funnel_data$x)
+lb <- onestep_bi_rand.nozeros$ci.lb 
+ub <- onestep_bi_rand.nozeros$ci.ub 
+u <- mean(funnel_data$b)
 se <- onestep_bi_rand.nozeros$se
+
+poldgpn <- data.frame(x=c(-3.8,u,1.9), y = c(1.5,0,1.5))
 plt <- ggplot(funnel_data ) +
-  geom_point( aes(y = se, x = b), shape = 4, size = 3)+
+  geom_polygon(aes(x=x, y = y), data =  poldgpn ,fill = 'white', linetype = 'dashed' , color = 'black')  +
+  geom_point( aes(y = se, x = b, colour = ), shape = 4, size = 3)+
   theme_classic() +
-  scale_x_continuous(limits = c(-5 , 3), expand = c(0,0))+
-  scale_y_reverse(limit=c(1.5,0)) +
-  geom_segment(aes(x=1.9, y =1.5, xend = u, yend=0)) + 
-  geom_segment(aes(x=-3.8, y = 1.5, xend = u, yend=0))  +
-  geom_vline(xintercept = u)+
-  theme(panel.background = element_rect(fill = 'gray95' )) +
+  scale_x_continuous(limits = c(-5 , 3), expand = c(0,0), name = 'Log Odds of Multiple Founders')+
+  scale_y_reverse(limit=c(1.5,0),  expand = c(0,0), name = 'Standard Error') +
+  
+  geom_segment(aes(x=u, y =1.5, xend = u, yend=0)) +
+  theme(panel.background = element_rect(fill = 'gray97' )) +
   scale_color_npg()
 ###################################################################################################
 ###################################################################################################

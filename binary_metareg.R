@@ -278,7 +278,7 @@ fixeff_modelbuild.forms<- c(f0 = as.formula("multiple.founders ~  1  + (1 | publ
                       
                       f6 = as.formula("multiple.founders ~ reported.exposure + grouped.method +
                       participant.seropositivity + sequencing.gene  + sequencing.length + 
-                                      (1 | publication) + (1|cohort)"),
+                                      (1 | publication) + (1|cohort) - 1"),
                       f7 = as.formula("multiple.founders ~ reported.exposure + grouped.method +
                       participant.seropositivity + sequencing.gene  + sequencing.length + grouped.subtype + 
                                       (1 | publication) + (1|cohort)"))
