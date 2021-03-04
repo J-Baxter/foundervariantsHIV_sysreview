@@ -210,25 +210,11 @@ effectstruct = c("(1 | publication)",
                  "(1 | publication) + (1|cohort)",
                  "(1 | publication) + (1|cohort) + (1| cohort:publication)")
 
-raneff.fit <- rbind.data.frame(raneff.aic, raneff.bic) %>% `colnames<-`(effectstruct) %>%
-  cbind.data.frame(.,criteria = c('AIC', 'BIC')) %>% reshape2::melt()
-
-raneff.plot <- cbind.data.frame(model = effectstruct ,
-                                raneff.confint[,-c(1,2)])
-
-replot <- ggplot(raneff.plot) + 
-  geom_point(aes(x = model, y = estimate))+
-  geom_linerange(aes(x = model, ymin=estimate.lb, 
-                     ymax= estimate.ub))+
-  geom_line(aes(x = variable, y = value/2500, color = criteria, group = criteria), data = raneff.fit) +
-  geom_point(aes(x = variable, y = value/2500, color = criteria,group = criteria), data = raneff.fit)+
-  scale_y_continuous(name = 'Probability of Multiple Founders', expand = c(0,0.02), limits = c(0,1), sec.axis = sec_axis(~.*2500 , name = 'AIC/BIC'))+
-  theme_classic() + 
-  scale_color_npg()+
-  theme(legend.position = "bottom",
-        axis.text = element_text(size = 10),
-        axis.title = element_text(size = 12))
-
+raneff_selection <- rbind.data.frame(raneff.aic, raneff.bic) %>% 
+  `colnames<-`(effectstruct) %>% 
+  t() %>%
+  `colnames<-`(c('AIC', 'BIC')) %>%
+  cbind.data.frame(raneff.confint[,-c(1,2)])
 
 # RE Selected = "(1 | publication) + (1|cohort)"
 
@@ -248,8 +234,8 @@ subgroup_forms <- c(as.formula("multiple.founders ~  riskgroup  + (1 | publicati
 
 subgroup_metareg <- RunMetaReg(subgroup_forms, df)
 subgroup_fe <-mapply(GetFE, model = subgroup_metareg, label = as.character(subgroup_forms), SIMPLIFY = F) 
-
-
+names(subgroup_fe) <- plotnames 
+ fe_df <- unnest(subgroup_fe)
 plotnames <- lapply(subgroup_fe, GetName)
   
 subgroup_plotlist <- mapply(FPlot,subgroup_fe ,plotnames, SIMPLIFY = F )
@@ -369,4 +355,13 @@ binnedplots <- PlotBinned(binned)
 # SA5. Optimisation Algorithm selected by glmerCrtl
 
 
+###################################################################################################
+###################################################################################################
+# Outputs to file
+write.csv(raneff_selection, file = 'raneff_selection.csv', row.names = T)
 
+###################################################################################################
+###################################################################################################
+# END # 
+###################################################################################################
+###################################################################################################
