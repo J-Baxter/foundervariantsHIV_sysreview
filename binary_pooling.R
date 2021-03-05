@@ -100,7 +100,7 @@ CalcTwostepBetaBi <- function(proportions){
 
 
 # Extracts estimates of summary effect from models
-CalcEstimates <- function(model , analysis = "original"){
+CalcEstimates <- function(model , analysis = "original", mermod.method = 'Profile'){
   if (class(model) == "rma" || class(model) == "rma.uni" || class(model) == "rma.glmm"){
     beta <- model$beta
     ci.lb <- model$ci.lb
@@ -108,7 +108,7 @@ CalcEstimates <- function(model , analysis = "original"){
   }
   else if (class(model) =="glmerMod"){
     beta <- summary(model)$coefficients[1,1]
-    ci <- confint.merMod(model, method = 'profile')
+    ci <- confint.merMod(model, method = mermod.method)
     ci.lb <- ci[nrow(ci),1]
     ci.ub <- ci[nrow(ci),2]
   }
@@ -311,7 +311,7 @@ BootParticipant <- function(data, replicates){
 # Import data
 setwd("./data")
 df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(., noreps = TRUE)
-df_props <- CalcProps(df)  
+df_props <- CalcProps(df,reported.exposure,grouped.method,sequencing.gene)  
 
 # Set seed
 set.seed(4472)

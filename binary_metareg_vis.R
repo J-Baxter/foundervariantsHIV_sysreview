@@ -9,13 +9,12 @@ library(ggsci)
 library(kableExtra)
 library(metafor)
 library(dplyr)
+library(magick)
 
 ###################################################################################################
 ###################################################################################################
 # Import data
 setwd("./data")
-
-influence_df <- read.csv("bp_sa1.csv") %>% arrange(., model)
 
 ###################################################################################################
 # Plot and tabulate random effects structure selection
@@ -64,7 +63,7 @@ knitr::kable(raneff_tbl_df,
                    escape = FALSE,
                    align = 'c', 
                    linesep = c("\\addlinespace")) %>% 
-  kable_styling(latex_options = "striped") %>% as_image(file = 'something.png')
+  kable_styling(latex_options = "striped") %>%as_image(filename = 'something.png')
 ###################################################################################################
 ###################################################################################################
 # END # 

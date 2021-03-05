@@ -111,6 +111,9 @@ GetEffects <- function(model, label = "original"){
                        .progress="txt", 
                        PBargs=list(style=3), 
                        nsim = 100)
+  modeldf <- model@frame
+
+
   
   #Fixed Effects
   fe <- fixef(model)
@@ -118,15 +121,35 @@ GetEffects <- function(model, label = "original"){
   ci.fe <- ci[-c(1,2),]
   
   nom <- names(fe) %>% 
-    gsub("participant.seropositivity|grouped.method|riskgroup|grouped.subtype|sequencing.gene|reported.exposure" , "" , .)
+    strsplit("_")
   
-  fix_df <- cbind.data.frame(var = nom,
+  fix_df <- cbind.data.frame(level = nom,
                              est = fe,
                              sd = sd,
                              ci.lb = ci.fe[,1],
                              ci.ub = ci.fe[,2],
                              analysis = label, 
                              make.row.names =FALSE)
+ 
+    ref <- list()
+    for (i in 1:ncol(fix_df)){
+    ref[[i]] = which(param$level %in% modeldf[,i]) %>% cbind.data.frame
+    }
+    names(ref) <- colnames(fix_df)
+    
+    covar <- rbindlist(ref,idcol = "names") %>%
+    
+    dataframe <- data.frame()
+    ############# UNFINISHED
+    for (i in 1:length(covar[,2])){
+      coord <- covar[i,2]
+      data.frame[coord,1] <- covar[1,i]
+    }
+    
+    fix_df$covar <- rbindlist(idcol = "names")
+
+
+  
 
   #Random Effects
   #re <- ranef(model)
@@ -269,6 +292,14 @@ fixeff.aic <- lapply(fixeff_modelbuild.models, AIC)
 fixeff.bic <- lapply(fixeff_modelbuild.models, BIC)
 fixeff.confint <- lapply(fixeff_modelbuild.models, confint, method = 'boot' , nsim = ) %>% do.call(rbind.data.frame, .)
 
+ggplot(t) +
+  geom_point(aes(x = var, y = transf.ilogit(est))) +
+  geom_linerange(aes(x = var,
+                     ymin=transf.ilogit(ci.lb),
+                     ymax= transf.ilogit(ci.ub)))+
+  
+  coord_flip()+
+  theme_classic()
 
 
 effectstruct <- c( "1",
