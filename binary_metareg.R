@@ -27,6 +27,7 @@ library(performance)
 library(reshape2)
 library(cowplot)
 library(stringr)
+library(data.table)
 source('generalpurpose_funcs.R')
 
 # One-step GLMM accounting for clustering of studies using a random intercept
@@ -37,9 +38,10 @@ CalcRandMetaReg <- function(data, formula){
                  data = data,
                  family = binomial(link = "logit"),
                  nAGQ = 1,
-                 control = glmerControl(optCtrl = list(maxfun = 100000),
+                 control = glmerControl(optCtrl = list(maxfun = 1000000),
                                         check.nobs.vs.nlev = 'ignore',
-                                        check.nobs.vs.nRE = 'ignore'))
+                                        check.nobs.vs.nRE = 'ignore',
+                                        optimizer = "bobyqa"))
   return(model)
 }
 
@@ -102,22 +104,42 @@ PlotBinned <- function(data){
 
 
 # Extract fixed effects from the models
-GetFE <- function(model, label = "original"){
+GetEffects <- function(model, label = "original"){
+  
+  ci <- confint.merMod(model, 
+                       method = 'boot', 
+                       .progress="txt", 
+                       PBargs=list(style=3), 
+                       nsim = 100)
+  
+  #Fixed Effects
   fe <- fixef(model)
-  se <- sqrt(diag(vcov(model)))
+  sd <- sqrt(diag(vcov(model)))
+  ci.fe <- ci[-c(1,2),]
+  
   nom <- names(fe) %>% 
     gsub("participant.seropositivity|grouped.method|riskgroup|grouped.subtype|sequencing.gene|reported.exposure" , "" , .)
   
-  fix_df <- mapply(CalcCI, u=fe, se=se,threshold = 0.05) %>% 
-    t() %>% 
-    {cbind.data.frame(var = nom,
-                      est = transf.ilogit(fe),
-                      se = transf.ilogit(se),
-                      transf.ilogit(.),
-                      analysis = label)}
-  colnames(fix_df)[4:5] <- c('fix.ub','fix.lb')
-  fix_df
+  fix_df <- cbind.data.frame(var = nom,
+                             est = fe,
+                             sd = sd,
+                             ci.lb = ci.fe[,1],
+                             ci.ub = ci.fe[,2],
+                             analysis = label, 
+                             make.row.names =FALSE)
 
+  #Random Effects
+  #re <- ranef(model)
+  #re.mean <- lapply(re, mean) %>% do.call(rbind.data.frame,.)
+  #re.sd <- ?
+  #ci.re <- ci[c(1,2),]
+  #random_df <- cbind.data.frame(var = names(re),
+                                #est = re.mean,
+                                #sd = sd,
+                                #ci.lb = ci.re[,1],
+                                #ci.ub = ci.re[,2],
+                                #analysis = label, 
+                                #make.row.names =FALSE)
   return(fix_df)
 }
 
@@ -134,30 +156,6 @@ GetName <- function(x) {
     str_to_title()
   
   return(name)
-}
-
-
-FPlot <- function(data,plotname){
-  
-  p2 <- ggplot(data = data) + 
-    geom_point(aes(x= var, y = est)) + 
-    theme_classic() + 
-    geom_linerange( aes(x = var, ymin=fix.lb,ymax=fix.ub))+
-    scale_y_continuous(limits = c(0,0.75) , 
-                       expand = c(0,0), 
-                       name = "Probability of Multiple Founders")+
-    scale_x_discrete(name = plotname, 
-                     guide = guide_axis(angle = 50))+
-    #coord_flip()+
-    theme(
-      axis.text = element_text(size = 10,  family = "sans"),
-      legend.text = element_text(size = 10,  family = "sans"),
-      axis.title.y = element_text(size = 11,  family = "sans"),
-      axis.title.x = element_text(size = 12,  family = "sans"),
-      plot.margin = unit(c(2,4,2,1), "lines")
-    )
-
-  return(p2)
 }
 
 
@@ -197,9 +195,9 @@ SetIC <- function(data, rates){
 ###################################################################################################
 # STAGE 1: Selecting Random Effects
 
-raneff_modelbuild.forms <- c(f0 = "multiple.founders ~  1 + (1 | publication)",
-                             f1 = "multiple.founders ~  1  + (1 | publication) + (1|cohort)",
-                             f2 = "multiple.founders ~  1  + (1 | publication) + (1|cohort) + (1| cohort:publication)")
+raneff_modelbuild.forms <- c(r0 = "multiple.founders ~  1 + (1 | publication)",
+                             r1 = "multiple.founders ~  1  + (1 | publication) + (1|cohort)",
+                             r2 = "multiple.founders ~  1  + (1 | publication) + (1|cohort) + (1| cohort:publication)")
 
 raneff_modelbuild.models <- RunMetaReg(raneff_modelbuild.forms,df)
 raneff_modelbuild.models 
@@ -224,69 +222,65 @@ raneff_selection <- rbind.data.frame(raneff.aic, raneff.bic) %>%
 # Initial regression models with one fixed effect covariate with random effects for publication and cohort
 # Equivalent to a subgroup analysis with random effects for subgroup and cohort
 
-subgroup_forms <- c(as.formula("multiple.founders ~  riskgroup  + (1 | publication) + (1|cohort) - 1"),
-                    as.formula("multiple.founders ~ reported.exposure + (1 | publication) + (1|cohort) - 1"),
-                    as.formula("multiple.founders ~ grouped.method + (1 | publication) + (1|cohort) - 1"),
-                    as.formula("multiple.founders ~ participant.seropositivity + (1 | publication) + (1|cohort) - 1"),
-                    as.formula("multiple.founders ~ grouped.subtype + (1 | publication) + (1|cohort) - 1"),
-                    as.formula("multiple.founders ~ sequencing.gene + (1 | publication) + (1|cohort) - 1")
-                    )
+fixeff_uni.forms <- c(f0 = "multiple.founders ~  1 + (1 | publication)",
+                      f1 = "multiple.founders ~  riskgroup  + (1 | publication) + (1|cohort) - 1",
+                      f2 = "multiple.founders ~ reported.exposure + (1 | publication) + (1|cohort) - 1",
+                      f3 = "multiple.founders ~ grouped.method + (1 | publication) + (1|cohort) - 1",
+                      f5 = "multiple.founders ~ grouped.subtype + (1 | publication) + (1|cohort) - 1",
+                      f6 = "multiple.founders ~ sequencing.gene + (1 | publication) + (1|cohort) - 1",
+                      f7 = "multiple.founders ~ participant.seropositivity + (1 | publication) + (1|cohort) - 1",
+                      f8 = "multiple.founders ~ alignment.length + (1 | publication) + (1|cohort) - 1")
 
-subgroup_metareg <- RunMetaReg(subgroup_forms, df)
-subgroup_fe <-mapply(GetFE, model = subgroup_metareg, label = as.character(subgroup_forms), SIMPLIFY = F) 
-names(subgroup_fe) <- plotnames 
- fe_df <- unnest(subgroup_fe)
-plotnames <- lapply(subgroup_fe, GetName)
-  
-subgroup_plotlist <- mapply(FPlot,subgroup_fe ,plotnames, SIMPLIFY = F )
-subgroup_plot <- plot_grid(plotlist = subgroup_plotlist , labels = "AUTO" , align = 'hv', ncol = 2)
+fixeff_uni.models <- RunMetaReg(fixeff_uni.forms, df)
+fixeff_uni.fe <-mapply(GetFE, model = fixeff_uni.models, label = as.character(fixeff_uni.forms), SIMPLIFY = F) 
+plotnames <- lapply(fixeff_uni.fe, GetName)
+names(fixeff_uni.fe) <- plotnames 
+fixeff_uni.fe_df <- rbindlist(fixeff_uni.fe, idcol = 'names')
 
-subgroup_plot
 
 ###################################################################################################
 # STAGE 3: Selecting Fixed effects to be included in model (bottom up approach)
 # Random effects as previously specified
 
-fixeff_modelbuild.forms<- c(f0 = as.formula("multiple.founders ~  1  + (1 | publication) + (1|cohort)"),
-                      
-                      f1 = as.formula("multiple.founders ~ reported.exposure + 
-                                      (1 | publication) + (1|cohort)"),
-                      
-                      f2 = as.formula("multiple.founders ~ reported.exposure + grouped.method + 
-                                      (1 | publication) + (1|cohort)"),
-                      
-                      f3 = as.formula("multiple.founders ~ reported.exposure + grouped.method + 
-                      participant.seropositivity + 
-                                      (1 | publication) + (1|cohort)"),
-                      
-                      f4 = as.formula("multiple.founders ~ reported.exposure + grouped.method + 
-                      participant.seropositivity + sequencing.gene + 
-                                      (1 | publication) + (1|cohort)"),
-                      
-                      f5 = as.formula("multiple.founders ~ reported.exposure + grouped.method + 
-                      participant.seropositivity + sequencing.length + 
-                                      (1 | publication) + (1|cohort)"),
-                      
-                      f6 = as.formula("multiple.founders ~ reported.exposure + grouped.method +
-                      participant.seropositivity + sequencing.gene  + sequencing.length + 
-                                      (1 | publication) + (1|cohort) - 1"),
-                      f7 = as.formula("multiple.founders ~ reported.exposure + grouped.method +
-                      participant.seropositivity + sequencing.gene  + sequencing.length + grouped.subtype + 
-                                      (1 | publication) + (1|cohort)"))
+fixeff_modelbuild.forms<- c(f0 = "multiple.founders ~  1  + (1 | publication) + (1|cohort)",
+                            f1 = "multiple.founders ~ reported.exposure + (1 | publication) + (1|cohort)-1",
+                            f2 = "multiple.founders ~ reported.exposure + grouped.method + (1 | publication) + (1|cohort)-1",
+                            f3 = "multiple.founders ~ reported.exposure + grouped.method + participant.seropositivity + (1 | publication) + (1|cohort)-1",
+                            f4 = "multiple.founders ~ reported.exposure + grouped.method + participant.seropositivity + sequencing.gene + (1 | publication) + (1|cohort)-1",
+                            f5 = "multiple.founders ~ reported.exposure + grouped.method + participant.seropositivity + alignment.length + (1 | publication) + (1|cohort)-1",
+                            f6 = "multiple.founders ~ reported.exposure + grouped.method + participant.seropositivity + grouped.subtype + (1 | publication)-1",
+                            f7 = "multiple.founders ~ reported.exposure + grouped.method + participant.seropositivity + sequencing.gene  + alignment.length + (1 | publication) + (1|cohort)-1",
+                            f8 = "multiple.founders ~ reported.exposure + grouped.method + participant.seropositivity + sequencing.gene  +  grouped.subtype + (1 | publication) + (1|cohort)-1",
+                            f9 = "multiple.founders ~ reported.exposure + grouped.method + participant.seropositivity + sequencing.gene  +  alignment.length + grouped.subtype + (1 | publication) + (1|cohort)-1")
 
 fixeff_modelbuild.models <- RunMetaReg(fixeff_modelbuild.forms,df)
 
+varcov_mat <- cov2cor(get_varcov(fixeff_modelbuild.models[[6]]))%>%
+  reshape2::melt() %>%
+  `colnames<-` (c('X','Y','Correlation'))
+heatmap <- ggplot(varcov_mat)+geom_tile(aes(x=X,y=Y,fill=Correlation))+
+  scale_fill_viridis_c()+
+  theme_classic()+
+  scale_x_discrete(guide = guide_axis(angle = 50))
+
+fe <- GetFE(fixeff_modelbuild.models[[7]])
+fe.var <- get_varcov(fixeff_modelbuild.models[[7]])
 fixeff.aic <- lapply(fixeff_modelbuild.models, AIC)
 fixeff.bic <- lapply(fixeff_modelbuild.models, BIC)
-fixeff.confint <- lapply(fixeff_modelbuild.models, CalcEstimates) %>% do.call(rbind.data.frame, .)
+fixeff.confint <- lapply(fixeff_modelbuild.models, confint, method = 'boot' , nsim = ) %>% do.call(rbind.data.frame, .)
+
+
+
 effectstruct <- c( "1",
                    "reported.exposure", 
                   "reported.exposure + grouped.method",
                   "reported.exposure + grouped.method + participant.seropositivity",
                   "reported.exposure + grouped.method + participant.seropositivity + sequencing.gene",
-                  "reported.exposure + grouped.method + participant.seropositivity + sequencing.length",
-                  "multiple.founders ~ reported.exposure + grouped.method + participant.seropositivity + sequencing.gene + sequencing.length",
-                  "multiple.founders ~ reported.exposure + grouped.method + participant.seropositivity + sequencing.gene + sequencing.length + grouped.subtype")
+                  "reported.exposure + grouped.method + participant.seropositivity + alignment.length",
+                  "reported.exposure + grouped.method + participant.seropositivity + grouped.subtype",
+                  "multiple.founders ~ reported.exposure + grouped.method + participant.seropositivity + sequencing.gene + alignment.length",
+                  "multiple.founders ~ reported.exposure + grouped.method + participant.seropositivity + sequencing.gene + grouped.subtype",
+                  "multiple.founders ~ reported.exposure + grouped.method + participant.seropositivity + sequencing.gene + alignment.length + grouped.subtype")
 
 fixeff.fit <- rbind.data.frame(fixeff.aic, fixeff.bic) %>% `colnames<-`(effectstruct) %>%
   cbind.data.frame(.,criteria = c('AIC', 'BIC')) %>% reshape2::melt()
@@ -294,34 +288,16 @@ fixeff.fit <- rbind.data.frame(fixeff.aic, fixeff.bic) %>% `colnames<-`(effectst
 fixeff.plot <- cbind.data.frame(model = effectstruct ,
                                 fixeff.confint[,-c(1,2)])
 
-replot <- ggplot(fixeff.plot) + 
-  geom_point(aes(x = model, y = estimate))+
-  geom_linerange(aes(x = model, ymin=estimate.lb, 
-                     ymax= estimate.ub))+
-  geom_line(aes(x = variable, y = value/2500, color = criteria, group = criteria), data = fixeff.fit) +
-  geom_point(aes(x = variable, y = value/2500, color = criteria,group = criteria), data = fixeff.fit)+
-  scale_y_continuous(name = 'Probability of Multiple Founders', expand = c(0,0.02), limits = c(0,1), sec.axis = sec_axis(~.*2500 , name = 'AIC/BIC'))+
-  theme_classic() + 
-  scale_x_discrete(labels = stringr::str_wrap(effectstruct , width = 26), guide = guide_axis(angle = 50))+
-  scale_color_npg()+
-  theme(legend.position = "bottom",
-        axis.text = element_text(size = 10),
-        axis.title = element_text(size = 12))
-
 
 ###################################################################################################
 # STAGE 4: Evaluating the inclusion on interactions
-f6 = as.formula("multiple.founders ~ reported.exposure*grouped.subtype + 
-                      grouped.method + participant.seropositivity + sequencing.gene + sequencing.number + 
-                                      (1 | publication) + (1|cohort) - 1")#,
-
-# f7 = as.formula("multiple.founders ~ reported.exposure + grouped.method +
-# participant.seropositivity + sequencing.ic + grouped.subtype + 
-#(1 | publication) + (1|cohort) - 1"),
-
-#f8 = as.formula("multiple.founders ~ reported.exposure*grouped.subtype + 
-# grouped.method + participant.seropositivity + sequencing.ic + 
-# (1 | publication) + (1|cohort) - 1")
+interaction_modelbuild.forms <- c(
+  f0 = "multiple.founders ~ reported.exposure + grouped.method + participant.seropositivity + sequencing.gene  +
+  (1 | publication) + (1|cohort) - 1",
+  f1 = "multiple.founders ~ reported.exposure*grouped.subtype + grouped.method + participant.seropositivity + 
+  sequencing.gene + (1 | publication) + (1|cohort) - 1")
+  
+interaction_modelbuild..models <- RunMetaReg(interaction_modelbuild.forms ,df)
 
 
 ###################################################################################################
@@ -359,7 +335,7 @@ binnedplots <- PlotBinned(binned)
 ###################################################################################################
 # Outputs to file
 write.csv(raneff_selection, file = 'raneff_selection.csv', row.names = T)
-
+write.csv(fixeff_uni.fe_df, file = 'fixeff_uni.csv', row.names = T)
 ###################################################################################################
 ###################################################################################################
 # END # 
