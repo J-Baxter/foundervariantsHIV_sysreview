@@ -129,7 +129,7 @@ PlotBinned <- function(data){
 
 
 # Extract fixed effects from the models
-GetEffects <- function(model, label = "original"){
+GetFEffects <- function(model, label = "original"){
   options(warn = 1)
   ci <- confint.merMod(model, 
                        method = 'boot', 
@@ -137,13 +137,6 @@ GetEffects <- function(model, label = "original"){
                        PBargs=list(style=3), 
                        nsim = 10)
   
-  # Print convergence warninings# 
-  
-  modeldf <- model@frame
-
-
-  
-  #Fixed Effects
   fe <- fixef(model) 
   sd <- sqrt(diag(vcov(model)))
   ci.fe <- ci[-c(1,2),]
@@ -159,24 +152,27 @@ GetEffects <- function(model, label = "original"){
     `row.names<-` (NULL) %>%
     separate(nom , c('covariate' , 'level') , '_')
   
-  #Random Effects
-  #re <- ranef(model)
-  #re.mean <- lapply(re, mean) %>% do.call(rbind.data.frame,.)
-  #re.sd <- ?
-  #ci.re <- ci[c(1,2),]
-  #random_df <- cbind.data.frame(var = names(re),
-                                #est = re.mean,
-                                #sd = sd,
-                                #ci.lb = ci.re[,1],
-                                #ci.ub = ci.re[,2],
-                                #analysis = label, 
-                                #make.row.names =FALSE)
   return(fix_df)
 }
 
 
+#Random Effects
+re <- ranef(model)
+re.mean <- lapply(re, function(x) mean(x$`(Intercept)`)) %>%
+  do.call(rbind.data.frame,.)
+re.sd <- VarCorr(fixeff_modelbuild.converged[[5]])
+ci.re <- ci[c(1,2),]
+#random_df <- cbind.data.frame(var = names(re),
+#est = re.mean,
+#sd = sd,
+#ci.lb = ci.re[,1],
+#ci.ub = ci.re[,2],
+#analysis = label, 
+#make.row.names =FALSE)
 # Note required regex for covariate names in order for this to work efficiently
 # Extracts th name of the 1st covariate (as written) from lmer function syntax
+
+
 GetName <- function(x) {
   require(stringr)
   
@@ -293,7 +289,7 @@ binned <- lapply(fixeff_modelbuild.converged, binned_residuals)
 binnedplots <- PlotBinned(binned)
 
 # Extract fixed and random effects estimates from models
-effects__modelbuild.converged <- lapply(fixeff_modelbuild.converged, GetEffects)
+FE__modelbuild.converged <- lapply(fixeff_modelbuild.converged, GetEffects)
 
 
 varcov_mat <- cov2cor(get_varcov(fixeff_modelbuild.models[[6]]))%>%
