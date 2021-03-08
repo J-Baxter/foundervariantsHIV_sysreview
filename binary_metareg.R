@@ -30,6 +30,29 @@ library(stringr)
 library(data.table)
 source('generalpurpose_funcs.R')
 
+# Set baseline contasts for GLMM
+SetBaseline <- function(data,covar,baseline){
+  dataframe <- data
+  
+  stopifnot(length(covar) == length(baseline))
+  
+  for (i in 1:length(covar)){
+    covar. = covar[i]
+    baseline. = paste0("(?<!\\S)", baseline[i], "(?!\\S)")
+    if(class(dataframe[,covar.]) == 'factor'){
+      int <- grep(baseline. , levels(dataframe[,covar.]), perl = T)
+      dataframe[,covar.] <- relevel(dataframe[,covar.],  int)
+      
+      print(levels(dataframe[,covar.])[1])
+      
+    }else{
+      warning('requires factor as input.')
+    }
+  }
+  
+  return(dataframe)
+}
+
 # One-step GLMM accounting for clustering of studies using a random intercept
 CalcRandMetaReg <- function(data, formula){
   f <- as.formula(formula)
@@ -106,7 +129,7 @@ PlotBinned <- function(data){
 # Extract fixed effects from the models
 GetEffects <- function(model, label = "original"){
   options(warn = 1)
-  ci <- confint.merMod(t1, 
+  ci <- confint.merMod(model, 
                        method = 'boot', 
                        .progress="txt", 
                        PBargs=list(style=3), 
@@ -114,13 +137,13 @@ GetEffects <- function(model, label = "original"){
   
   # Print convergence warninings# 
   
-  modeldf <- t1@frame
+  modeldf <- model@frame
 
 
   
   #Fixed Effects
-  fe <- fixef(t1) 
-  sd <- sqrt(diag(vcov(t1)))
+  fe <- fixef(model) 
+  sd <- sqrt(diag(vcov(model)))
   ci.fe <- ci[-c(1,2),]
   nom <- names(fe)
   
@@ -134,28 +157,6 @@ GetEffects <- function(model, label = "original"){
     `row.names<-` (NULL) %>%
     separate(nom , c('covariate' , 'level') , '_')
   
-  
- 
-    ref <- list()
-    for (i in 1:ncol(fix_df)){
-    ref[[i]] = which(fix_df$level %in% modeldf[,i]) %>% cbind.data.frame()
-    }
-    names(ref) <- colnames(fix_df)
-    
-    covar <- rbindlist(ref,idcol = "names") %>% data.frame()
-    
-    dataframe <- data.frame() 
-
-    for (i in 1:length(covar[,2])){
-      coord <- covar[i,2]
-      dataframe[coord,1] <- covar[i,1]
-    }
-    
-    fix_df$covar <- dataframe
-
-
-  
-
   #Random Effects
   #re <- ranef(model)
   #re.mean <- lapply(re, mean) %>% do.call(rbind.data.frame,.)
@@ -195,6 +196,14 @@ setwd("./data")
 df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(.,filter = c('reported.exposure',
                                                                                      'grouped.subtype',
                                                                                      'sequencing.gene'))
+
+# Set reference levels for meta regression
+# HSX:MTF, phylogenetic, unknown seropositivity, B, env
+baseline.covar <- c("reported.exposure_", "grouped.method_", "grouped.subtype_","sequencing.gene_", "participant.seropositivity_")
+baseline.level <- c("HSX:MTF", "phylogenetic", "B" , "env" , "positive")
+
+df <- SetBaseline(df, baseline.covar, baseline.level)
+df$reported.exposure_ <- relevel(df$reported.exposure_ ,  3)
 
 # Set seed
 set.seed(4472)
@@ -291,7 +300,7 @@ heatmap <- ggplot(varcov_mat)+geom_tile(aes(x=X,y=Y,fill=Correlation))+
   theme_classic()+
   scale_x_discrete(guide = guide_axis(angle = 50))
 
-fe <- GetFE(fixeff_modelbuild.models[[7]])
+fe <- GetEffects(fixeff_modelbuild.models[[7]])
 fe.var <- get_varcov(fixeff_modelbuild.models[[7]])
 fixeff.aic <- lapply(fixeff_modelbuild.models, AIC)
 fixeff.bic <- lapply(fixeff_modelbuild.models, BIC)
