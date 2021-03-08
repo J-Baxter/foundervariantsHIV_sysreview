@@ -55,6 +55,7 @@ SetBaseline <- function(data,covar,baseline){
 
 # One-step GLMM accounting for clustering of studies using a random intercept
 CalcRandMetaReg <- function(data, formula){
+  options(warn = 1)
   f <- as.formula(formula)
   environment(f) <- environment()
   model <- lme4::glmer(f,
@@ -70,6 +71,7 @@ CalcRandMetaReg <- function(data, formula){
 
 # Execute a list of lme4 models in parallel
 RunMetaReg <- function(formulas, data){
+  options(warn = 1)
   # Set up cluster (socket)
   cl <- detectCores() %>%
     `-` (2) %>%
@@ -190,43 +192,22 @@ GetName <- function(x) {
 
 ###################################################################################################
 ###################################################################################################
+# Set seed
+set.seed(4472)
 
 # Import data
 setwd("./data")
-df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(.,filter = c('reported.exposure',
-                                                                                     'grouped.subtype',
-                                                                                     'sequencing.gene'))
+df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% 
+  formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene'))
+  
 
 # Set reference levels for meta regression
 # HSX:MTF, phylogenetic, unknown seropositivity, B, env
 baseline.covar <- c("reported.exposure_", "grouped.method_", "grouped.subtype_","sequencing.gene_", "participant.seropositivity_")
 baseline.level <- c("HSX:MTF", "phylogenetic", "B" , "env" , "positive")
 
-df <- SetBaseline(df, baseline.covar, baseline.level)
-df$reported.exposure_ <- relevel(df$reported.exposure_ ,  3)
-
-# Set seed
-set.seed(4472)
-
-#Calculate IC for sequence information
-# aim to be a more informative metric than gene. consists of log (sequence length x evolutionary rate x number of seqs)
-# for NGS data, number of seqs is set to 1000
-# TBC
-evo.rate <- data.frame('env' = exp(-1.84),
-                       'not.env' = exp(-2.12),
-                       'wg' = )
-
-SetIC <- function(data, rates){
-  env <- c('env', 'vif+env+nef')
-  not.env <- c('pol', 'gag')
-  w.g <- c('whole.genome')
-  
-  splits <- split.data.frame(data){
-    
-  }
-  data$sequencing.gene <- 
-}
-
+#df <- SetBaseline(df, baseline.covar, baseline.level)
+#df$alignment.length_ <- scale(df$alignment.length_)
 
 ###################################################################################################
 ###################################################################################################
@@ -278,19 +259,42 @@ fixeff_uni.fe_df <- rbindlist(fixeff_uni.fe, idcol = 'names')
 ###################################################################################################
 # STAGE 3: Selecting Fixed effects to be included in model (bottom up approach)
 # Random effects as previously specified
+# Baseline covariates: HSX:MTF, phylogenetic, unknown seropositivity, B, env
 
 fixeff_modelbuild.forms<- c(f0 = "multiple.founders_ ~  1  + (1 | publication_) + (1 | cohort_)",
-                            f1 = "multiple.founders_ ~ reported.exposure_ + (1 | publication_) + (1 | cohort_)-1",
-                            f2 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + (1 | publication_) + (1 | cohort_)-1",
-                            f3 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + (1 | publication_) + (1 | cohort_)-1",
-                            f4 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_ + (1 | publication_) + (1 | cohort_)-1",
-                            f5 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + alignment.length_ + (1 | publication_) + (1 | cohort_)-1",
-                            f6 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + grouped.subtype_ + (1 | publication_)-1",
-                            f7 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_  + alignment.length_ + (1 | publication_) + (1 | cohort_)-1",
-                            f8 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_  +  grouped.subtype_ + (1 | publication_) + (1 | cohort_)-1",
-                            f9 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_  +  alignment.length_ + grouped.subtype_ + (1 | publication_) + (1 | cohort_)-1")
+                            f1 = "multiple.founders_ ~ reported.exposure_ + (1 | publication_) + (1 | cohort_)",
+                            f2 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + (1 | publication_) + (1 | cohort_)",
+                            f3 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + (1 | publication_) + (1 | cohort_)",
+                            f4 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_ + (1 | publication_) + (1 | cohort_)",
+                            f5 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + alignment.length_ + (1 | publication_) + (1 | cohort_)",
+                            f6 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + grouped.subtype_ + (1 | publication_)",
+                            f7 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_  + alignment.length_ + (1 | publication_) + (1 | cohort_)",
+                            f8 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_  +  grouped.subtype_ + (1 | publication_) + (1 | cohort_)",
+                            f9 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_  +  alignment.length_ + grouped.subtype_ + (1 | publication_) + (1 | cohort_)")
 
-fixeff_modelbuild.models <- RunMetaReg(fixeff_modelbuild.forms,df)
+fixeff_modelbuild.models <- RunMetaReg(fixeff_modelbuild.forms,df) 
+ 
+# Model diagnostics prior to selection of fixed effects structure
+# 1. Identify models that satisfy convergence threshold
+# 2. Check for multicollinearity between fixed effects
+# 3. Binned residuals (ideally >95% within SE, but >90% is satisfactory)
+
+# 1. 
+fe_convergence <- lapply(fixeff_modelbuild.models, check_convergence) %>% 
+  do.call(rbind,.)
+
+fixeff_modelbuild.converged <- fixeff_modelbuild.models[which(fe_convergence)]
+
+# 2.
+fe_multico <- lapply(fixeff_modelbuild.converged, check_collinearity)
+
+# 3.
+binned <- lapply(fixeff_modelbuild.converged, binned_residuals)
+binnedplots <- PlotBinned(binned)
+
+# Extract fixed and random effects estimates from models
+effects__modelbuild.converged <- lapply(fixeff_modelbuild.converged, GetEffects)
+
 
 varcov_mat <- cov2cor(get_varcov(fixeff_modelbuild.models[[6]]))%>%
   reshape2::melt() %>%
@@ -361,10 +365,8 @@ colnames(convergence) <- c("model" , "converged", "gradient")
 print(convergence)
 
 # 2. Check binned residuals
-binned <- lapply(test_reg , binned_residuals)
 
-binnedplots <- PlotBinned(binned)
-
+binned_residuals()
 
 ###################################################################################################
 ###################################################################################################
