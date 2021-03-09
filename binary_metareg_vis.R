@@ -11,6 +11,28 @@ library(metafor)
 library(dplyr)
 library(magick)
 
+FPlot <- function(data,plotname){
+  
+  p2 <- ggplot(data = data) + 
+    geom_point(aes(x= var, y = est)) + 
+    theme_classic() + 
+    geom_linerange( aes(x = var, ymin=fix.lb,ymax=fix.ub))+
+    scale_y_continuous(limits = c(0,0.75) , 
+                       expand = c(0,0), 
+                       name = "Probability of Multiple Founders")+
+    scale_x_discrete(name = plotname, 
+                     guide = guide_axis(angle = 50))+
+    #coord_flip()+
+    theme(
+      axis.text = element_text(size = 10,  family = "sans"),
+      legend.text = element_text(size = 10,  family = "sans"),
+      axis.title.y = element_text(size = 11,  family = "sans"),
+      axis.title.x = element_text(size = 12,  family = "sans"),
+      plot.margin = unit(c(2,4,2,1), "lines")
+    )
+  
+  return(p2)
+}
 ###################################################################################################
 ###################################################################################################
 # Import data
@@ -54,16 +76,37 @@ raneff_comb <- cbind.data.frame("Estimate" = paste0(round(raneff_selection$estim
                                                     round(raneff_selection$estimate.ub, digits = 3), ']'),
                                 row.names = raneff_selection$X )
 
-raneff_tbl_df <- cbind.data.frame(raneff_comb, raneff_selection[,c(2,3)])
+raneff_tbl <- cbind.data.frame(raneff_comb, raneff_selection[,c(2,3)] %>% round(digits =2))
 
-knitr::kable(raneff_tbl_df, 
-                   format = 'latex',
+knitr::kable(raneff_tbl, 
                    booktabs = T,
                    col.names = c('Estimate', 'AIC', 'BIC'),
                    escape = FALSE,
                    align = 'c', 
-                   linesep = c("\\addlinespace")) %>% 
-  kable_styling(latex_options = "striped") %>%as_image(filename = 'something.png')
+                   linesep = c("\\addlinespace")) %>% kable_classic(full_width = F, html_font = 'arial')
+#need to sort output to latex - current error with magick/ghostscript not seeing eye ot eye
+###################################################################################################
+# Plot and tabulate univariate fixed effects 
+fixeff_uni <- read.csv('fixeff_uni.csv') 
+plotnames <-fixeff_uni$names
+fixeff_uni.split <- split.data.frame(fixeff_uni , fixeff_uni$names)
+
+subgroup_plotlist <- mapply(FPlot,subgroup_fe ,plotnames, SIMPLIFY = F )
+subgroup_plot <- plot_grid(plotlist = subgroup_plotlist , labels = "AUTO" , align = 'hv', ncol = 2)
+
+fixeff_uni_comb <- cbind.data.frame("Estimate" = paste0(round(fixeff_uni$est, digits = 3), ' ' ,
+                                                    '[' , round(fixeff_uni$fix.lb, digits = 3) ,' - ',
+                                                    round(fixeff_uni$fix.ub, digits = 3), ']'))
+
+fixeff_uni_tbl <- cbind.data.frame(fixeff_uni$names, fixeff_uni$var, fixeff_uni_comb)
+
+knitr::kable(raneff_tbl_df, 
+             booktabs = T,
+             col.names = c('Estimate', 'AIC', 'BIC'),
+             escape = FALSE,
+             align = 'c', 
+             linesep = c("\\addlinespace")) %>% kable_classic(full_width = F, html_font = 'arial')
+
 ###################################################################################################
 ###################################################################################################
 # END # 
