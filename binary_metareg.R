@@ -144,22 +144,26 @@ PlotBinned <- function(data){
 
 
 # Extract fixed effects from the models
-GetFE <- function(model, label = "original"){
+GetEffects <- function(model, label = "original"){
+  # Calculate CIs
   options(warn = 1)
+  
   ci <- confint.merMod(model, 
                        method = 'boot', 
                        .progress="txt", 
                        PBargs=list(style=3), 
                        nsim = 10)
   
+  re.num <- ranef(model) %>% length()
+  
+  # Extract Fixed Effects
   if (length(fixef(model)) > 1){
     
     fe <- fixef(model) 
     sd <- sqrt(diag(vcov(model)))
-    ci.fe <- ci[-c(1,2),]
+    ci.fe <- ci[-c(1,re.num),]
     nom <- names(fe)
-    
-    
+  
     fix_df <- cbind.data.frame(nom = nom,
                                est = fe,
                                sd = sd,
@@ -171,7 +175,7 @@ GetFE <- function(model, label = "original"){
     
   }else{
     fe <- fixef(model) 
-    ci.fe <- ci[2,]
+    ci.fe <- ci[re.num,]
     nom <- names(fe)
     sd <-  NA
     
@@ -185,28 +189,35 @@ GetFE <- function(model, label = "original"){
       separate(nom , c('covariate' , 'level') , '_')
   }
   
+  int_df <- fix_df[which(is.na(fix_df$level)),]
+  fix_df <- fix_df[which(!is.na(fix_df$level)),]
   
-  return(fix_df)
+  # Extract Random Effects
+  re <- ranef(model)
+  re.mean <- lapply(re, function(x) mean(x$`(Intercept)`)) %>%
+    do.call(rbind.data.frame,.) %>% `colnames<-` ('mean')
+  
+  re.sd <- VarCorr(model) %>% as.data.frame()
+  
+  ci.re <- ci[c(1,re.num),]
+  
+  re_df <- cbind.data.frame(groups = gsub('_', '', re.sd[,1]),
+                            mean = re.mean,
+                            vcov = re.sd[,4],
+                            sd = re.sd[,5],
+                            ci.lb = ci.re[,1],
+                            ci.ub = ci.re[,2],
+                            analysis = label) %>% 
+    `row.names<-` (NULL)
+  
+  out <- list(int_df, fix_df, re_df) %>% `names<-` (c('int' , 'fe', 're'))
+  
+  return(out)
 }
 
 
-#Random Effects
-re <- ranef(model)
-re.mean <- lapply(re, function(x) mean(x$`(Intercept)`)) %>%
-  do.call(rbind.data.frame,.)
-re.sd <- VarCorr(fixeff_modelbuild.converged[[5]])
-ci.re <- ci[c(1,2),]
-#random_df <- cbind.data.frame(var = names(re),
-#est = re.mean,
-#sd = sd,
-#ci.lb = ci.re[,1],
-#ci.ub = ci.re[,2],
-#analysis = label, 
-#make.row.names =FALSE)
-# Note required regex for covariate names in order for this to work efficiently
-# Extracts th name of the 1st covariate (as written) from lmer function syntax
 
-
+# Extracts name of the 1st covariate (as written) from lmer function syntax
 GetName <- function(x, effects = NULL) {
   require(stringr)
   
@@ -266,8 +277,10 @@ raneff_modelbuild.models <- RunParallel(CalcRandMetaReg, raneff_modelbuild.forms
 raneff_modelbuild.models 
 raneff.aic <- lapply(raneff_modelbuild.models, AIC)
 raneff.bic <- lapply(raneff_modelbuild.models, BIC)
-raneff.confint <- lapply(raneff_modelbuild.models, CalcEstimates) %>% do.call(rbind.data.frame, .)
 
+
+raneff.confint <- lapply(raneff_modelbuild.models, CalcEstimates, mermod.method = "profile") %>% do.call(rbind.data.frame, .)
+RunParallel(GetFE, raneff_modelbuild.models, re.effectstruct)
 re.effectstruct = GetName(raneff_modelbuild.forms, effects = 'random')
 
 raneff_selection <- rbind.data.frame(raneff.aic, raneff.bic) %>% 
@@ -321,6 +334,7 @@ fixeff_modelbuild.forms<- c(f0 = "multiple.founders_ ~  1  + (1 | publication_) 
 fixeff_modelbuild.effectstruct <- lapply(fixeff_modelbuild.forms , GetName)
 fixeff_modelbuild.models <- RunParallel(fixeff_modelbuild.forms, CalcRandMetaReg, df) 
 fixeff_uni.fe <- RunParallel(GetFE, fixeff_uni.models, as.character(fixeff_uni.forms))
+
 # Model diagnostics prior to selection of fixed effects structure
 # 1. Identify models that satisfy convergence threshold
 # 2. Check for multicollinearity between fixed effects
@@ -331,6 +345,7 @@ fe_convergence <- lapply(fixeff_modelbuild.models, check_convergence) %>%
   do.call(rbind,.)
 
 fixeff_modelbuild.converged <- fixeff_modelbuild.models[which(fe_convergence)]
+fixeff_modelbuild.forms.converged <- fixeff_modelbuild.forms[which(fe_convergence)]
 
 # 2.
 fe_multico <- lapply(fixeff_modelbuild.converged, check_collinearity)
@@ -340,8 +355,8 @@ binned <- lapply(fixeff_modelbuild.converged, binned_residuals)
 binnedplots <- PlotBinned(binned)
 
 # Extract fixed and random effects estimates from models
-FE__modelbuild.converged <- lapply(fixeff_modelbuild.converged, GetEffects)
-
+fe_modelbuild.converged <- fixeff_uni.fe[which(fe_convergence)]
+re_modelbuild.converged <- 
 
 varcov_mat <- cov2cor(get_varcov(fixeff_modelbuild.models[[6]]))%>%
   reshape2::melt() %>%
