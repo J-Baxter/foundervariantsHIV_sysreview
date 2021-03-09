@@ -53,6 +53,7 @@ SetBaseline <- function(data,covar,baseline){
   return(dataframe)
 }
 
+
 # One-step GLMM accounting for clustering of studies using a random intercept
 CalcRandMetaReg <- function(data, formula){
   options(warn = 1)
@@ -68,6 +69,7 @@ CalcRandMetaReg <- function(data, formula){
                                         optimizer = "bobyqa"))
   return(model)
 }
+
 
 # Execute a list of lme4 models in parallel
 RunParallel <- function(func, v1, v2){
@@ -111,39 +113,8 @@ RunParallel <- function(func, v1, v2){
   }
 
 
-# Plot binned residuals
-# Y = average residual, X = Founder Variant Multiplicity, Ribbon = SE
-PlotBinned <- function(data){
-  
-  if (class(data) == "list"){
-    plt_list <- list()
-    
-    for (i in 1:length(data)){
-      plt_list[[i]] <- ggplot(data = data[[i]]) + 
-        geom_ribbon(aes(x = xbar, ymin = -se, ymax = se), fill = "white", colour = "grey60") + 
-        geom_point(aes(x = xbar, y = ybar , colour = group), shape = 4, size = 3)+
-        geom_abline(intercept = 0, slope = 0, linetype = "dashed")+
-        theme_classic() +
-        theme(panel.background = element_rect(fill = 'gray95' )) +
-        scale_color_npg() +
-        scale_x_continuous(name = element_blank(), 
-                           labels = scales::percent,
-                           limits = c(0,0.73),
-                           expand = c(0, 0.005)) +
-        scale_y_continuous(name = element_blank())+
-        theme(legend.position = "none")
-    }
-  }else{
-    warning('data supplied is not a list')
-  }
-  
-  plts <- cowplot::plot_grid(plotlist = plt_list , labels = "AUTO")
-  print(plts)
-  return(plts)
-}
-
-
-# Extract fixed effects from the models
+# Extract intercept, fixed effects and random effects from the models
+# Output is a list of dataframes as described above
 GetEffects <- function(model, label = "original"){
   # Calculate CIs
   options(warn = 1)
@@ -163,7 +134,7 @@ GetEffects <- function(model, label = "original"){
     sd <- sqrt(diag(vcov(model)))
     ci.fe <- ci[-c(1,re.num),]
     nom <- names(fe)
-  
+    
     fix_df <- cbind.data.frame(nom = nom,
                                est = fe,
                                sd = sd,
@@ -216,6 +187,37 @@ GetEffects <- function(model, label = "original"){
 }
 
 
+# Plot binned residuals
+# Y = average residual, X = Founder Variant Multiplicity, Ribbon = SE
+PlotBinned <- function(data){
+  
+  if (class(data) == "list"){
+    plt_list <- list()
+    
+    for (i in 1:length(data)){
+      plt_list[[i]] <- ggplot(data = data[[i]]) + 
+        geom_ribbon(aes(x = xbar, ymin = -se, ymax = se), fill = "white", colour = "grey60") + 
+        geom_point(aes(x = xbar, y = ybar , colour = group), shape = 4, size = 3)+
+        geom_abline(intercept = 0, slope = 0, linetype = "dashed")+
+        theme_classic() +
+        theme(panel.background = element_rect(fill = 'gray95' )) +
+        scale_color_npg() +
+        scale_x_continuous(name = element_blank(), 
+                           labels = scales::percent,
+                           limits = c(0,0.73),
+                           expand = c(0, 0.005)) +
+        scale_y_continuous(name = element_blank())+
+        theme(legend.position = "none")
+    }
+  }else{
+    warning('data supplied is not a list')
+  }
+  
+  plts <- cowplot::plot_grid(plotlist = plt_list , labels = "AUTO")
+  print(plts)
+  return(plts)
+}
+
 
 # Extracts name of the 1st covariate (as written) from lmer function syntax
 GetName <- function(x, effects = NULL) {
@@ -245,6 +247,20 @@ GetName <- function(x, effects = NULL) {
 }
 
 
+# Calculates AIC, BIC for models, and pairwise LRT (interpret only if appropriate)
+ModelComp <- function(modellist){
+  len <- length(modellist)-1
+  lrt <- list()
+  for (i in 1:len){
+    lrt[[i]] <- anova(modellist[[i]], modellist[[i+1]])
+  }
+  rt.df <- do.call(rbind.data.frame, lrt) %>% 
+    subset(!duplicated(AIC)) %>%
+    `row.names<-` (names(raneff.models))
+  
+  return(rt.df)
+}
+
 
 ###################################################################################################
 ###################################################################################################
@@ -269,27 +285,18 @@ baseline.level <- c("HSX:MTF", "phylogenetic", "B" , "env" , "positive")
 ###################################################################################################
 # STAGE 1: Selecting Random Effects
 
-raneff_modelbuild.forms <- c(r0 = "multiple.founders_ ~  1 + (1 | publication_)",
-                             r1 = "multiple.founders_ ~  1 + (1 | publication_) + (1 | cohort_)",
-                             r2 = "multiple.founders_ ~  1 + (1 | publication_) + (1 | cohort_) + (1 | cohort_:publication_)")
+raneff.forms <- c(r0 = "multiple.founders_ ~  1 + (1 | publication_)",
+                  r1 = "multiple.founders_ ~  1 + (1 | publication_) + (1 | cohort_)",
+                  r2 = "multiple.founders_ ~  1 + (1 | publication_) + (1 | cohort_) + (1 | cohort_:publication_)")
 
-raneff_modelbuild.models <- RunParallel(CalcRandMetaReg, raneff_modelbuild.forms, df)
-raneff_modelbuild.models 
-raneff.aic <- lapply(raneff_modelbuild.models, AIC)
-raneff.bic <- lapply(raneff_modelbuild.models, BIC)
+raneff.effectstruct = GetName(raneff.forms, effects = 'random')
+raneff.models <- RunParallel(CalcRandMetaReg, raneff.forms, df)
+raneff.effects <- RunParallel(GetEffects, raneff.models, fixeff_uni.effectstruct)
+raneff.selection <- ModelComp(raneff.models) %>% 
+  cbind.data.frame(model = raneff.effectstruct)
 
-
-raneff.confint <- lapply(raneff_modelbuild.models, CalcEstimates, mermod.method = "profile") %>% do.call(rbind.data.frame, .)
-RunParallel(GetFE, raneff_modelbuild.models, re.effectstruct)
-re.effectstruct = GetName(raneff_modelbuild.forms, effects = 'random')
-
-raneff_selection <- rbind.data.frame(raneff.aic, raneff.bic) %>% 
-  `colnames<-`(effectstruct) %>% 
-  t() %>%
-  `colnames<-`(c('AIC', 'BIC')) %>%
-  cbind.data.frame(raneff.confint[,-c(1,2)])
-
-# RE Selected = "(1 | publication) + (1|cohort)"
+# RE Selected = "(1 | publication) + (1|cohort)", significantly p(<0.05) better fit than publication only.
+# AIC in agreement, BIC between first two models is indistinguishable
 
 ###################################################################################################
 ###################################################################################################
