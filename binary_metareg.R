@@ -123,7 +123,7 @@ GetEffects <- function(model, label = "original"){
                        method = 'boot', 
                        .progress="txt", 
                        PBargs=list(style=3), 
-                       nsim = 10)
+                       nsim = 100)
   
   re.num <- ranef(model) %>% length()
   
@@ -223,7 +223,7 @@ PlotBinned <- function(data){
 GetName <- function(x, effects = NULL) {
   require(stringr)
   
-  while(is.null(effects)){
+  if(is.null(effects)){
     print('requires user to specify whether fixed or random effects are required')
   }
   
@@ -262,6 +262,21 @@ ModelComp <- function(modellist){
 }
 
 
+# Pipeline for check_singularity and check_convergence functions
+CheckModels <- function(modellist){
+  require(performance)
+  is.sing <- lapply(modellist, check_singularity) %>% do.call(rbind.data.frame, .)
+  is.con <- lapply(modellist, check_convergence) %>% do.call(rbind.data.frame, .)
+  
+  out <- cbind.data.frame(is.sing, is.con) %>% 
+  `colnames<-` (c('is.singular', 'converged'))
+  
+  rownames(out) <- names(modellist)
+
+  return(out)
+}
+
+
 ###################################################################################################
 ###################################################################################################
 # Set seed
@@ -290,13 +305,24 @@ raneff.forms <- c(r0 = "multiple.founders_ ~  1 + (1 | publication_)",
                   r2 = "multiple.founders_ ~  1 + (1 | publication_) + (1 | cohort_) + (1 | cohort_:publication_)")
 
 raneff.effectstruct = GetName(raneff.forms, effects = 'random')
+
+# Run models
 raneff.models <- RunParallel(CalcRandMetaReg, raneff.forms, df)
-raneff.effects <- RunParallel(GetEffects, raneff.models, fixeff_uni.effectstruct)
+
+# Check model convergence and singularity
+raneff.check <- CheckModels(raneff.models) %>% 
+  cbind.data.frame(model = raneff.effectstruct)
+
+# Extract random effects
+raneff.effects <- RunParallel(GetEffects, raneff.models, raneff.effectstruct)
+
+# Model selection
 raneff.selection <- ModelComp(raneff.models) %>% 
   cbind.data.frame(model = raneff.effectstruct)
 
 # RE Selected = "(1 | publication) + (1|cohort)", significantly p(<0.05) better fit than publication only.
 # AIC in agreement, BIC between first two models is indistinguishable
+
 
 ###################################################################################################
 ###################################################################################################
@@ -314,14 +340,23 @@ fixeff_uni.forms <- c(f0 = "multiple.founders_ ~  1 + (1 | publication_)",
                       f8 = "multiple.founders_ ~ alignment.length_ + (1 | publication_) + (1| cohort_) - 1")
 
 fixeff_uni.effectstruct <- GetName(fixeff_uni.forms, effects = 'fixed')
+
+# Run models
 fixeff_uni.models <- RunParallel(CalcRandMetaReg, fixeff_uni.forms, df)
-fixeff_uni.fe <- RunParallel(GetFE, fixeff_uni.models, fixeff_uni.effectstruct)
+
+# Check model convergence and singularity
+fixeff_uni.check <- CheckModels(fixeff_uni.models)%>% 
+  cbind.data.frame(model = fixeff_uni.effectstruct)
+
+# Extract fixed and random effects
+fixeff_uni.effects <- RunParallel(GetEffects, fixeff_uni.models, fixeff_uni.effectstruct)
+
+# Model selection
+
 
 
 names(fixeff_uni.fe) <- fixeff_uni.effectstruct
 fixeff_uni.fe_df <- rbindlist(fixeff_uni.fe, idcol = 'names')
-
-
 ###################################################################################################
 # STAGE 3: Selecting Fixed effects to be included in model (bottom up approach)
 # Random effects as previously specified
@@ -338,73 +373,34 @@ fixeff_modelbuild.forms<- c(f0 = "multiple.founders_ ~  1  + (1 | publication_) 
                             f8 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_  +  grouped.subtype_ + (1 | publication_) + (1 | cohort_)",
                             f9 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_  +  alignment.length_ + grouped.subtype_ + (1 | publication_) + (1 | cohort_)")
 
-fixeff_modelbuild.effectstruct <- lapply(fixeff_modelbuild.forms , GetName)
+fixeff_modelbuild.effectstruct <- GetName(fixeff_modelbuild.forms, effects = 'fixed')
 fixeff_modelbuild.models <- RunParallel(fixeff_modelbuild.forms, CalcRandMetaReg, df) 
-fixeff_uni.fe <- RunParallel(GetFE, fixeff_uni.models, as.character(fixeff_uni.forms))
 
 # Model diagnostics prior to selection of fixed effects structure
 # 1. Identify models that satisfy convergence threshold
-# 2. Check for multicollinearity between fixed effects
-# 3. Binned residuals (ideally >95% within SE, but >90% is satisfactory)
+# 2. Check Singularity
+# 3. Check for multicollinearity between fixed effects
+# 4. Binned residuals (ideally >95% within SE, but >90% is satisfactory)
 
-# 1. 
-fe_convergence <- lapply(fixeff_modelbuild.models, check_convergence) %>% 
-  do.call(rbind,.)
+# 1. & 2. Check model convergence and singularity
+fixeff_modelbuild.check <- CheckModels(fixeff_modelbuild.models)%>% 
+  cbind.data.frame(model = fixeff_modelbuild.effectstruct)
 
-fixeff_modelbuild.converged <- fixeff_modelbuild.models[which(fe_convergence)]
-fixeff_modelbuild.forms.converged <- fixeff_modelbuild.forms[which(fe_convergence)]
+fixeff_modelbuild.converged <- fixeff_modelbuild.models[which(fixeff_modelbuild.check$converged)]
+fixeff_modelbuild.forms.converged <- fixeff_modelbuild.forms[which(fixeff_modelbuild.check$converged)]
 
-# 2.
+
+# 3. Check for multicollinearity between fixed effects
 fe_multico <- lapply(fixeff_modelbuild.converged, check_collinearity)
 
-# 3.
+# 4. Binned residuals (ideally >95% within SE, but >90% is satisfactory)
 binned <- lapply(fixeff_modelbuild.converged, binned_residuals)
 binnedplots <- PlotBinned(binned)
 
-# Extract fixed and random effects estimates from models
-fe_modelbuild.converged <- fixeff_uni.fe[which(fe_convergence)]
-re_modelbuild.converged <- 
 
-varcov_mat <- cov2cor(get_varcov(fixeff_modelbuild.models[[6]]))%>%
-  reshape2::melt() %>%
-  `colnames<-` (c('X','Y','Correlation'))
-heatmap <- ggplot(varcov_mat)+geom_tile(aes(x=X,y=Y,fill=Correlation))+
-  scale_fill_viridis_c()+
-  theme_classic()+
-  scale_x_discrete(guide = guide_axis(angle = 50))
+# Extract fixed and random effects for models that satisfy model checks and assumptions
+fixeff_modelbuild.effects <- RunParallel(GetEffects, fixeff_modelbuildi.models, fixeff_modelbuild.effectstruct)
 
-fe <- GetEffects(fixeff_modelbuild.models[[7]])
-fe.var <- get_varcov(fixeff_modelbuild.models[[7]])
-fixeff.aic <- lapply(fixeff_modelbuild.models, AIC)
-fixeff.bic <- lapply(fixeff_modelbuild.models, BIC)
-fixeff.confint <- lapply(fixeff_modelbuild.models, confint, method = 'boot' , nsim = ) %>% do.call(rbind.data.frame, .)
-
-ggplot(t) +
-  geom_point(aes(x = var, y = transf.ilogit(est))) +
-  geom_linerange(aes(x = var,
-                     ymin=transf.ilogit(ci.lb),
-                     ymax= transf.ilogit(ci.ub)))+
-  
-  coord_flip()+
-  theme_classic()
-
-
-effectstruct <- c( "1",
-                   "reported.exposure", 
-                  "reported.exposure + grouped.method",
-                  "reported.exposure + grouped.method + participant.seropositivity",
-                  "reported.exposure + grouped.method + participant.seropositivity + sequencing.gene",
-                  "reported.exposure + grouped.method + participant.seropositivity + alignment.length",
-                  "reported.exposure + grouped.method + participant.seropositivity + grouped.subtype",
-                  "multiple.founders ~ reported.exposure + grouped.method + participant.seropositivity + sequencing.gene + alignment.length",
-                  "multiple.founders ~ reported.exposure + grouped.method + participant.seropositivity + sequencing.gene + grouped.subtype",
-                  "multiple.founders ~ reported.exposure + grouped.method + participant.seropositivity + sequencing.gene + alignment.length + grouped.subtype")
-
-fixeff.fit <- rbind.data.frame(fixeff.aic, fixeff.bic) %>% `colnames<-`(effectstruct) %>%
-  cbind.data.frame(.,criteria = c('AIC', 'BIC')) %>% reshape2::melt()
-
-fixeff.plot <- cbind.data.frame(model = effectstruct ,
-                                fixeff.confint[,-c(1,2)])
 
 
 ###################################################################################################
