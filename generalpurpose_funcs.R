@@ -46,7 +46,8 @@ formatDF <-  function(df, noreps = TRUE, filter = NULL){
       cbind.data.frame(.,df_labelled)
   }
 
-  
+  colnames(df_splittrans) <- paste0(colnames(df_splittrans), "_")
+
   return(df_splittrans)
 }
 
