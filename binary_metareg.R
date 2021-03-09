@@ -351,12 +351,6 @@ fixeff_uni.check <- CheckModels(fixeff_uni.models)%>%
 # Extract fixed and random effects
 fixeff_uni.effects <- RunParallel(GetEffects, fixeff_uni.models, fixeff_uni.effectstruct)
 
-# Model selection
-
-
-
-names(fixeff_uni.fe) <- fixeff_uni.effectstruct
-fixeff_uni.fe_df <- rbindlist(fixeff_uni.fe, idcol = 'names')
 ###################################################################################################
 # STAGE 3: Selecting Fixed effects to be included in model (bottom up approach)
 # Random effects as previously specified
@@ -389,14 +383,12 @@ fixeff_modelbuild.check <- CheckModels(fixeff_modelbuild.models)%>%
 fixeff_modelbuild.converged <- fixeff_modelbuild.models[which(fixeff_modelbuild.check$converged)]
 fixeff_modelbuild.forms.converged <- fixeff_modelbuild.forms[which(fixeff_modelbuild.check$converged)]
 
-
 # 3. Check for multicollinearity between fixed effects
 fe_multico <- lapply(fixeff_modelbuild.converged, check_collinearity)
 
 # 4. Binned residuals (ideally >95% within SE, but >90% is satisfactory)
 binned <- lapply(fixeff_modelbuild.converged, binned_residuals)
 binnedplots <- PlotBinned(binned)
-
 
 # Extract fixed and random effects for models that satisfy model checks and assumptions
 fixeff_modelbuild.effects <- RunParallel(GetEffects, fixeff_modelbuildi.models, fixeff_modelbuild.effectstruct)
@@ -416,25 +408,6 @@ interaction_modelbuild..models <- RunMetaReg(interaction_modelbuild.forms ,df)
 
 ###################################################################################################
 ###################################################################################################
-# Evaluation of selected model
-# 1. Check Convergence
-# 2. Binned residuals (ideally >95% within SE)
-
-# 1. Check Convergence
-convergence <- lapply(test_reg, check_convergence, tolerance = 0.05) %>%
-  {cbind.data.frame(melt(lapply(., attributes)), melt(.))} %>%
-  .[,c(3,4,1)]
-
-colnames(convergence) <- c("model" , "converged", "gradient")
-
-print(convergence)
-
-# 2. Check binned residuals
-
-binned_residuals()
-
-###################################################################################################
-###################################################################################################
 # Sensitivity Analyses
 # SA1. Influence of Individual Studies
 # SA2. Exclusion of small sample sizes (less than n = 10)
@@ -446,8 +419,10 @@ binned_residuals()
 ###################################################################################################
 ###################################################################################################
 # Outputs to file
+
 write.csv(raneff_selection, file = 'raneff_selection.csv', row.names = T)
 write.csv(fixeff_uni.fe_df, file = 'fixeff_uni.csv', row.names = T)
+
 ###################################################################################################
 ###################################################################################################
 # END # 
