@@ -70,28 +70,45 @@ CalcRandMetaReg <- function(data, formula){
 }
 
 # Execute a list of lme4 models in parallel
-RunParallel <- function(formulas, func, data){
+RunParallel <- function(func, v1, v2){
   options(warn = 1)
   
-  # Set up cluster (forking)
+  # Set up cluster (fork)
   cl <- detectCores() %>% `-` (2) 
   
-  # Set time and run models
-  start <- Sys.time()
-  start
-  
-  metareg <- mclapply(formulas,
-                      func, 
-                      data = data,
-                      mc.cores = cl,
-                      mc.set.seed = FALSE) #child process has the same initial random number generator (RNG) state as the current R session
-  
-  end <- Sys.time()
-  elapsed <- end-start
-  print(elapsed)
-  
-  return(metareg)
-}
+  if (class(v2) == 'data.frame'){
+
+    start <- Sys.time()
+    start
+    
+    para <- mclapply(v1,
+                     func, 
+                     data = v2,
+                     mc.cores = cl,
+                     mc.set.seed = FALSE) #child process has the same initial random number generator (RNG) state as the current R session
+    
+    end <- Sys.time()
+    elapsed <- end-start
+    print(elapsed)
+  }else if(class(v2) != 'data.frame'){
+
+    start <- Sys.time()
+    start
+    para <- mcmapply(func,
+                     v1,
+                     v2,
+                     mc.cores = cl,
+                     mc.set.seed = FALSE,
+                     SIMPLIFY = F) 
+    
+    end <- Sys.time()
+    elapsed <- end-start
+    print(elapsed)
+  }
+    
+ 
+  return(para)
+  }
 
 
 # Plot binned residuals
@@ -190,17 +207,32 @@ ci.re <- ci[c(1,2),]
 # Extracts th name of the 1st covariate (as written) from lmer function syntax
 
 
-GetName <- function(x) {
+GetName <- function(x, effects = NULL) {
   require(stringr)
   
-  formula <- levels(x$analysis)
+  while(is.null(effects)){
+    print('requires user to specify whether fixed or random effects are required')
+  }
   
-  name <-gsub(".*[:~:] (.+?) [:+:].*", "\\1", formula) %>%
-    gsub("[:.:]" , " " , .) %>%
-    str_to_title()
+  if(effects == 'fixed'){
+    name <-gsub(".*[:~:] (.+?) [:(:].*", "\\1", x) %>%
+      gsub("[:+:]([:^+:]*)$","",.) %>%
+      gsub("[:.:]" , " " , .) %>% 
+      gsub("[:_:]" , "" , .) %>%
+      str_to_title()%>%
+      str_trim()
+    
+  }else if( effects == 'random'){
+    name <-gsub("^[^\\(]+", "\\1", x, perl = T) %>%
+      gsub("_" , "" , .) %>%
+      gsub(":" , " : " , .) %>%
+      str_to_title()%>%
+      str_trim()
+  }
   
   return(name)
 }
+
 
 
 ###################################################################################################
@@ -227,17 +259,16 @@ baseline.level <- c("HSX:MTF", "phylogenetic", "B" , "env" , "positive")
 # STAGE 1: Selecting Random Effects
 
 raneff_modelbuild.forms <- c(r0 = "multiple.founders_ ~  1 + (1 | publication_)",
-                             r1 = "multiple.founders_ ~  1  + (1 | publication_) + (1|cohort_)",
-                             r2 = "multiple.founders_ ~  1  + (1 | publication_) + (1|cohort_) + (1| cohort_:publication_)")
+                             r1 = "multiple.founders_ ~  1 + (1 | publication_) + (1 | cohort_)",
+                             r2 = "multiple.founders_ ~  1 + (1 | publication_) + (1 | cohort_) + (1 | cohort_:publication_)")
 
-raneff_modelbuild.models <- RunParallel(raneff_modelbuild.forms, CalcRandMetaReg, df)
+raneff_modelbuild.models <- RunParallel(CalcRandMetaReg, raneff_modelbuild.forms, df)
 raneff_modelbuild.models 
 raneff.aic <- lapply(raneff_modelbuild.models, AIC)
 raneff.bic <- lapply(raneff_modelbuild.models, BIC)
 raneff.confint <- lapply(raneff_modelbuild.models, CalcEstimates) %>% do.call(rbind.data.frame, .)
-effectstruct = c("(1 | publication)", 
-                 "(1 | publication) + (1 | cohort)",
-                 "(1 | publication) + (1 | cohort) + (1 | cohort:publication)")
+
+re.effectstruct = GetName(raneff_modelbuild.forms, effects = 'random')
 
 raneff_selection <- rbind.data.frame(raneff.aic, raneff.bic) %>% 
   `colnames<-`(effectstruct) %>% 
@@ -262,10 +293,12 @@ fixeff_uni.forms <- c(f0 = "multiple.founders_ ~  1 + (1 | publication_)",
                       f7 = "multiple.founders_ ~ participant.seropositivity_ + (1 | publication_) + (1| cohort_) - 1",
                       f8 = "multiple.founders_ ~ alignment.length_ + (1 | publication_) + (1| cohort_) - 1")
 
-fixeff_uni.models <- RunParallel(fixeff_uni.forms, CalcRandMetaReg, df)
-fixeff_uni.fe <-mapply(GetFE, model = fixeff_uni.models, label = as.character(fixeff_uni.forms), SIMPLIFY = F) 
-plotnames <- lapply(fixeff_uni.fe, GetName)
-names(fixeff_uni.fe) <- plotnames 
+fixeff_uni.effectstruct <- GetName(fixeff_uni.forms, effects = 'fixed')
+fixeff_uni.models <- RunParallel(CalcRandMetaReg, fixeff_uni.forms, df)
+fixeff_uni.fe <- RunParallel(GetFE, fixeff_uni.models, fixeff_uni.effectstruct)
+
+
+names(fixeff_uni.fe) <- fixeff_uni.effectstruct
 fixeff_uni.fe_df <- rbindlist(fixeff_uni.fe, idcol = 'names')
 
 
@@ -285,8 +318,9 @@ fixeff_modelbuild.forms<- c(f0 = "multiple.founders_ ~  1  + (1 | publication_) 
                             f8 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_  +  grouped.subtype_ + (1 | publication_) + (1 | cohort_)",
                             f9 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_  +  alignment.length_ + grouped.subtype_ + (1 | publication_) + (1 | cohort_)")
 
+fixeff_modelbuild.effectstruct <- lapply(fixeff_modelbuild.forms , GetName)
 fixeff_modelbuild.models <- RunParallel(fixeff_modelbuild.forms, CalcRandMetaReg, df) 
- 
+fixeff_uni.fe <- RunParallel(GetFE, fixeff_uni.models, as.character(fixeff_uni.forms))
 # Model diagnostics prior to selection of fixed effects structure
 # 1. Identify models that satisfy convergence threshold
 # 2. Check for multicollinearity between fixed effects
