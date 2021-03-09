@@ -70,27 +70,25 @@ CalcRandMetaReg <- function(data, formula){
 }
 
 # Execute a list of lme4 models in parallel
-RunMetaReg <- function(formulas, data){
+RunParallel <- function(formulas, func, data){
   options(warn = 1)
-  # Set up cluster (socket)
-  cl <- detectCores() %>%
-    `-` (2) %>%
-    makeCluster()
   
-  clusterEvalQ(cl, c(library(lme4), set.seed(4472)))
+  # Set up cluster (forking)
+  cl <- detectCores() %>% `-` (2) 
   
   # Set time and run models
   start <- Sys.time()
   start
   
-  metareg <- parLapply(cl = cl, formulas, CalcRandMetaReg, data = data)
+  metareg <- mclapply(formulas,
+                      func, 
+                      data = data,
+                      mc.cores = cl,
+                      mc.set.seed = FALSE) #child process has the same initial random number generator (RNG) state as the current R session
   
   end <- Sys.time()
   elapsed <- end-start
-  elapsed
-  
-  stopCluster(cl)
-  remove(cl)
+  print(elapsed)
   
   return(metareg)
 }
@@ -129,7 +127,7 @@ PlotBinned <- function(data){
 
 
 # Extract fixed effects from the models
-GetFEffects <- function(model, label = "original"){
+GetFE <- function(model, label = "original"){
   options(warn = 1)
   ci <- confint.merMod(model, 
                        method = 'boot', 
@@ -137,20 +135,39 @@ GetFEffects <- function(model, label = "original"){
                        PBargs=list(style=3), 
                        nsim = 10)
   
-  fe <- fixef(model) 
-  sd <- sqrt(diag(vcov(model)))
-  ci.fe <- ci[-c(1,2),]
-  nom <- names(fe)
+  if (length(fixef(model)) > 1){
+    
+    fe <- fixef(model) 
+    sd <- sqrt(diag(vcov(model)))
+    ci.fe <- ci[-c(1,2),]
+    nom <- names(fe)
+    
+    
+    fix_df <- cbind.data.frame(nom = nom,
+                               est = fe,
+                               sd = sd,
+                               ci.lb = ci.fe[,1],
+                               ci.ub = ci.fe[,2],
+                               analysis = label) %>% 
+      `row.names<-` (NULL) %>%
+      separate(nom , c('covariate' , 'level') , '_')
+    
+  }else{
+    fe <- fixef(model) 
+    ci.fe <- ci[2,]
+    nom <- names(fe)
+    sd <-  NA
+    
+    fix_df <- cbind.data.frame(nom = nom,
+                               est = fe,
+                               sd = sd,
+                               ci.lb = ci.fe[1],
+                               ci.ub = ci.fe[2],
+                               analysis = label) %>% 
+      `row.names<-` (NULL) %>%
+      separate(nom , c('covariate' , 'level') , '_')
+  }
   
-  
-  fix_df <- cbind.data.frame(nom = nom,
-                             est = fe,
-                             sd = sd,
-                             ci.lb = ci.fe[,1],
-                             ci.ub = ci.fe[,2],
-                             analysis = label) %>% 
-    `row.names<-` (NULL) %>%
-    separate(nom , c('covariate' , 'level') , '_')
   
   return(fix_df)
 }
@@ -211,16 +228,16 @@ baseline.level <- c("HSX:MTF", "phylogenetic", "B" , "env" , "positive")
 
 raneff_modelbuild.forms <- c(r0 = "multiple.founders_ ~  1 + (1 | publication_)",
                              r1 = "multiple.founders_ ~  1  + (1 | publication_) + (1|cohort_)",
-                             r2 = "multiple.founders_ ~  1  + (1 | publication_) + (1|cohort_) + (1| cohort:publication_)")
+                             r2 = "multiple.founders_ ~  1  + (1 | publication_) + (1|cohort_) + (1| cohort_:publication_)")
 
-raneff_modelbuild.models <- RunMetaReg(raneff_modelbuild.forms,df)
+raneff_modelbuild.models <- RunParallel(raneff_modelbuild.forms, CalcRandMetaReg, df)
 raneff_modelbuild.models 
 raneff.aic <- lapply(raneff_modelbuild.models, AIC)
 raneff.bic <- lapply(raneff_modelbuild.models, BIC)
 raneff.confint <- lapply(raneff_modelbuild.models, CalcEstimates) %>% do.call(rbind.data.frame, .)
-effectstruct = c("(1 | publication_)", 
-                 "(1 | publication_) + (1 | cohort_)",
-                 "(1 | publication_) + (1 | cohort_) + (1 | cohort:publication_)")
+effectstruct = c("(1 | publication)", 
+                 "(1 | publication) + (1 | cohort)",
+                 "(1 | publication) + (1 | cohort) + (1 | cohort:publication)")
 
 raneff_selection <- rbind.data.frame(raneff.aic, raneff.bic) %>% 
   `colnames<-`(effectstruct) %>% 
@@ -245,7 +262,7 @@ fixeff_uni.forms <- c(f0 = "multiple.founders_ ~  1 + (1 | publication_)",
                       f7 = "multiple.founders_ ~ participant.seropositivity_ + (1 | publication_) + (1| cohort_) - 1",
                       f8 = "multiple.founders_ ~ alignment.length_ + (1 | publication_) + (1| cohort_) - 1")
 
-fixeff_uni.models <- RunMetaReg(fixeff_uni.forms, df)
+fixeff_uni.models <- RunParallel(fixeff_uni.forms, CalcRandMetaReg, df)
 fixeff_uni.fe <-mapply(GetFE, model = fixeff_uni.models, label = as.character(fixeff_uni.forms), SIMPLIFY = F) 
 plotnames <- lapply(fixeff_uni.fe, GetName)
 names(fixeff_uni.fe) <- plotnames 
@@ -268,7 +285,7 @@ fixeff_modelbuild.forms<- c(f0 = "multiple.founders_ ~  1  + (1 | publication_) 
                             f8 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_  +  grouped.subtype_ + (1 | publication_) + (1 | cohort_)",
                             f9 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_  +  alignment.length_ + grouped.subtype_ + (1 | publication_) + (1 | cohort_)")
 
-fixeff_modelbuild.models <- RunMetaReg(fixeff_modelbuild.forms,df) 
+fixeff_modelbuild.models <- RunParallel(fixeff_modelbuild.forms, CalcRandMetaReg, df) 
  
 # Model diagnostics prior to selection of fixed effects structure
 # 1. Identify models that satisfy convergence threshold
