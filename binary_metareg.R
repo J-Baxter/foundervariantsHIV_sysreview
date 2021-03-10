@@ -55,7 +55,19 @@ SetBaseline <- function(data,covar,baseline){
 
 
 # One-step GLMM accounting for clustering of studies using a random intercept
-CalcRandMetaReg <- function(data, formula){
+CalcRandMetaReg <- function(data, formula, opt = NULL){
+  
+  if(is.character(opt)){
+    cntrl <- glmerControl(optCtrl = list(maxfun = 5000000),
+                          check.nobs.vs.nlev = 'ignore',
+                          check.nobs.vs.nRE = 'ignore',
+                          optimizer = opt)
+  }else{
+    cntrl <- glmerControl(optCtrl = list(maxfun = 5000000),
+                          check.nobs.vs.nlev = 'ignore',
+                          check.nobs.vs.nRE = 'ignore')
+  }
+  
   options(warn = 1)
   f <- as.formula(formula)
   environment(f) <- environment()
@@ -63,16 +75,13 @@ CalcRandMetaReg <- function(data, formula){
                  data = data,
                  family = binomial(link = "logit"),
                  nAGQ = 1,
-                 control = glmerControl(optCtrl = list(maxfun = 1000000),
-                                        check.nobs.vs.nlev = 'ignore',
-                                        check.nobs.vs.nRE = 'ignore',
-                                        optimizer = "bobyqa"))
+                 control = cntrl)
   return(model)
 }
 
 
 # Execute a list of lme4 models in parallel
-RunParallel <- function(func, v1, v2){
+RunParallel <- function(func, v1, v2, ...){
   options(warn = 1)
   
   # Set up cluster (fork)
@@ -86,6 +95,7 @@ RunParallel <- function(func, v1, v2){
     para <- mclapply(v1,
                      func, 
                      data = v2,
+                     ...,
                      mc.cores = cl,
                      mc.set.seed = FALSE) #child process has the same initial random number generator (RNG) state as the current R session
     
@@ -99,6 +109,7 @@ RunParallel <- function(func, v1, v2){
     para <- mcmapply(func,
                      v1,
                      v2,
+                     ...,
                      mc.cores = cl,
                      mc.set.seed = FALSE,
                      SIMPLIFY = F) 
@@ -334,10 +345,10 @@ fixeff_uni.forms <- c(f0 = "multiple.founders_ ~  1 + (1 | publication_)",
                       f1 = "multiple.founders_ ~  riskgroup_  + (1 | publication_) + (1| cohort_) - 1",
                       f2 = "multiple.founders_ ~ reported.exposure_ + (1 | publication_) + (1| cohort_) - 1",
                       f3 = "multiple.founders_ ~ grouped.method_ + (1 | publication_) + (1| cohort_) - 1",
-                      f5 = "multiple.founders_ ~ grouped.subtype_ + (1 | publication_) + (1| cohort_) - 1",
-                      f6 = "multiple.founders_ ~ sequencing.gene_ + (1 | publication_) + (1| cohort_) - 1",
-                      f7 = "multiple.founders_ ~ participant.seropositivity_ + (1 | publication_) + (1| cohort_) - 1",
-                      f8 = "multiple.founders_ ~ alignment.length_ + (1 | publication_) + (1| cohort_) - 1")
+                      f4 = "multiple.founders_ ~ grouped.subtype_ + (1 | publication_) + (1| cohort_) - 1",
+                      f5 = "multiple.founders_ ~ sequencing.gene_ + (1 | publication_) + (1| cohort_) - 1",
+                      f6 = "multiple.founders_ ~ participant.seropositivity_ + (1 | publication_) + (1| cohort_) - 1",
+                      f7 = "multiple.founders_ ~ alignment.length_ + (1 | publication_) + (1| cohort_) - 1")
 
 fixeff_uni.effectstruct <- GetName(fixeff_uni.forms, effects = 'fixed')
 
@@ -368,7 +379,7 @@ fixeff_modelbuild.forms<- c(f0 = "multiple.founders_ ~  1  + (1 | publication_) 
                             f9 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_  +  alignment.length_ + grouped.subtype_ + (1 | publication_) + (1 | cohort_)")
 
 fixeff_modelbuild.effectstruct <- GetName(fixeff_modelbuild.forms, effects = 'fixed')
-fixeff_modelbuild.models <- RunParallel(fixeff_modelbuild.forms, CalcRandMetaReg, df) 
+fixeff_modelbuild.models <- RunParallel(CalcRandMetaReg, fixeff_modelbuild.forms, df , opt = 'bobyqa') 
 
 # Model diagnostics prior to selection of fixed effects structure
 # 1. Identify models that satisfy convergence threshold
