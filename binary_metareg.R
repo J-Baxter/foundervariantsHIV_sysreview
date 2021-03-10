@@ -231,7 +231,7 @@ PlotBinned <- function(data){
 }
 
 
-# Extracts name of the 1st covariate (as written) from lmer function syntax
+# Extracts covariate names from lmer function syntax
 GetName <- function(x, effects = NULL) {
   require(stringr)
   
@@ -268,7 +268,7 @@ ModelComp <- function(modellist){
   }
   rt.df <- do.call(rbind.data.frame, lrt) %>% 
     subset(!duplicated(AIC)) %>%
-    `row.names<-` (names(raneff.models))
+    `row.names<-` (names(modellist))
   
   return(rt.df)
 }
@@ -368,16 +368,19 @@ fixeff_uni.effects <- RunParallel(GetEffects, fixeff_uni.models, fixeff_uni.effe
 # Random effects as previously specified
 # Baseline covariates: HSX:MTF, phylogenetic, unknown seropositivity, B, env
 
-fixeff_modelbuild.forms<- c(f0 = "multiple.founders_ ~  1  + (1 | publication_) + (1 | cohort_)",
-                            f1 = "multiple.founders_ ~ reported.exposure_ + (1 | publication_) + (1 | cohort_)",
-                            f2 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + (1 | publication_) + (1 | cohort_)",
-                            f3 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + (1 | publication_) + (1 | cohort_)",
-                            f4 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_ + (1 | publication_) + (1 | cohort_)",
-                            f5 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + alignment.length_ + (1 | publication_) + (1 | cohort_)",
-                            f6 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + grouped.subtype_ + (1 | publication_)",
-                            f7 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_  + alignment.length_ + (1 | publication_) + (1 | cohort_)",
-                            f8 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_  +  grouped.subtype_ + (1 | publication_) + (1 | cohort_)",
-                            f9 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_  +  alignment.length_ + grouped.subtype_ + (1 | publication_) + (1 | cohort_)")
+fixeff_modelbuild.forms<- c(f00 = "multiple.founders_ ~  1  + (1 | publication_) + (1 | cohort_)",
+                            f01 = "multiple.founders_ ~ reported.exposure_ + (1 | publication_) + (1 | cohort_)",
+                            f02 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + (1 | publication_) + (1 | cohort_)",
+                            f03 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + (1 | publication_) + (1 | cohort_)",
+                            f04 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + (1 | publication_) + (1 | cohort_)",
+                            f05 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + alignment.length_ + (1 | publication_) + (1 | cohort_)",
+                            f06 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + grouped.subtype_ + (1 | publication_)",
+                            f07 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + alignment.length_ + (1 | publication_) + (1 | cohort_)",
+                            f08 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + participant.seropositivity_ + (1 | publication_) + (1 | cohort_)",
+                            f09 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + grouped.subtype_ + (1 | publication_) + (1 | cohort_)",
+                            f10 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + participant.seropositivity_ + alignment.length_ + (1 | publication_) + (1 | cohort_)",
+                            f11 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + participant.seropositivity_ + grouped.subtype_ + (1 | publication_) + (1 | cohort_)",
+                            f12 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + participant.seropositivity_ + alignment.length_ + grouped.subtype_ + (1 | publication_) + (1 | cohort_)")
 
 fixeff_modelbuild.effectstruct <- GetName(fixeff_modelbuild.forms, effects = 'fixed')
 fixeff_modelbuild.models <- RunParallel(CalcRandMetaReg, fixeff_modelbuild.forms, df , opt = 'bobyqa') 
@@ -392,21 +395,23 @@ fixeff_modelbuild.models <- RunParallel(CalcRandMetaReg, fixeff_modelbuild.forms
 fixeff_modelbuild.check <- CheckModels(fixeff_modelbuild.models)%>% 
   cbind.data.frame(model = fixeff_modelbuild.effectstruct)
 
-fixeff_modelbuild.converged <- fixeff_modelbuild.models[which(fixeff_modelbuild.check$converged)]
+fixeff_modelbuild.models.converged <- fixeff_modelbuild.models[which(fixeff_modelbuild.check$converged)]
 fixeff_modelbuild.forms.converged <- fixeff_modelbuild.forms[which(fixeff_modelbuild.check$converged)]
+fixeff_modelbuild.effectstruct.converged <- GetName(fixeff_modelbuild.forms.converged, effects = 'fixed')
 
 # 3. Check for multicollinearity between fixed effects
-fe_multico <- lapply(fixeff_modelbuild.converged, check_collinearity)
+fe_multico <- lapply(fixeff_modelbuild.models.converged, check_collinearity)
 
 # 4. Binned residuals (ideally >95% within SE, but >90% is satisfactory)
-binned <- lapply(fixeff_modelbuild.converged, binned_residuals)
+binned <- lapply(fixeff_modelbuild.models.converged, binned_residuals)
 binnedplots <- PlotBinned(binned)
 
 # Extract fixed and random effects for models that satisfy model checks and assumptions
-fixeff_modelbuild.effects <- RunParallel(GetEffects, fixeff_modelbuildi.models, fixeff_modelbuild.effectstruct)
+fixeff_modelbuild.effects <- RunParallel(GetEffects, fixeff_modelbuild.models.converged, fixeff_modelbuild.effectstruct)
 
-fixeff_modelbuild.selection <- ModelComp(fixeff_modelbuild.models) %>% 
-  cbind.data.frame(model = fixeff_modelbuild.effectstruct)
+# Models f1-f5 & f7 converge. f7 is later discounted due to a high degree of collinearity between
+# gene.segment and alignment.length
+# Final selection concluded following evaluation of interaction terms
 
 ###################################################################################################
 # STAGE 4: Evaluating the inclusion on interactions
@@ -414,12 +419,21 @@ interaction_modelbuild.forms <- c(i0 = "multiple.founders_ ~ reported.exposure_ 
                                   i1 = "multiple.founders_ ~ reported.exposure_*grouped.subtype_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_ + (1 | publication_) + (1 | cohort_)",
                                   i2 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_*alignment.length_ + (1 | publication_) + (1 | cohort_)")
   
-interaction_modelbuild.models <- fixeff_modelbuild.models <- RunParallel(CalcRandMetaReg, interaction_modelbuild.forms, df , opt = 'bobyqa') 
+interaction_modelbuild.models <- RunParallel(CalcRandMetaReg, interaction_modelbuild.forms, df , opt = 'bobyqa') 
 interaction_modelbuild.effectstruct <- GetName(interaction_modelbuild.forms, effects = 'fixed')
 
 interaction_modelbuild.check <- CheckModels(interaction_modelbuild.models)%>% 
   cbind.data.frame(model = interaction_modelbuild.effectstruct)
+
+# No interaction models converge succesfully
+
 ###################################################################################################
+# Selection of fixed effects structures
+# -7 removes sequencing.gene + alignment length that was found to show a a high degree of multicollinearity
+
+fixeff_modelbuild.selection <- ModelComp(fixeff_modelbuild.models.converged[-7]) %>% 
+  cbind.data.frame(model = fixeff_modelbuild.effectstruct.converged[-7])
+
 ###################################################################################################
 # Sensitivity Analyses
 # SA1. Influence of Individual Studies
