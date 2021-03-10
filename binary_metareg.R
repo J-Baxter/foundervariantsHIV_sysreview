@@ -43,6 +43,7 @@ SetBaseline <- function(data,covar,baseline){
       int <- grep(baseline. , levels(dataframe[,covar.]), perl = T)
       dataframe[,covar.] <- relevel(dataframe[,covar.],  int)
       
+      print('Baseline Covariates:')
       print(levels(dataframe[,covar.])[1])
       
     }else{
@@ -304,8 +305,8 @@ df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
 baseline.covar <- c("reported.exposure_", "grouped.method_", "grouped.subtype_","sequencing.gene_", "participant.seropositivity_")
 baseline.level <- c("HSX:MTF", "phylogenetic", "B" , "env" , "positive")
 
-#df <- SetBaseline(df, baseline.covar, baseline.level)
-#df$alignment.length_ <- scale(df$alignment.length_)
+df <- SetBaseline(df, baseline.covar, baseline.level)
+df$alignment.length_ <- scale(df$alignment.length_)
 
 ###################################################################################################
 ###################################################################################################
@@ -404,19 +405,20 @@ binnedplots <- PlotBinned(binned)
 # Extract fixed and random effects for models that satisfy model checks and assumptions
 fixeff_modelbuild.effects <- RunParallel(GetEffects, fixeff_modelbuildi.models, fixeff_modelbuild.effectstruct)
 
-
+fixeff_modelbuild.selection <- ModelComp(fixeff_modelbuild.models) %>% 
+  cbind.data.frame(model = fixeff_modelbuild.effectstruct)
 
 ###################################################################################################
 # STAGE 4: Evaluating the inclusion on interactions
-interaction_modelbuild.forms <- c(
-  f0 = "multiple.founders ~ reported.exposure + grouped.method + participant.seropositivity + sequencing.gene  +
-  (1 | publication) + (1|cohort) - 1",
-  f1 = "multiple.founders ~ reported.exposure*grouped.subtype + grouped.method + participant.seropositivity + 
-  sequencing.gene + (1 | publication) + (1|cohort) - 1")
+interaction_modelbuild.forms <- c(i0 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_ + (1 | publication_) + (1 | cohort_)",
+                                  i1 = "multiple.founders_ ~ reported.exposure_*grouped.subtype_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_ + (1 | publication_) + (1 | cohort_)",
+                                  i2 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_*alignment.length_ + (1 | publication_) + (1 | cohort_)")
   
-interaction_modelbuild..models <- RunMetaReg(interaction_modelbuild.forms ,df)
+interaction_modelbuild.models <- fixeff_modelbuild.models <- RunParallel(CalcRandMetaReg, interaction_modelbuild.forms, df , opt = 'bobyqa') 
+interaction_modelbuild.effectstruct <- GetName(interaction_modelbuild.forms, effects = 'fixed')
 
-
+interaction_modelbuild.check <- CheckModels(interaction_modelbuild.models)%>% 
+  cbind.data.frame(model = interaction_modelbuild.effectstruct)
 ###################################################################################################
 ###################################################################################################
 # Sensitivity Analyses
