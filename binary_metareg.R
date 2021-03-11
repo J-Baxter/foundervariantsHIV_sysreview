@@ -398,7 +398,7 @@ raneff.models <- RunParallel(CalcRandMetaReg, raneff.forms, df)
 
 # Check model convergence and singularity
 raneff.check <- CheckModels(raneff.models) %>% 
-  cbind.data.frame(model = raneff.effectstruct)
+  `row.names<-`(raneff.effectstruct)
 
 # Extract random effects
 raneff.effects <- RunParallel(GetEffects, raneff.models, raneff.effectstruct)
@@ -587,7 +587,6 @@ model_selected.boot_participant <- BootMetaReg(resampling_df , 1000)
 opt.algo <- c('bobyqa', 'Nelder_Mead')
 algo <- lapply(opt.algo, function(x) CalcRandMetaReg(df , model_selected.form, opt = x))
 lapply(algo, check_convergence)
-
 
 ###################################################################################################
 ###################################################################################################
