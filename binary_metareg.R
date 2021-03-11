@@ -405,7 +405,7 @@ raneff.effects <- RunParallel(GetEffects, raneff.models, raneff.effectstruct)
 
 # Model selection
 raneff.selection <- ModelComp(raneff.models) %>% 
-  cbind.data.frame(model = raneff.effectstruct)
+  `row.names<-`(raneff.effectstruct)
 
 # RE Selected = "(1 | publication) + (1|cohort)", significantly p(<0.05) better fit than publication only.
 # AIC in agreement, BIC between first two models is indistinguishable
@@ -433,7 +433,7 @@ fixeff_uni.models <- RunParallel(CalcRandMetaReg, fixeff_uni.forms, df)
 
 # Check model convergence and singularity
 fixeff_uni.check <- CheckModels(fixeff_uni.models)%>% 
-  cbind.data.frame(model = fixeff_uni.effectstruct)
+  `row.names<-`(fixeff_uni.effectstruct)
 
 # Extract fixed and random effects
 fixeff_uni.effects <- RunParallel(GetEffects, fixeff_uni.models, fixeff_uni.effectstruct)
@@ -467,8 +467,8 @@ fixeff_modelbuild.models <- RunParallel(CalcRandMetaReg, fixeff_modelbuild.forms
 # 4. Binned residuals (ideally >95% within SE, but >90% is satisfactory)
 
 # 1. & 2. Check model convergence and singularity
-fixeff_modelbuild.check <- CheckModels(fixeff_modelbuild.models)%>% 
-  cbind.data.frame(model = fixeff_modelbuild.effectstruct)
+fixeff_modelbuild.check <- CheckModels(fixeff_modelbuild.models) %>% 
+  `row.names<-`(fixeff_modelbuild.effectstruct)
 
 fixeff_modelbuild.models.converged <- fixeff_modelbuild.models[which(fixeff_modelbuild.check$converged)]
 fixeff_modelbuild.forms.converged <- fixeff_modelbuild.forms[which(fixeff_modelbuild.check$converged)]
@@ -501,7 +501,7 @@ interaction_modelbuild.models <- RunParallel(CalcRandMetaReg, interaction_modelb
 interaction_modelbuild.effectstruct <- GetName(interaction_modelbuild.forms, effects = 'fixed')
 
 interaction_modelbuild.check <- CheckModels(interaction_modelbuild.models)%>% 
-  cbind.data.frame(model = interaction_modelbuild.effectstruct)
+  `row.names<-`(fixeff_modelbuild.effectstruct)
 
 # No interaction models converge succesfully
 
