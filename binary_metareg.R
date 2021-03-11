@@ -301,8 +301,14 @@ ModelComp <- function(modellist){
 # Pipeline for check_singularity, check_convergence and logloss functions
 CheckModels <- function(modellist){
   require(performance)
-  is.sing <- lapply(modellist, check_singularity) %>% do.call(rbind.data.frame, .)
-  is.con <- lapply(modellist, check_convergence) %>% do.call(rbind.data.frame, .)
+  
+  if (class(modellist) == 'list'){
+    is.sing <- lapply(modellist, check_singularity) %>% do.call(rbind.data.frame, .)
+    is.con <- lapply(modellist, check_convergence) %>% do.call(rbind.data.frame, .)
+  }else{
+    is.sing <- check_singularity(modellist) 
+    is.con <- check_convergence(modellist) 
+  }
   
   
   out <- cbind.data.frame(is.sing, is.con) %>% 
@@ -310,6 +316,49 @@ CheckModels <- function(modellist){
   
   rownames(out) <- names(modellist)
 
+  return(out)
+}
+
+
+BootMetaReg <- function(data, replicates){
+  require(parallel)
+  require(lme4)
+  require(dplyr)
+  
+  resampled <- lapply(1:replicates, function(x,y) {y %>% group_by(participant.id_) %>% slice_sample(n=1)},
+                      y = data)
+  
+  resampled_props <- lapply(resampled , CalcProps)
+  
+  cl <- detectCores() %>%
+    `-` (2)
+ 
+  start <- Sys.time()
+  print(start)
+  
+  boot_reg <- mclapply(CalcRandMetaReg, resampled, 
+                       formula = model_selected.form,
+                       opt = 'bobyqa',
+                       mc.cores = 4,
+                       mc.set.seed = FALSE)
+  
+  end <- Sys.time()
+  elapsed <- end-start
+  print(elapsed)
+  
+  remove(cl)
+  
+  rand_boot.est <- lapply(rand_boot, function(mod) mod$beta) %>%
+    do.call(rbind.data.frame,.) %>%
+    {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
+  
+  rand_boot.het <- lapply(rand_boot, function(mod) CalcHet(mod, analysis = "metareg")) %>%
+    do.call(rbind.data.frame,.)
+
+  
+  out <- cbind.data.frame(rand_boot.est, rand_boot.het)
+  
+  
   return(out)
 }
 
@@ -322,7 +371,8 @@ set.seed(4472)
 # Import data
 setwd("./data")
 df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% 
-  formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene'))
+  formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene')) %>%
+  droplevels()
   
 
 # Set reference levels for meta regression
@@ -427,7 +477,7 @@ fixeff_modelbuild.effectstruct.converged <- GetName(fixeff_modelbuild.forms.conv
 # 3. Check for multicollinearity between fixed effects
 fe_multico <- lapply(fixeff_modelbuild.models.converged, check_collinearity)
 fixeff_modelbuild.models.nomultico <- fixeff_modelbuild.models.converged[-c(7,9)]
-fixeff_modelbuild.forms.nomultico <- fixeff_modelbuild.models.converged[-c(7,9)]
+fixeff_modelbuild.forms.nomultico <- fixeff_modelbuild.forms.converged[-c(7,9)]
 fixeff_modelbuild.effectstruct.nomultico <- GetName(fixeff_modelbuild.forms.nomultico, effects = 'fixed')
 
 # 4. Binned residuals (ideally >95% within SE, but >90% is satisfactory)
@@ -460,12 +510,14 @@ interaction_modelbuild.check <- CheckModels(interaction_modelbuild.models)%>%
 # function identifies nesting of models to calculate LTR
 fixeff_modelbuild.selection <- ModelComp(fixeff_modelbuild.models.nomultico) %>% 
   `row.names<-`(fixeff_modelbuild.effectstruct.nomultico)
+fixeff_modelbuild.multico.check <- CheckModels(fixeff_modelbuild.models.nomultico)%>% 
+  `row.names<-`(fixeff_modelbuild.effectstruct.nomultico)
 
 # No significant differences between pairwise LTR, negligble chenge in AIC/BIC
 # Model selected = Reported Exposure + Grouped Method + Sequencing Gene + Participant Seropositivity
 # Model effects sent to file as part of fixeff_modelbuild.nomultico.effects
 model_selected <- fixeff_modelbuild.models.nomultico[[7]]
-
+model_selected.form <- fixeff_modelbuild.forms.nomultico[[7]]
 
 ###################################################################################################
 ###################################################################################################
@@ -473,8 +525,68 @@ model_selected <- fixeff_modelbuild.models.nomultico[[7]]
 # SA1. Influence of Individual Studies
 # SA2. Exclusion of small sample sizes (less than n = 10)
 # SA3. Exclusion of studies with 0 multiple founder variants
-# SA4. Resampling of participants for which we have multiple measurments (takes pre-formatted DF)
-# SA5. Optimisation Algorithm selected by glmerCrtl
+# SA4. Exclusion of all studies that do not use SGA
+# SA5. Resampling of participants for which we have multiple measurments (takes pre-formatted DF)
+# SA6. Optimisation Algorithm selected by glmerCrtl
+
+# SA1. Influence of Individual Studies (LOOCV)
+df_loocv <- LOOCV.dat(df)[[1]]
+publist_loocv <- LOOCV.dat(df)[[2]]
+
+model_selected.influence <- mclapply(CalcRandMetaReg, df_loocv, 
+                                     formula = model_selected.form,
+                                     opt = 'bobyqa',
+                                     mc.cores = 4,
+                                     mc.set.seed = FALSE) %>%
+  DFInfluence(., labs = publist_loocv) 
+
+
+# SA2. Exclusion of small sample sizes (less than n = 10)
+publist.nosmallsample <- subset(df_props , subjects > 9 , select = publication_) %>%
+  pull(.,var=publication_) %>%
+  unique()
+
+df.nosmallsample <- df[df$publication_ %in% publist.nosmallsample,]
+
+model_selected.nosmallsample <- CalcRandMetaReg(df.nosmallsample, model_selected.form, opt = 'bobyqa')
+model_selected.nosmallsample.out <- list(CheckModels(model_selected.nosmallsample), 
+                                         GetEffects(model_selected.nosmallsample, label = 'no_small')) 
+
+
+# SA3. Exclusion of studies with 0 multiple founder variants 
+publist.nozeros <- subset(df_props , multiplefounders != 0 , select = publication) %>%
+  pull(.,var=publication) %>%
+  unique()
+
+df.nozeros <- df[df$publication %in% publist.nozeros,]
+
+model_selected.nozeros <- CalcRandMetaReg(df.nozeros, model_selected.form, opt = 'bobyqa')
+model_selected.nozeros.out <- list(CheckModels(model_selected.nozeros), 
+                                   GetEffects(model_selected.nozeros, label = 'no_small')) 
+
+
+# SA4. Exclusion of all studies that do not use SGA
+publist.sgaonly <- subset(df , sample.amplification == 'SGA', select = publication) %>%
+  pull(.,var=publication) %>%
+  unique()
+
+df.sgaonly <- df[df$publication %in% publist.sgaonly,]
+
+model_selected.sgaonly <- CalcRandMetaReg(df.sgaonly, model_selected.form, opt = 'bobyqa')
+model_selected.sgaonly.out <- list(CheckModels(model_selected.sgaonly), 
+                                   GetEffects(model_selected.sgaonly, label = 'no_small')) 
+
+
+# SA5. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
+resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(., noreps = FALSE)
+
+model_selected.boot_participant <- BootMetaReg(resampling_df , 1000)
+
+
+# SA6. Optimisation Algorithm selected by glmerCrtl
+opt.algo <- c('bobyqa', 'Nelder_Mead')
+algo <- lapply(opt.algo, function(x) CalcRandMetaReg(df , model_selected.form, opt = x))
+lapply(algo, check_convergence)
 
 
 ###################################################################################################
