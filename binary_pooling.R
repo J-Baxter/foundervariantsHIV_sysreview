@@ -311,7 +311,7 @@ BootParticipant <- function(data, replicates){
 # Import data
 setwd("./data")
 df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(., noreps = TRUE)
-df_props <- CalcProps(df,reported.exposure,grouped.method,sequencing.gene)  
+df_props <- CalcProps(df)  
 
 # Set seed
 set.seed(4472)
