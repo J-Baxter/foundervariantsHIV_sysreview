@@ -263,22 +263,47 @@ GetName <- function(x, effects = NULL) {
 ModelComp <- function(modellist){
   len <- length(modellist)-1
   lrt <- list()
+  n <- names(modellist)
   for (i in 1:len){
-    lrt[[i]] <- anova(modellist[[i]], modellist[[i+1]])
+    if(is_nested_models(modellist[[i]], modellist[[i+1]])[1]){
+      print(paste('1Models' , n[i] ,'and' , n[i+1], 'are nested.'))
+      lrt[[i]] <- anova(modellist[[i]], modellist[[i+1]])
+      
+    }else if(is_nested_models(modellist[[i-1]], modellist[[i+1]])[1]){
+      print(paste('3Models' , n[i-1] ,'and' , n[i+1], 'are nested.'))
+      lrt[[i]] <- anova(modellist[[i-1]], modellist[[i+1]])
+      
+    }else if(is_nested_models(modellist[[i-2]], modellist[[i+1]])[1]){
+      print(paste('4Models' , n[i-2] ,'and' , n[i+1], 'are nested.'))
+      lrt[[i]] <- anova(modellist[[i-2]], modellist[[i+1]])
+      
+    }else{
+      print('model not nested, comparing to base model')
+      lrt[[i]] <- anova(modellist[[1]], modellist[[i]])
+    }
+    
   }
   rt.df <- do.call(rbind.data.frame, lrt) %>% 
-    subset(!duplicated(AIC)) %>%
-    `row.names<-` (names(modellist))
+    subset(!duplicated(AIC)) #%>%
+    #`row.names<-` (names(modellist))
   
-  return(rt.df)
+  log.loss <- lapply(modellist, performance_logloss) %>% do.call(rbind.data.frame, .)
+  r2 <- lapply(modellist, r2_nakagawa) %>% do.call(rbind.data.frame, .)
+  ICC <- lapply(modellist, icc) %>% do.call(rbind.data.frame, .)
+  temp <- cbind.data.frame(log.loss, r2, ICC) %>% 
+    `colnames<-` (c('log_loss', 'R2_conditional', 'R2_marginal' , 'ICC_adjusted', 'ICC_conditional'))
+  out <- cbind.data.frame(rt.df , temp)
+  
+  return(out)
 }
 
 
-# Pipeline for check_singularity and check_convergence functions
+# Pipeline for check_singularity, check_convergence and logloss functions
 CheckModels <- function(modellist){
   require(performance)
   is.sing <- lapply(modellist, check_singularity) %>% do.call(rbind.data.frame, .)
   is.con <- lapply(modellist, check_convergence) %>% do.call(rbind.data.frame, .)
+  
   
   out <- cbind.data.frame(is.sing, is.con) %>% 
   `colnames<-` (c('is.singular', 'converged'))
@@ -401,15 +426,18 @@ fixeff_modelbuild.effectstruct.converged <- GetName(fixeff_modelbuild.forms.conv
 
 # 3. Check for multicollinearity between fixed effects
 fe_multico <- lapply(fixeff_modelbuild.models.converged, check_collinearity)
+fixeff_modelbuild.models.nomultico <- fixeff_modelbuild.models.converged[-c(7,9)]
+fixeff_modelbuild.forms.nomultico <- fixeff_modelbuild.models.converged[-c(7,9)]
+fixeff_modelbuild.effectstruct.nomultico <- GetName(fixeff_modelbuild.forms.nomultico, effects = 'fixed')
 
 # 4. Binned residuals (ideally >95% within SE, but >90% is satisfactory)
-binned <- lapply(fixeff_modelbuild.models.converged, binned_residuals)
+binned <- lapply(fixeff_modelbuild.models.nomultico, binned_residuals)
 binnedplots <- PlotBinned(binned)
 
 # Extract fixed and random effects for models that satisfy model checks and assumptions
-fixeff_modelbuild.effects <- RunParallel(GetEffects, fixeff_modelbuild.models.converged, fixeff_modelbuild.effectstruct)
+fixeff_modelbuild.nomultico.effects <- RunParallel(GetEffects, fixeff_modelbuild.models.nomultico, fixeff_modelbuild.effectstruct.nomultico)
 
-# Models f1-f5 & f7 converge. f7 is later discounted due to a high degree of collinearity between
+# Models f0-f5 & f8 converge. f7 and f10 is discounted due to a high degree of collinearity between
 # gene.segment and alignment.length
 # Final selection concluded following evaluation of interaction terms
 
@@ -428,14 +456,20 @@ interaction_modelbuild.check <- CheckModels(interaction_modelbuild.models)%>%
 # No interaction models converge succesfully
 
 ###################################################################################################
-# Selection of fixed effects structures
-# -7 removes sequencing.gene + alignment length that was found to show a a high degree of multicollinearity
+# Model selection
+# function identifies nesting of models to calculate LTR
+fixeff_modelbuild.selection <- ModelComp(fixeff_modelbuild.models.nomultico) %>% 
+  `row.names<-`(fixeff_modelbuild.effectstruct.nomultico)
 
-fixeff_modelbuild.selection <- ModelComp(fixeff_modelbuild.models.converged[-7]) %>% 
-  cbind.data.frame(model = fixeff_modelbuild.effectstruct.converged[-7])
+# No significant differences between pairwise LTR, negligble chenge in AIC/BIC
+# Model selected = Reported Exposure + Grouped Method + Sequencing Gene + Participant Seropositivity
+# Model effects sent to file as part of fixeff_modelbuild.nomultico.effects
+model_selected <- fixeff_modelbuild.models.nomultico[[7]]
+
 
 ###################################################################################################
-# Sensitivity Analyses
+###################################################################################################
+# Sensitivity analyses on selected model
 # SA1. Influence of Individual Studies
 # SA2. Exclusion of small sample sizes (less than n = 10)
 # SA3. Exclusion of studies with 0 multiple founder variants
