@@ -622,6 +622,10 @@ lapply(algo, check_convergence)
 ###################################################################################################
 ###################################################################################################
 # Outputs to file
+# Effect files contain intercept, fixed and random effects including CI
+# Selection file includes AIC, loglikelihood, R2, logloss and LRT (as calculated)
+# Sensitivity analyses to follow
+
 t1 <- Effects2File(raneff.effects) # Error 
 t1.names <- c('raneff_int.csv', 'raneff_fe.csv', 'raneff_re.csv')
 mapply(write.csv, t1, file = t1.names, row.names = T)
@@ -634,6 +638,8 @@ t3 <- Effects2File(fixeff_modelbuild.nomultico.effects)
 t3.names <- c('fixef_modelbuild_int.csv', 'fixef_modelbuild_fe.csv', 'fixef_modelbuild_re.csv')
 mapply(write.csv, t3, file = t3.names, row.names = T)
 
+t4 <- rbind.data.frame(raneff.selection, fixeff_modelbuild.selection)
+write.csv(t4, 'model_selection.csv')
 ###################################################################################################
 ###################################################################################################
 # END # 
