@@ -412,13 +412,13 @@ influence_df <- rbind.data.frame(twostep_binorm.influence,
 
 
 # SA2. Exclusion of small sample sizes (less than n = 10)
-publist.nosmallsample <- subset(df_props , subjects > 9 , select = publication) %>%
-  pull(.,var=publication) %>%
+publist.nosmallsample <- subset(df_props , subjects > 9 , select = publication_) %>%
+  pull(.,var=publication_) %>%
   unique()
 
-df.nosmallsample <- df[df$publication %in% publist.nosmallsample,]
+df.nosmallsample <- df[df$publication_ %in% publist.nosmallsample,]
 
-df_props.nosmallsample <- df[df$publication %in% publist.nosmallsample,]
+df_props.nosmallsample <- df_props[df_props$publication %in% publist.nosmallsample,]
 
 twostep_binorm.nosmallsample <- CalcTwostepBiNorm(df_props.nosmallsample)[[2]]
 twostep_binorm.nosmallsample.out <- list(CalcEstimates(twostep_binorm.nosmallsample, analysis = "no_small"),
@@ -441,13 +441,13 @@ SA2_results <-  rbind.data.frame(twostep_binorm.nosmallsample.out,
 
 
 # SA3. Exclusion of studies with 0 multiple founder variants 
-publist.nozeros <- subset(df_props , multiplefounders != 0 , select = publication) %>%
-  pull(.,var=publication) %>%
+publist.nozeros <- subset(df_props , multiplefounders != 0 , select = publication_) %>%
+  pull(.,var=publication_) %>%
   unique()
 
-df.nozeros <- df[df$publication %in% publist.nozeros,]
+df.nozeros <- df[df$publication_ %in% publist.nozeros,]
 
-df_props.nozeros <- df[df$publication %in% publist.nozeros,]
+df_props.nozeros <- df_props[df_props$publication %in% publist.nozeros,]
 
 twostep_binorm.nozeros <- CalcTwostepBiNorm(df_props.nozeros)[[2]]
 twostep_binorm.nozeros.out <- list(CalcEstimates(twostep_binorm.nozeros, analysis = "no_zeros"),
@@ -469,26 +469,26 @@ SA3_results <- rbind.data.frame(twostep_binorm.nozeros.out,
                                 twostep_betabi.nozeros.out)
 
 # SA4. Exclusion of all studies that do not use SGA
-publist.sgaonly <- subset(df , sample.amplification == 'SGA' , select = publication) %>%
-  pull(.,var=publication) %>%
+publist.sgaonly <- subset(df , sample.amplification_ == 'SGA' , select = publication_) %>%
+  pull(.,var=publication_) %>%
   unique()
 
-df.sgaonly <- df[df$publication %in% publist.sgaonly,]
+df.sgaonly <- df[df$publication_ %in% publist.sgaonly,]
 
-df_props.sgaonly <- df_props[df_props$publication %in% publist.sgaonly,]
+df_props.sgaonly <- df_props[df_props$publication_ %in% publist.sgaonly,]
 
 twostep_binorm.sgaonly <- CalcTwostepBiNorm(df_props.sgaonly)[[2]]
-twostep_binorm.sgaonly.out <- list(CalcEstimates(twostep_binorm.sgaonly, analysis = "no_zeros"),
+twostep_binorm.sgaonly.out <- list(CalcEstimates(twostep_binorm.sgaonly, analysis = "sga_only"),
                                    CalcHet(twostep_binorm.sgaonly)) %>%
   cbind.data.frame(.)
 
 onestep_bi_rand.sgaonly <- CalcOnestepBiRand(df_props.sgaonly)
-onestep_bi_rand.sgaonly.out <- list(CalcEstimates(onestep_bi_rand.sgaonly, analysis = "no_zeros"),
+onestep_bi_rand.sgaonly.out <- list(CalcEstimates(onestep_bi_rand.sgaonly, analysis = "sga_only"),
                                     CalcHet(onestep_bi_rand.sgaonly)) %>%
   cbind.data.frame(.)
 
 twostep_betabi.sgaonly <- CalcTwostepBetaBi(df_props.sgaonly)
-twostep_betabi.sgaonly.out <- list(CalcEstimates(twostep_betabi.sgaonly , analysis = "no_zeros"),
+twostep_betabi.sgaonly.out <- list(CalcEstimates(twostep_betabi.sgaonly , analysis = "sga_only"),
                                    CalcHet(twostep_betabi.sgaonly)) %>%
   cbind.data.frame(.) 
 
@@ -512,7 +512,7 @@ pooled_est <- rbind.data.frame(originals,
                                SA3_results,
                                SA4_results) %>% .[,-c(6,11)]
 
-write.csv(pooled_est , file = 'bp_estsa2sa3.csv', row.names = F)
+write.csv(pooled_est , file = 'bp_estsa2sa3sa4.csv', row.names = F)
 
 
 # CSV study influence

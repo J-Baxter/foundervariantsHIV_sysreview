@@ -549,7 +549,7 @@ fixeff_modelbuild.multico.check <- CheckModels(fixeff_modelbuild.models.nomultic
 # Model effects sent to file as part of fixeff_modelbuild.nomultico.effects
 model_selected <- fixeff_modelbuild.models.nomultico[[7]]
 model_selected.form <- fixeff_modelbuild.forms.nomultico[[7]]
-
+model_selected.effectstruct <- GetName(model_selected.form, effects = 'fixed')
 ###################################################################################################
 ###################################################################################################
 # Sensitivity analyses on selected model
