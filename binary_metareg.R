@@ -176,22 +176,42 @@ GetEffects <- function(model, label = "original"){
   fix_df <- fix_df[which(!is.na(fix_df$level)),]
   
   # Extract Random Effects
-  re <- ranef(model)
-  re.mean <- lapply(re, function(x) mean(x$`(Intercept)`)) %>%
-    do.call(rbind.data.frame,.) %>% `colnames<-` ('mean')
+  if (length(ranef(model)) > 1){
+    re <- ranef(model)
+    re.mean <- lapply(re, function(x) mean(x$`(Intercept)`)) %>%
+      do.call(rbind.data.frame,.) %>% `colnames<-` ('mean')
+    
+    re.sd <- VarCorr(model) %>% as.data.frame()
+    
+    ci.re <- ci[1:re.num,]
+    
+    re_df <- cbind.data.frame(groups = gsub('_', '', re.sd[,1]),
+                              mean = re.mean,
+                              vcov = re.sd[,4],
+                              sd = re.sd[,5],
+                              ci.lb = ci.re[,1],
+                              ci.ub = ci.re[,2],
+                              analysis = label) %>% 
+      `row.names<-` (NULL)
+  }else{
+    re <- ranef(model)
+    re.mean <- lapply(re, function(x) mean(x$`(Intercept)`)) %>%
+      do.call(rbind.data.frame,.) %>% `colnames<-` ('mean')
+    
+    re.sd <- VarCorr(model) %>% as.data.frame()
+    
+    ci.re <- ci[1:re.num,]
+    
+    re_df <- cbind.data.frame(groups = gsub('_', '', re.sd[,1]),
+                              mean = re.mean,
+                              vcov = re.sd[,4],
+                              sd = re.sd[,5],
+                              ci.lb = ci.re[1],
+                              ci.ub = ci.re[2],
+                              analysis = label) %>% 
+      `row.names<-` (NULL)
+  }
   
-  re.sd <- VarCorr(model) %>% as.data.frame()
-  
-  ci.re <- ci[c(1,re.num),]
-  
-  re_df <- cbind.data.frame(groups = gsub('_', '', re.sd[,1]),
-                            mean = re.mean,
-                            vcov = re.sd[,4],
-                            sd = re.sd[,5],
-                            ci.lb = ci.re[,1],
-                            ci.ub = ci.re[,2],
-                            analysis = label) %>% 
-    `row.names<-` (NULL)
   
   out <- list(int_df, fix_df, re_df) %>% `names<-` (c('int' , 'fe', 're'))
   
@@ -359,6 +379,17 @@ BootMetaReg <- function(data, replicates){
   out <- cbind.data.frame(rand_boot.est, rand_boot.het)
   
   
+  return(out)
+}
+
+
+Effects2File <- function(effectslist){
+  int <- lapply(effectslist, function(x) x$int) %>% do.call(rbind.data.frame, .)
+  fe <- lapply(effectslist, function(x) x$fe) %>% do.call(rbind.data.frame, .)
+  re <- lapply(effectslist, function(x) x$re) %>% do.call(rbind.data.frame, .)
+  
+  out <- list(int, fe, re)
+  names(out) <- c('int', 'fe', 're')
   return(out)
 }
 
@@ -591,9 +622,17 @@ lapply(algo, check_convergence)
 ###################################################################################################
 ###################################################################################################
 # Outputs to file
+t1 <- Effects2File(raneff.effects) # Error 
+t1.names <- c('raneff_int.csv', 'raneff_fe.csv', 'raneff_re.csv')
+mapply(write.csv, t1, file = t1.names, row.names = T)
 
-write.csv(raneff_selection, file = 'raneff_selection.csv', row.names = T)
-write.csv(fixeff_uni.fe_df, file = 'fixeff_uni.csv', row.names = T)
+t2 <- Effects2File(fixeff_uni.effects) #fixef_univariate
+t2.names <- c('fixef_univariate_int.csv', 'fixef_univariate_fe.csv', 'fixef_univariate_re.csv')
+mapply(write.csv, t2, file = t2.names, row.names = T)
+
+t3 <- Effects2File(fixeff_modelbuild.nomultico.effects)
+t3.names <- c('fixef_modelbuild_int.csv', 'fixef_modelbuild_fe.csv', 'fixef_modelbuild_re.csv')
+mapply(write.csv, t3, file = t3.names, row.names = T)
 
 ###################################################################################################
 ###################################################################################################
