@@ -57,7 +57,7 @@ formatDF <-  function(df, noreps = TRUE, filter = NULL){
 # Can be stratified with additional covariates
 CalcProps <- function(.data, ...){
   .data %>% 
-    group_by(publication_, ...) %>%
+    group_by(publication_, !!sym(...)) %>%
     summarise(subjects = n(), multiplefounders = sum(multiple.founders_)) %>% 
     as.data.frame()
   
