@@ -38,8 +38,10 @@ formatDF <-  function(df, noreps = TRUE, filter = NULL){
       looped_df <- looped_df[!looped_df[[fac]] %in% names(tbl)[tbl < 6],]
     }
     
+    
     df_splittrans <- colsplit(looped_df$reported.exposure, ":" , c("riskgroup" , "direction")) %>%
       cbind.data.frame(.,looped_df)
+    df_splittrans <- df_splittrans[!(df_splittrans$reported.exposure %in% "unknown.exposure"), ]
     
   }else{
     df_splittrans <- colsplit(df_labelled$reported.exposure, ":" , c("riskgroup" , "direction")) %>%
