@@ -87,5 +87,30 @@ CalcCI <- function(u,se,threshold){
   return(ci)
 }
 
+
+###################################################################################################
+# Set baseline contasts for GLMM
+SetBaseline <- function(data,covar,baseline){
+  dataframe <- data
+  
+  stopifnot(length(covar) == length(baseline))
+  
+  for (i in 1:length(covar)){
+    covar. = covar[i]
+    baseline. = paste0("(?<!\\S)", baseline[i], "(?!\\S)")
+    if(class(dataframe[,covar.]) == 'factor'){
+      int <- grep(baseline. , levels(dataframe[,covar.]), perl = T)
+      dataframe[,covar.] <- relevel(dataframe[,covar.],  int)
+      
+      print('Baseline Covariates:')
+      print(levels(dataframe[,covar.])[1])
+      
+    }else{
+      warning('requires factor as input.')
+    }
+  }
+  
+  return(dataframe)
+}
 ###################################################################################################
 ###################################################################################################
