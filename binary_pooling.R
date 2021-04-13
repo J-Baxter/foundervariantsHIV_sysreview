@@ -325,6 +325,9 @@ BootParticipant <- function(data, replicates){
 setwd("./data")
 df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(., noreps = TRUE)
 df_props <- CalcProps(df)  
+publist <- df %>%
+  pull(.,var=publication_) %>%
+  unique()
 
 # Set seed
 set.seed(4472)
@@ -529,12 +532,19 @@ write.csv(influence_df, file = 'bp_sa1.csv',row.names = F)
 # CSV resampling (pseudo bootstrapping)
 write.csv(boot_participant, file = 'bp_resampl.csv',row.names = F)
 
-# Forest Plot 2-step BN
-pdf("testplot.pdf" , width = 14 , height = 20)
-forest(twostep_binorm.step2 , showweights = TRUE, slab = sort(publist) , transf = transf.ilogit, header = TRUE, digits = 3,
-       refline = 0.283, ilab = cbind(df_props$multiplefounders, df_props$subjects), ilab.xpos = c(-0.9, -0.4), psize = 1, cex = 0.75,
-       )
-text(c(-0.9,-0.4), 79, c('Multiple Founders' , 'Subjects') , font = 2)
+# Forest Plot 1-step BN
+jpeg("testplot.jpeg" ,width = 5250, height = 6500, res = 380 ,units = "px", pointsize = 12)
+meta::metaprop(data = df_props,
+               n = subjects,
+               event = multiplefounders,
+               studlab = sort(publist) %>% gsub("_" , " " , .),
+               method = 'GLMM',
+               sm = 'PLOGIT',
+               incr = 0.0005,
+               allincr = F,
+               comb.fixed = F,
+               method.tau = 'ML') %>% meta::forest(hetstat = 'random')
+
 
 dev.off()
 

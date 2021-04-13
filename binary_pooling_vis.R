@@ -21,7 +21,7 @@ PltBoot <- function(data, intercept, ci.lb, ci.ub){
     
     #geom_vline(aes(xintercept=mean(estimate)),color="#DC0000B2", linetype="dashed", size=1) +
     geom_vline(aes(xintercept= intercept),
-               color="#00A087B2", 
+               color="#3CBB7577", #00A087B2
                linetype="dashed", 
                size=1) +
     
@@ -39,7 +39,7 @@ PltBoot <- function(data, intercept, ci.lb, ci.ub){
               ymin=0, ymax=Inf,
               xmin=ci.lb, xmax=ci.ub
               ,alpha = .1,
-              fill = "#00A087B2") +
+              fill = "#3CBB7577") +
     
     theme(axis.text = element_text(size = 10.5,  family = "sans"),
           legend.text = element_text(size = 10.5,  family = "sans"),
@@ -56,7 +56,7 @@ setwd("./data")
 
 influence_df <- read.csv("bp_sa1.csv") %>% arrange(., model)
 
-pooled_models <-  read.csv('bp_estsa2sa3.csv')
+pooled_models <-  read.csv('bp_estsa2sa3sa4.csv')
 
 resampled_models <- read.csv('bp_resampl.csv')
 
@@ -101,7 +101,7 @@ ggplot(twostep_binorm.step1, aes(x=log_or)) + geom_histogram(binwidth = 0.25,col
 
 # Exclusion critera dot and whisker plot
 senseplot <- ggplot(pooled_models,
-                    aes(x= model, y = estimate, color = analysis)) +
+                    aes(x= forcats::fct_rev(model), y = estimate, color = analysis)) +
   
   geom_point( shape = 4, 
               size = 4,
@@ -113,9 +113,10 @@ senseplot <- ggplot(pooled_models,
   
   scale_x_discrete(name = "Model", 
                    labels = c(
-                     twostep_binorm = "BN",
+                     onestep_bi_rand= "GLM",
                      twostep_betabi = "BB",
-                     onestep_bi_rand= "Random")) +
+                     twostep_binorm = "BN"
+                     )) +
   theme_classic() + 
   
   coord_flip() +
@@ -125,20 +126,21 @@ senseplot <- ggplot(pooled_models,
                      color = analysis), 
                  position = position_dodge(0.5)) +
   
-  scale_color_npg(name = NULL, labels = c(
+  scale_color_viridis_d(name = NULL, labels = c(
     no_small = "Studies with (n<10) omitted",
     no_zeros = "Studies with (p=0) omitted",
-    original = "Full analysis")) + 
+    original = "Full analysis",
+    sga_only = 'Only SGA sequences')) + 
   
-  theme(legend.position = "top",
+  theme(legend.position = "bottom",
         axis.text = element_text(size = 10.5,  family = "sans"),
         legend.text = element_text(size = 10.5,  family = "sans"),
-        axis.title = element_text(size = 13,  family = "sans"),
-        plot.margin = unit(c(2,4,2,1), "lines")
+        axis.title = element_text(size = 13,  family = "sans")#,
+        #plot.margin = unit(c(2,4,2,1), "lines")
   )
 
 # Resampling histograms - requires model input from binary_pooling.R
-resampled_models.list <- split.data.frame(resampled_models, resampled_models$analysis) %>%
+resampled_models.list <- split.data.frame(resampled_models, resampled_models$analysis) 
 
 plt_boot.list <- mapply(PltBoot, data = resampled_models.list, 
                         intercept = og_models[,2], 
@@ -146,10 +148,12 @@ plt_boot.list <- mapply(PltBoot, data = resampled_models.list,
                         ci.ub = og_models[,4],
                         SIMPLIFY = FALSE)
 
-plt_boot.grid <- cowplot::plot_grid(plotlist = plt_boot.list , align = "hv" , nrow = 2, ncol = 2 , labels = c("B" , 'C' , "D" , "E"))
+plt_boot.grid <- cowplot::plot_grid(plotlist = plt_boot.list , align = "hv" , nrow = 3, labels = c("B" , 'C' , "D" , "E"))
 
+jpeg("pooling_sa.jpeg" ,width = 4500, height = 4000, res = 380 ,units = "px", pointsize = 12)
 cowplot::plot_grid(senseplot, 
-                   plt_boot.grid , nrow = 2,  rel_heights = c(1, 1) ,labels = "A")
+                   plt_boot.grid , ncol = 2,  rel_widths  = c(1, 0.5) ,labels = "A", align = 'h', axis = 'b', greedy = F)
+dev.off()
 
 
 ###################################################################################################
@@ -183,14 +187,15 @@ plt <- ggplot(influence_df,aes(x = trial , y = estimate) ) +
   geom_hline(data = og_models, 
              aes(yintercept = estimate),
              linetype="dashed", 
-             color = "#DC0000FF",
+             color = "springgreen4",
              size=0.75) +
   
   geom_rect(data = og_models, 
             inherit.aes = FALSE,
             aes(ymin=estimate.lb, ymax=estimate.ub, 
                 xmin = -Inf, xmax = Inf),
-            fill = "#DC000033") +
+            fill = "#3CBB7577",
+            alpha = 0.1) +
   
   theme(axis.line.y =element_blank(),
     axis.title.y =element_blank(),
@@ -205,6 +210,7 @@ jpeg(filename = 'influenceplot.jpeg', res = 350, width=2750, height=4000 , units
 plt
 
 dev.off()
+
 
 
 ###################################################################################################
