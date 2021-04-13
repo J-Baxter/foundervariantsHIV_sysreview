@@ -61,11 +61,18 @@ formatDF <-  function(df, noreps = TRUE, filter = NULL){
 # Sums number of patients within each study and number of infections initiated by multiple founders. 
 # Can be stratified with additional covariates
 CalcProps <- function(.data, ...){
-  .data %>% 
-    group_by(publication_, !!sym(...)) %>%
-    summarise(subjects = n(), multiplefounders = sum(multiple.founders_)) %>% 
-    as.data.frame()
-  
+  if (nargs()>1){
+    .data %>% 
+      group_by(publication_, !!sym(...)) %>%
+      summarise(subjects = n(), multiplefounders = sum(multiple.founders_)) %>% 
+      as.data.frame()
+  }else{
+    .data %>% 
+      group_by(publication_) %>%
+      summarise(subjects = n(), multiplefounders = sum(multiple.founders_)) %>% 
+      as.data.frame()
+  }
+
 }
 
 
