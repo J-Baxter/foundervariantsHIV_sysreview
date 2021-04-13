@@ -24,10 +24,12 @@ formatDF <-  function(df, noreps = TRUE, filter = NULL){
   
   if (noreps == TRUE){
     df_nodups <- df_nona[(df_nona$include.main == '') & (df_nona$exclude.repeatstudy == ''),]
-    df_labelled <- unite(df_nodups, "publication", c(author ,year), sep = '_')
+    df_labelled <- unite(df_nodups, "publication", c(author ,year), sep = '_', remove = FALSE) %>%
+      subset(-author)
     
   }else{
-    df_labelled <- unite(df_nona, "publication", c(author ,year), sep = '_')
+    df_labelled <- unite(df_nona, "publication", c(author ,year), sep = '_', remove = FALSE) %>%
+      subset(-author)
   }
   
   if(is.character(filter)){
@@ -40,8 +42,9 @@ formatDF <-  function(df, noreps = TRUE, filter = NULL){
     
     
     df_splittrans <- colsplit(looped_df$reported.exposure, ":" , c("riskgroup" , "direction")) %>%
+      type.convert() %>%
       cbind.data.frame(.,looped_df)
-    df_splittrans <- df_splittrans[!(df_splittrans$reported.exposure %in% "unknown.exposure"), ]
+    #df_splittrans <- df_splittrans[!(df_splittrans$reported.exposure %in% "unknown.exposure"), ]
     
   }else{
     df_splittrans <- colsplit(df_labelled$reported.exposure, ":" , c("riskgroup" , "direction")) %>%
