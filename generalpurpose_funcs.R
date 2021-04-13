@@ -25,11 +25,11 @@ formatDF <-  function(df, noreps = TRUE, filter = NULL){
   if (noreps == TRUE){
     df_nodups <- df_nona[(df_nona$include.main == '') & (df_nona$exclude.repeatstudy == ''),]
     df_labelled <- unite(df_nodups, "publication", c(author ,year), sep = '_', remove = FALSE) %>%
-      subset(-author)
+      select(-author)
     
   }else{
     df_labelled <- unite(df_nona, "publication", c(author ,year), sep = '_', remove = FALSE) %>%
-      subset(-author)
+      select(-author)
   }
   
   if(is.character(filter)){
