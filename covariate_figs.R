@@ -43,11 +43,25 @@ GetNumSeqs <- function(df){
 }
 
 
+# Format categorical X axis tick lables
+LabelX <- function(xvar, caps){
+  if (class(xvar) == 'factor'){
+    labs <- gsub("[.]" , " ", levels(xvar)) %>%
+      str_wrap(.,width = 10)
+  } else{
+    warning('variable is not discrete')
+  }
+  
+  return(labs)
+}
 ###################################################################################################
 ###################################################################################################
-# Import data
+# Import data (as for meta regression)
 setwd("./data")
-df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF()
+df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
+  formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene')) %>%
+  filter(reported.exposure_ != 'unknown.exposure') %>%
+  droplevels()
 
 
 ###################################################################################################
@@ -67,13 +81,14 @@ labs <- c('Multiple','Sinlge')
 
 ###################################################################################################
 # 1.1 Method
-p1.method <- ggplot(df, aes(grouped.method))+
-  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders)), colour = forcats::fct_rev(factor(multiple.founders))))+
+p1.method <- ggplot(df, aes(grouped.method_))+
+  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), colour = forcats::fct_rev(factor(multiple.founders_))))+
   scale_color_manual(values = mycols_founder, labels = labs)+
   scale_fill_manual(values = mycols_founder, labels = labs)+
-  ylim(0,1000)+
+  scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
+  scale_x_discrete(labels = LabelX(df$grouped.method_) %>% str_to_title()) +
   theme_classic()+
-  xlab('Grouped Method')+
+  xlab('Method of Quantification')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
   ylab('Frequency')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
@@ -81,11 +96,12 @@ p1.method <- ggplot(df, aes(grouped.method))+
 
 ###################################################################################################
 # 1.2 Seroconversion (poss stack infant and NA together)
-p1.seropos <- ggplot(df, aes(participant.seropositivity))+ 
-  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders)), colour = forcats::fct_rev(factor(multiple.founders))))+
+p1.seropos <- ggplot(df, aes(participant.seropositivity_))+ 
+  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), colour = forcats::fct_rev(factor(multiple.founders_))))+
   scale_color_manual(values = mycols_founder, labels = labs)+
   scale_fill_manual(values = mycols_founder, labels = labs)+
-  ylim(0,1000)+
+  scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
+  scale_x_discrete(labels = LabelX(df$participant.seropositivity_) %>% str_to_title()) +
   theme_classic()+
   xlab('Seropositivity')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
@@ -95,11 +111,11 @@ p1.seropos <- ggplot(df, aes(participant.seropositivity))+
 
 ###################################################################################################
 # 1.3 Subtype
-p1.subtype <- ggplot(df, aes(grouped.subtype))+
-  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders)), colour = forcats::fct_rev(factor(multiple.founders))))+
+p1.subtype <- ggplot(df, aes(grouped.subtype_))+
+  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), colour = forcats::fct_rev(factor(multiple.founders_))))+
   scale_color_manual(values = mycols_founder, labels = labs)+
   scale_fill_manual(values = mycols_founder, labels = labs)+
-  ylim(0,1000)+
+  scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
   theme_classic()+
   xlab('Subtype')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
@@ -115,22 +131,23 @@ p1.numseq <- ggplot(numseqs_df , aes(sequencing.number))+
   geom_histogram(binwidth=5, (aes(fill = forcats::fct_rev(factor(multiple.founders)), colour = forcats::fct_rev(factor(multiple.founders)))))+
   scale_color_manual(values = mycols_founder, labels = labs)+
   scale_fill_manual(values = mycols_founder, labels = labs)+
-  ylim(0,1000)+
+  scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
   theme_classic()+
-  xlab('Number of Consensus Genomes Analysed')+
+  xlab('Number of Consensus Sequences')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
   ylab('Frequency') +
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
 
 ###################################################################################################
-# 1.5 Route of transmission (reported.exposure)
+# 1.5 Route of transmission (riskgroup)
 
-p1.exposure <- ggplot(df, aes(riskgroup))+
-  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders)), colour = forcats::fct_rev(factor(multiple.founders))))+
+p1.exposure <- ggplot(df, aes(riskgroup_))+
+  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), colour = forcats::fct_rev(factor(multiple.founders_))))+
   scale_color_manual(values = mycols_founder, labels = labs)+
   scale_fill_manual(values = mycols_founder, labels = labs)+
-  ylim(0,1000)+
+  scale_y_continuous(limits = c(0,1000), expand = c(0,0)) +
+  scale_x_discrete(labels = LabelX(df$riskgroup_)) +
   theme_classic()+
   xlab('Reported Exposure')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
@@ -147,27 +164,120 @@ p1.6 <- ggplot(exposures_df, aes(x = reported.exposure , y = frequency))+
   geom_bar(stat = 'identity' , aes(fill = sub.exposure, colour = sub.exposure), position = 'stack')+
   scale_color_manual(values = mycols_method)+
   scale_fill_manual(values = mycols_method)+
+  scale_y_continuous(limits = c(0,1000), expand = c(0,0)) +
   theme_classic()+
   xlab('Exposure')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
   ylab('Frequency') + labs(fill = "Reported Exposure", colour = "Reported Exposure")
 
+###################################################################################################
+# 1.7 Sequencing Gene
+
+p1.sg <- ggplot(df, aes(sequencing.gene_))+
+  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), colour = forcats::fct_rev(factor(multiple.founders_))))+
+  scale_color_manual(values = mycols_founder, labels = labs)+
+  scale_fill_manual(values = mycols_founder, labels = labs)+
+  scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
+  scale_x_discrete(labels = c('Env', 'Gag', 'Pol', 'NFLG')) +
+  theme_classic()+
+  xlab('Gene Analysed')+
+  theme( axis.text.x=element_text(angle=45, hjust=1))+
+  ylab('Frequency')+
+  labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity") 
+
+
+###################################################################################################
+# 1.8 Alignment Length
+
+p1.alignment <- ggplot(df, aes(alignment.length_))+
+  geom_histogram(aes(fill = forcats::fct_rev(factor(multiple.founders_)), colour = forcats::fct_rev(factor(multiple.founders_))))+
+  scale_color_manual(values = mycols_founder, labels = labs)+
+  scale_fill_manual(values = mycols_founder, labels = labs)+
+  scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
+  theme_classic()+
+  xlab('Alignment Length')+
+  theme( axis.text.x=element_text(angle=45, hjust=1))+
+  ylab('Frequency')+
+  labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity") 
 
 ###################################################################################################
 # Combine basic covariate plots into figure (with labels and axis)
-plot_grid(p1.method + theme(legend.position="none"),
-          p1.subtype + theme(legend.position="none"), 
-          p1.seropos + theme(legend.position="none"),
-          p1.numseq + theme(legend.position="none"),
-          p1.exposure + theme(legend.position="none"),
-          p1.6,
-          ncol = 3 , nrow = 3,align = "hv", axis = "bt" , labels = "AUTO") 
+grid1 <- cowplot::plot_grid(p1.exposure + theme(legend.position="none"),
+                            p1.6+theme(legend.position= c(0.9,0.8)), nrow = 1 ,align = "hv", axis = "bt" , labels = "AUTO")
 
+grid2 <- cowplot::plot_grid(p1.method + theme(legend.position="none"),
+                   p1.subtype + theme(legend.position="none"), 
+                   p1.seropos + theme(legend.position="none"),
+                   p1.numseq + theme(legend.position="none"),
+                   p1.sg + theme(legend.position="none"),
+                   p1.alignment + theme(legend.position="none"),
+                   ncol = 3 , nrow = 2,align = "hv", axis = "bt" , labels = c("C", "D" , "E" , "F" , "G" , "H")) 
+
+cowplot::plot_grid(grid1, grid2, nrow = 2)
 # Print to file
 tiff("covar_barplot.tiff" , width = 14 , height = 20)
 figure1
 dev.off()
 
+###################################################################################################
+###################################################################################################
+# Geographic and Timewise structere of transmission
+
+region_exp <- df %>%
+  group_by(reported.exposure_, participant.whoregion_) %>%
+  summarise(subjects = n(), multiplefounders = sum(multiple.founders_)) %>%
+  filter(participant.whoregion_ != '') %>%
+  droplevels()
+
+p2.1 <- ggplot(region_exp,aes(x = reported.exposure_,
+                      y = participant.whoregion_,
+                      size = subjects, 
+                      color = (multiplefounders/subjects))) +
+  geom_point() + 
+  
+  theme_minimal(base_size = 10,
+                base_family = 'sans') +
+  
+  scale_color_viridis_c() +
+  
+  theme(axis.line = element_blank(),
+        legend.position = 'bottom',
+        legend.box = 'vertical') +
+  
+  scale_size(range = c(1,15)) + 
+  
+  theme(axis.text.x=element_text(angle=45, hjust=1))+
+  
+  labs(size = 'Number of Patients', 
+       color = 'Frequency of Founder Variant Multiplicity', 
+       x = 'Reported Exposure', 
+       y = 'WHO Region')
+
+p2.2 <- ggplot(df, aes(year_))+
+  geom_histogram(aes(fill = riskgroup_, 
+                     colour = riskgroup_), 
+                 bins = 8,
+                 position = 'fill') +
+  scale_color_viridis_d() +
+  scale_fill_viridis_d() +
+  scale_y_continuous(#limits = c(0,600), 
+                     expand = c(0,0)) +
+  scale_x_continuous(expand = c(0,0)) +
+  theme_classic(base_size = 10,
+                base_family = 'sans')+
+  theme(axis.text.x=element_text(angle=45, hjust=1))+
+  
+  labs(fill = 'Risk Group', 
+       x = 'Year of Publication', 
+       y = 'Proportion of Reported Infections')+
+  guides(color = FALSE)+
+  theme(legend.position = 'bottom') 
+
+grid3 <- cowplot::plot_grid(p2.1, p2.2, ncol = 2, labels = 'AUTO', align = 'hv')
+
+jpeg("geog_transmission.jpeg" ,width = 4500, height = 4000, res = 380 ,units = "px", pointsize = 12)
+grid3 
+dev.off()
 ###################################################################################################
 ###################################################################################################
 # END #
