@@ -25,7 +25,6 @@ library(dplyr)
 library(mltools)
 library(data.table)
 library(metafor)
-library(dmetar)
 library(aod)
 library(ggplot2)
 library(influence.ME)
@@ -69,8 +68,7 @@ CalcTwostepBiNorm <- function(data){
                    data = step1,
                    method = "REML",
                    knha = TRUE,
-                   measure = "PLO",
-                   nAGQ = 7)
+                   measure = "PLO")
   
   list(step1, step2) %>%
     return()
@@ -112,6 +110,11 @@ CalcEstimates <- function(model , analysis = "original", mermod.method = 'Profil
     ci.lb <- ci[nrow(ci),1]
     ci.ub <- ci[nrow(ci),2]
   }
+  else if (class(model) =="metaprop"){
+    beta <- model$TE.random
+    ci.lb <- model$lower.random
+    ci.ub <- model$upper.random
+  }
   else if (class(model) =="glimML"){
     beta <- model@param[1]
     ci <- varbin(subjects,multiplefounders, data = model@data)@tab[5,c(3,4)]
@@ -145,6 +148,11 @@ CalcHet <- function(model , analysis = "original"){
   else   if (class(model)[1] == "rma.glmm"){
     tau2 <- model$tau2 
     q <- model$QE.Wld
+    i2 <- model$I2
+    phi <- NA
+  }else   if (class(model)[1] == "metaprop"){
+    tau2 <- model$tau2$TE
+    q <- model$Q
     i2 <- model$I2
     phi <- NA
   }
@@ -211,6 +219,11 @@ DFInfluence <- function(model,labs){
       ci.lb[i] <-ci[nrow(ci),1]
       ci.ub[i] <- ci[nrow(ci),2]
     }
+    }else if (class(model) =="metaprop"){
+      beta <- model$TE.random
+      ci.lb <- model$lower.random
+      ci.ub <- model$upper.random
+    
   }else if (class(model[[1]]) =="glimML"){
     #Bootstrapped Binomial CIs-check Chuang-Stein 1993
     for (i in 1:length(model)){
@@ -242,7 +255,7 @@ BootParticipant <- function(data, replicates){
   require(metafor)
   require(dplyr)
   
-  resampled <- lapply(1:replicates, function(x,y) {y %>% group_by(participant.id) %>% slice_sample(n=1)},
+  resampled <- lapply(1:replicates, function(x,y) {y %>% group_by(participant.id_) %>% slice_sample(n=1)},
                       y = data)
   
   resampled_props <- lapply(resampled , CalcProps)
@@ -318,7 +331,6 @@ set.seed(4472)
 
 
 ###################################################################################################
-
 # 1. Two-step binomial-normal model
 # step 1: pooling within studies using binomial model/logit 
 # step 2: pooling across studies using random effects (normal model). Inverse variance method used to pool. 
@@ -339,9 +351,7 @@ twostep_binorm.het <- CalcHet(twostep_binorm)
 # 2. One-step binomial GLMM allowing for clustering by study. 
 # uncorrelated random intercept and random slope within group 
 # approx ML fit
-# Laplace approximate ML estimation
 # assumes conditional independence and follow binomial distribution
-# (1 | random.factor) + (0 + fixed.factor | random.factor) = fixed.factor + (fixed.factor || random.factor)
 
 onestep_bi_rand <- CalcOnestepBiRand(df_props) 
 onestep_bi_rand.sum <- summary(onestep_bi_rand)
@@ -357,8 +367,6 @@ onestep_bi_rand.het <- CalcHet(onestep_bi_rand)
 # individuals xi in the ith study of size ni who experience the events of interest follows a binomial 
 # distribution B(ni;pi) (From Chuang-Stein 1993).
 # Laplace approximate ML estimation
-
-
 df_props$multiplefounders[df_props$multiplefounders == 0 ] <- 0.0005 # refactor to CalcProps function
 
 twostep_betabi <- CalcTwostepBetaBi(df_props)
@@ -372,9 +380,9 @@ twostep_betabi.het <- CalcHet(twostep_betabi)
 ###################################################################################################
 # Model comparison: Estimated sumary effects (prop, CI), between study variance (tau, I^)
 # Tau2 = Var(theta_i), theta_i = E[theta_i]
-estimates <- rbind.data.frame(twostep_binorm.est,
-                              onestep_bi_rand.est,
-                              twostep_betabi.est)
+  estimates <- rbind.data.frame(twostep_binorm.est,
+                                onestep_bi_rand.est,
+                                twostep_betabi.est)
 
 
 heterogeneity <- rbind.data.frame(twostep_binorm.het,
