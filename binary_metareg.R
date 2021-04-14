@@ -28,32 +28,7 @@ library(reshape2)
 library(cowplot)
 library(stringr)
 library(data.table)
-source('generalpurpose_funcs.R')
-
-# Set baseline contasts for GLMM
-SetBaseline <- function(data,covar,baseline){
-  dataframe <- data
-  
-  stopifnot(length(covar) == length(baseline))
-  
-  for (i in 1:length(covar)){
-    covar. = covar[i]
-    baseline. = paste0("(?<!\\S)", baseline[i], "(?!\\S)")
-    if(class(dataframe[,covar.]) == 'factor'){
-      int <- grep(baseline. , levels(dataframe[,covar.]), perl = T)
-      dataframe[,covar.] <- relevel(dataframe[,covar.],  int)
-      
-      print('Baseline Covariates:')
-      print(levels(dataframe[,covar.])[1])
-      
-    }else{
-      warning('requires factor as input.')
-    }
-  }
-  
-  return(dataframe)
-}
-
+source('~/foundervariantsHIV_sysreview/generalpurpose_funcs.R')
 
 # One-step GLMM accounting for clustering of studies using a random intercept
 CalcRandMetaReg <- function(data, formula, opt = NULL){
@@ -400,16 +375,21 @@ Effects2File <- function(effectslist){
 set.seed(4472)
 
 # Import data
+# Note that this filters the covariates specified and removes levels where n<5
+# Also removes unknown exposures
+
 setwd("./data")
-df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% 
-  formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene')) %>%
+df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
+  formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
+  filter(reported.exposure_ != 'unknown.exposure') %>%
+  filter(participant.seropositivity_!= 'unknown') %>%
   droplevels()
   
 
 # Set reference levels for meta regression
-# HSX:MTF, phylogenetic, unknown seropositivity, B, env
-baseline.covar <- c("reported.exposure_", "grouped.method_", "grouped.subtype_","sequencing.gene_", "participant.seropositivity_")
-baseline.level <- c("HSX:MTF", "phylogenetic", "B" , "env" , "positive")
+# HSX:MTF, haplotype (highlighter), unknown seropositivity, B, whole genome
+baseline.covar <- c("reported.exposure_", "grouped.method_", "grouped.subtype_","sequencing.gene_", "sampling.delay_")
+baseline.level <- c("HSX:MTF", "haplotype", "B" , "whole.genome" , "<21")
 
 df <- SetBaseline(df, baseline.covar, baseline.level)
 df$alignment.length_ <- scale(df$alignment.length_)
@@ -441,52 +421,24 @@ raneff.selection <- ModelComp(raneff.models) %>%
 # RE Selected = "(1 | publication) + (1|cohort)", significantly p(<0.05) better fit than publication only.
 # AIC in agreement, BIC between first two models is indistinguishable
 
-
 ###################################################################################################
-###################################################################################################
-# STAGE 2: Univariate meta-regression of individual covariates against founder variant multiplicity
-# Initial regression models with one fixed effect covariate with random effects for publication and cohort
-# Equivalent to a subgroup analysis with random effects for subgroup and cohort
-
-fixeff_uni.forms <- c(f0 = "multiple.founders_ ~  1 + (1 | publication_)",
-                      f1 = "multiple.founders_ ~  riskgroup_  + (1 | publication_) + (1| cohort_) - 1",
-                      f2 = "multiple.founders_ ~ reported.exposure_ + (1 | publication_) + (1| cohort_) - 1",
-                      f3 = "multiple.founders_ ~ grouped.method_ + (1 | publication_) + (1| cohort_) - 1",
-                      f4 = "multiple.founders_ ~ grouped.subtype_ + (1 | publication_) + (1| cohort_) - 1",
-                      f5 = "multiple.founders_ ~ sequencing.gene_ + (1 | publication_) + (1| cohort_) - 1",
-                      f6 = "multiple.founders_ ~ participant.seropositivity_ + (1 | publication_) + (1| cohort_) - 1",
-                      f7 = "multiple.founders_ ~ alignment.length_ + (1 | publication_) + (1| cohort_) - 1")
-
-fixeff_uni.effectstruct <- GetName(fixeff_uni.forms, effects = 'fixed')
-
-# Run models
-fixeff_uni.models <- RunParallel(CalcRandMetaReg, fixeff_uni.forms, df)
-
-# Check model convergence and singularity
-fixeff_uni.check <- CheckModels(fixeff_uni.models)%>% 
-  `row.names<-`(fixeff_uni.effectstruct)
-
-# Extract fixed and random effects
-fixeff_uni.effects <- RunParallel(GetEffects, fixeff_uni.models, fixeff_uni.effectstruct)
-
-###################################################################################################
-# STAGE 3: Selecting Fixed effects to be included in model (bottom up approach)
+# STAGE 2: Selecting Fixed effects to be included in model (bottom up approach)
 # Random effects as previously specified
 # Baseline covariates: HSX:MTF, phylogenetic, unknown seropositivity, B, env
 
 fixeff_modelbuild.forms<- c(f00 = "multiple.founders_ ~  1  + (1 | publication_) + (1 | cohort_)",
                             f01 = "multiple.founders_ ~ reported.exposure_ + (1 | publication_) + (1 | cohort_)",
                             f02 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + (1 | publication_) + (1 | cohort_)",
-                            f03 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + (1 | publication_) + (1 | cohort_)",
+                            f03 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sampling.delay_ + (1 | publication_) + (1 | cohort_)",
                             f04 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + (1 | publication_) + (1 | cohort_)",
                             f05 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + alignment.length_ + (1 | publication_) + (1 | cohort_)",
-                            f06 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + grouped.subtype_ + (1 | publication_)",
+                            f06 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + grouped.subtype_ + (1 | publication_)+ (1 | cohort_)",
                             f07 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + alignment.length_ + (1 | publication_) + (1 | cohort_)",
-                            f08 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + participant.seropositivity_ + (1 | publication_) + (1 | cohort_)",
+                            f08 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + sampling.delay_ + (1 | publication_) + (1 | cohort_)",
                             f09 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + grouped.subtype_ + (1 | publication_) + (1 | cohort_)",
-                            f10 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + participant.seropositivity_ + alignment.length_ + (1 | publication_) + (1 | cohort_)",
-                            f11 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + participant.seropositivity_ + grouped.subtype_ + (1 | publication_) + (1 | cohort_)",
-                            f12 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + participant.seropositivity_ + alignment.length_ + grouped.subtype_ + (1 | publication_) + (1 | cohort_)")
+                            f10 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + sampling.delay_ + alignment.length_ + (1 | publication_) + (1 | cohort_)",
+                            f11 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + sampling.delay_ + grouped.subtype_ + (1 | publication_) + (1 | cohort_)",
+                            f12 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + sampling.delay_ + alignment.length_ + grouped.subtype_ + (1 | publication_) + (1 | cohort_)")
 
 fixeff_modelbuild.effectstruct <- GetName(fixeff_modelbuild.forms, effects = 'fixed')
 fixeff_modelbuild.models <- RunParallel(CalcRandMetaReg, fixeff_modelbuild.forms, df , opt = 'bobyqa') 
@@ -550,6 +502,8 @@ fixeff_modelbuild.multico.check <- CheckModels(fixeff_modelbuild.models.nomultic
 model_selected <- fixeff_modelbuild.models.nomultico[[7]]
 model_selected.form <- fixeff_modelbuild.forms.nomultico[[7]]
 model_selected.effectstruct <- GetName(model_selected.form, effects = 'fixed')
+
+
 ###################################################################################################
 ###################################################################################################
 # Sensitivity analyses on selected model
