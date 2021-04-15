@@ -107,10 +107,11 @@ GetEffects <- function(model, label = "original"){
   options(warn = 1)
   
   ci <- confint.merMod(model, 
-                       method = 'boot', 
-                       .progress="txt", 
-                       PBargs=list(style=3), 
-                       nsim = 100)
+                       method = 'profile')#, 
+                       #.progress="txt", 
+                       #PBargs=list(style=3), 
+                       #nsim = 10
+                       #)
   
   re.num <- ranef(model) %>% length()
   
@@ -314,7 +315,73 @@ CheckModels <- function(modellist){
   return(out)
 }
 
+# Create list of dataframes for leave-one-out cross validation
+LOOCV.dat <- function(data){
+  pubs <- unique(data$publication)
+  loo <- list()
+  loo.pubs <- list()
+  
+  for (i in pubs){
+    loo[[i]] <- data[data$publication != i, ]
+    loo.pubs[[i]] <- pubs[pubs != i]
+  }
+  out <- list(loo, loo.pubs)
+  stopifnot(length(loo) == length(loo.pubs))
+  return(out)
+}
 
+
+# Extract estimates from LOOCV to create dataframe (input for influence plot)
+DFInfluence <- function(model,labs){
+  
+  names <- paste("Omitting" , labs %>% names(), sep = " ") %>% as.factor()
+  beta = numeric()
+  ci.lb = numeric()
+  ci.ub = numeric() 
+  
+  if (class(model[[1]]) == "rma" || class(model[[1]]) == "rma.uni" || class(model[[1]]) == "rma.glmm"){
+    for (i in 1:length(model)){
+      beta[i] <- model[[i]]$beta
+      ci.lb[i] <-model[[i]]$ci.lb
+      ci.ub[i] <- model[[i]]$ci.ub
+    }
+  }else if (class(model[[1]]) =="glmerMod"){
+    for (i in 1:length(model)){
+      ci <- confint(model[[i]])
+      beta[i] <- summary(model[[i]])$coefficients[1,1]
+      ci.lb[i] <-ci[nrow(ci),1]
+      ci.ub[i] <- ci[nrow(ci),2]
+    }
+  }else if (class(model) =="metaprop"){
+    beta <- model$TE.random
+    ci.lb <- model$lower.random
+    ci.ub <- model$upper.random
+    
+  }else if (class(model[[1]]) =="glimML"){
+    #Bootstrapped Binomial CIs-check Chuang-Stein 1993
+    for (i in 1:length(model)){
+      binom.ci <- varbin(subjects,multiplefounders, data = model[[i]]@data)@tab[5,c(3,4)] %>%
+        as.numeric() %>%
+        transf.logit()
+      beta[i] <- model[[i]]@param[1]
+      ci.lb[i] <- binom.ci[1]
+      ci.ub[i] <- binom.ci[2]
+    }
+  }else{
+    stop('no valid model detected.')
+  }
+  
+  influence_out <- cbind.data.frame('trial'= names,
+                                    "estimate" = transf.ilogit(beta),
+                                    "ci.lb" = transf.ilogit(ci.lb),
+                                    "ci.ub"= transf.ilogit(ci.ub)) 
+  
+  
+  return(influence_out)
+}
+
+# Generate resampled datasets and calculate model estimates for psuedo-bootstrap 
+# sensitivity analysis of inclusion/exclusion criteria
 BootMetaReg <- function(data, replicates){
   require(parallel)
   require(lme4)
@@ -382,7 +449,6 @@ setwd("./data")
 df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
-  filter(participant.seropositivity_!= 'unknown') %>%
   droplevels()
   
 
@@ -476,15 +542,15 @@ fixeff_modelbuild.nomultico.effects <- RunParallel(GetEffects, fixeff_modelbuild
 
 ###################################################################################################
 # STAGE 4: Evaluating the inclusion on interactions
-interaction_modelbuild.forms <- c(i0 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_ + (1 | publication_) + (1 | cohort_)",
-                                  i1 = "multiple.founders_ ~ reported.exposure_*grouped.subtype_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_ + (1 | publication_) + (1 | cohort_)",
-                                  i2 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + participant.seropositivity_ + sequencing.gene_*alignment.length_ + (1 | publication_) + (1 | cohort_)")
+interaction_modelbuild.forms <- c(i0 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sampling.delay_ + sequencing.gene_ + (1 | publication_) + (1 | cohort_)",
+                                  i1 = "multiple.founders_ ~ reported.exposure_*grouped.subtype_ + grouped.method_ + sampling.delay_ + sequencing.gene_ + (1 | publication_) + (1 | cohort_)",
+                                  i2 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sampling.delay_ + sequencing.gene_*alignment.length_ + (1 | publication_) + (1 | cohort_)")
   
 interaction_modelbuild.models <- RunParallel(CalcRandMetaReg, interaction_modelbuild.forms, df , opt = 'bobyqa') 
 interaction_modelbuild.effectstruct <- GetName(interaction_modelbuild.forms, effects = 'fixed')
 
 interaction_modelbuild.check <- CheckModels(interaction_modelbuild.models)%>% 
-  `row.names<-`(fixeff_modelbuild.effectstruct)
+  `row.names<-`(interaction_modelbuild.effectstruct)
 
 # No interaction models converge succesfully
 
@@ -512,7 +578,7 @@ model_selected.effectstruct <- GetName(model_selected.form, effects = 'fixed')
 # SA3. Exclusion of studies with 0 multiple founder variants
 # SA4. Exclusion of all studies that do not use SGA
 # SA5. Resampling of participants for which we have multiple measurments (takes pre-formatted DF)
-# SA6. Optimisation Algorithm selected by glmerCrtl
+# SA6. Inclusion of unknown sampling delay with repeated studies
 
 # SA1. Influence of Individual Studies (LOOCV)
 df_loocv <- LOOCV.dat(df)[[1]]
@@ -563,16 +629,50 @@ model_selected.sgaonly.out <- list(CheckModels(model_selected.sgaonly),
 
 
 # SA5. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
-resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(., noreps = FALSE)
+resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
+  formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay'), noreps = FALSE) %>%
+  filter(reported.exposure_ != 'unknown.exposure') %>%
+  droplevels()
 
 model_selected.boot_participant <- BootMetaReg(resampling_df , 1000)
-
 
 # SA6. Optimisation Algorithm selected by glmerCrtl
 opt.algo <- c('bobyqa', 'Nelder_Mead')
 algo <- lapply(opt.algo, function(x) CalcRandMetaReg(df , model_selected.form, opt = x))
 lapply(algo, check_convergence)
 
+# SA7. Delay/Repeat permutation tests
+sa7_dflist <- list()
+
+sa7_dflist$sa7_unknown.sing <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
+  formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
+  filter(reported.exposure_ != 'unknown.exposure') %>%
+  SetBaseline(baseline.covar, baseline.level) %>%
+  droplevels()
+
+sa7_dflist$sa7_unknown.rep <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
+  formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay'), noreps = FALSE) %>%
+  filter(reported.exposure_ != 'unknown.exposure') %>%
+  SetBaseline(baseline.covar, baseline.level) %>%
+  droplevels()
+
+sa7_dflist$sa7_nounknown.sing <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
+  formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
+  filter(reported.exposure_ != 'unknown.exposure') %>%
+  filter(sampling.delay_ != 'unknown') %>%
+  SetBaseline(baseline.covar, baseline.level) %>%
+  droplevels()
+
+sa7_dflist$sa7_nounknown.rep <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
+  formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay'), noreps = FALSE) %>%
+  filter(reported.exposure_ != 'unknown.exposure') %>%
+  filter(sampling.delay_ != 'unknown') %>%
+  SetBaseline(baseline.covar, baseline.level) %>%
+  droplevels()
+
+sa7_mods <- lapply(sa7_dflist, CalcRandMetaReg, formula = model_selected.form)
+
+sa7_effects <- RunParallel(GetEffects, sa7_mods, names(sa7_dflist))
 ###################################################################################################
 ###################################################################################################
 # Outputs to file
@@ -594,6 +694,10 @@ mapply(write.csv, t3, file = t3.names, row.names = T)
 
 t4 <- rbind.data.frame(raneff.selection, fixeff_modelbuild.selection)
 write.csv(t4, 'model_selection.csv')
+
+s7 <- Effects2File(sa7_effects)
+s7.names <- c('s7_int.csv', 's7_fe.csv', 's7_re.csv')
+mapply(write.csv, s7, file = s7.names, row.names = T)
 ###################################################################################################
 ###################################################################################################
 # END # 
