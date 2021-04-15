@@ -103,7 +103,70 @@ dev.off()
 
 
 ###################################################################################################
+# SA7 Plot
+sa7_fe <- read.csv('s7_fe.csv', stringsAsFactors = F)
+sa7_fe$delay.status <- base::strsplit(sa7_fe$analysis, '[_ & .]') %>%
+  sapply(., "[[", 2)
+sa7_fe$repeat.status <- base::strsplit(sa7_fe$analysis, '[.]') %>%
+  sapply(., "[[", 2)
 
+mycols_founder <- RColorBrewer::brewer.pal(name = 'RdBu', n = 8)[c(2,7)]
+data.subset <- data[which(data$covariate %in% var),]
+
+plt3.1 <- ggplot(sa7_fe[which(sa7_fe$delay.status %in% 'unknown'),]) +
+  geom_point(aes(x= est, y = reorder(level,est) ,col =  est<0, shape = repeat.status), 
+             size = 4,
+             position = position_dodge(width = 1)) +
+  theme_bw() + 
+  geom_linerange(aes(y = level, xmin= ci.lb, xmax= ci.ub, col =  est<0, linetype = repeat.status),
+                 position = position_dodge(width = 1)) +
+  scale_x_continuous(limits = c(-3,3),
+                     expand = c(0,0), 
+                     name = "Log Odds Ratio")+
+  scale_colour_manual(values = mycols_founder) +
+  geom_vline(xintercept = 0, linetype = 'dashed')+
+  facet_grid(covariate ~.,  scales = 'free_y', space = 'free_y', drop = T, switch = 'y') +
+  labs(title = 'Unknown Delay') +
+  theme(
+    axis.line.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    legend.position = 'none',
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.y = element_blank(),
+    axis.title.y = element_blank())
+
+
+plt3.2 <- ggplot(sa7_fe[which(sa7_fe$delay.status %in% 'nounknown'),]) +
+  geom_point(aes(x= est, y = reorder(level,est) ,col =  est<0, shape = repeat.status), 
+             size = 4,
+             position = position_dodge(width = 1)) +
+  theme_bw() + 
+  geom_linerange(aes(y = level, xmin= ci.lb, xmax= ci.ub, col =  est<0, linetype = repeat.status),
+                 position = position_dodge(width = 1)) +
+  scale_x_continuous(limits = c(-3,3),
+                     expand = c(0,0), 
+                     name = "Log Odds Ratio")+
+  scale_colour_manual(values = mycols_founder) +
+  geom_vline(xintercept = 0, linetype = 'dashed')+
+  facet_grid(covariate ~.,  scales = 'free_y', space = 'free_y', drop = T, switch = 'y') +
+  labs(title = 'No Unknowns') +
+  theme(
+    axis.line.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    legend.position = 'none',
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.y = element_blank(),
+    axis.title.y = element_blank())
+
+prow <- cowplot::plot_grid(plt3.1, plt3.2 ,ncol  =2)
+
+jpeg(filename = 'sa7_plot.jpeg', width = 3000, height = 4000, res = 380 ,units = "px", pointsize = 12)
+
+cowplot::plot_grid(prow, get_legend(plt3.2+guides(color = guide_legend(nrow = 1))+theme(legend.position = "bottom")), ncol = 1, rel_heights = c(1,0.1))
+
+dev.off()
+
+###################################################################################################
 ggplot(funnel_data ) +
   geom_polygon(aes(x=x, y = y), data =  poldgpn ,fill = 'white', linetype = 'dashed' , color = 'black')  +
   geom_point( aes(y = se, x = b, colour = ), shape = 4, size = 3)+
