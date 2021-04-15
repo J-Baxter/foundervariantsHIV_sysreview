@@ -27,6 +27,7 @@ library(meta)
 source('generalpurpose_funcs.R')
 
 
+# Plots for each founder variant (module)
 PlotNumSeqs <- function(data, plt_name){
   require(ggplot2)
   plt <- ggplot(data) +
@@ -199,7 +200,6 @@ set.seed(4472)
 # Import data
 # Note that this filters the covariates specified and removes levels where n<5
 # Also removes unknown exposures
-
 setwd("./data")
 df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene')) %>%
@@ -226,8 +226,10 @@ df$minimum.number.of.founders_ <- as.factor(df$minimum.number.of.founders_)
 df_num.split <- split.data.frame(df,df$reported.exposure_)
 plt_list <- mapply(PlotNumSeqs, data = df_num.split, plt_name = names(df_num.split), SIMPLIFY = F)
 
-
+jpeg(filename = 'sa7_plot.jpeg', width = 3000, height = 4000, res = 380 ,units = "px", pointsize = 12)
 cowplot::plot_grid(plotlist = plt_list, ncol = 3, align = 'hv', axis = 'b')
+dev.off()
+
 
 # Summary Stats - first removing all single founder infections
 df_nosingles <- df %>% filter(minimum.number.of.founders_ != 1)
@@ -248,23 +250,24 @@ quant_summary <- df_nosingles %>%
 # Random effects of study only
 # Poisson log link
 
-poisson.forms <- c(p0 = "multiple.founders_ ~  1 + (1 | publication_)",
-                  p1 = "multiple.founders_ ~  reported.exposure_ -1 + (1 | publication_)")
+poisson.forms <- c(p0 = "minimum.number.of.founders_ ~  1 + (1 | publication_)",
+                  p1 = "minimum.number.of.founders_ ~  reported.exposure_ -1 + (1 | publication_)")
 
 poisson.effectstruct = GetName(poisson.forms, effects = 'random')
 
-poisson.models <- CalcPoissonMetaReg(poisson.forms, data = df_nosingles)
+poisson.models <- RunParallel(CalcPoissonMetaReg, poisson.forms, df_nosingles , opt = 'bobyqa')
 
-poisson_reg_effects <- GetEffects(poisson_reg)
+poisson_reg_effects <- lapply(poisson.models, GetEffects)
 
-poisson_summary <- poisson_reg_effects$fe %>%
+poisson_reg_stratified <- poisson_reg_effects[[2]]
+
+poisson_summary <- poisson_reg_stratified$fe %>%
   select(c(poisson.mean = est, 
            poisson.cilb = ci.lb, 
            poisson.ciub = ci.ub)) %>%
   exp()
 
 out <- cbind.data.frame(quant_summary, poisson_summary)
-
 write.csv(out, 'numberfounders_summary.csv')
 
 
