@@ -15,7 +15,7 @@ library(forcats)
 library(tidyr)
 library(RColorBrewer)
 library(cowplot)
-source('generalpurpose_funcs.R')
+source('~/foundervariantsHIV_sysreview/generalpurpose_funcs.R')
 
 
 #function for stacking categories and calculating summary frequencies
@@ -29,15 +29,16 @@ stacked_categories <- function(x, catnames){
     summarise(frequency = n())
   
   colnames(freq) <- catnames
+  
   return(freq)
 }
 
 
 # Extracting and formatting sequence numbers from main dataframe
-GetNumSeqs <- function(df){
+GetNumSeqs <- function(data){
   # drop NA and NGS first 
-  numseqs <- df[!df$sequencing.number %in% c('NGS', NA),]
-  numseqs$sequencing.number <- as.numeric(numseqs_df$sequencing.number)
+  numseqs <- data[!data$sequencing.number_ %in% c('NGS', NA),]
+  numseqs$sequencing.number_ <- as.numeric(numseqs$sequencing.number_)
   
   return(numseqs)
 }
@@ -59,7 +60,7 @@ LabelX <- function(xvar, caps){
 # Import data (as for meta regression)
 setwd("./data")
 df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
-  formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene')) %>%
+  formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene','sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   droplevels()
 
@@ -82,8 +83,7 @@ labs <- c('Multiple','Sinlge')
 ###################################################################################################
 # 1.1 Method
 p1.method <- ggplot(df, aes(grouped.method_))+
-  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), colour = forcats::fct_rev(factor(multiple.founders_))))+
-  scale_color_manual(values = mycols_founder, labels = labs)+
+  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_))))+
   scale_fill_manual(values = mycols_founder, labels = labs)+
   scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
   scale_x_discrete(labels = LabelX(df$grouped.method_) %>% str_to_title()) +
@@ -95,16 +95,15 @@ p1.method <- ggplot(df, aes(grouped.method_))+
 
 
 ###################################################################################################
-# 1.2 Seroconversion (poss stack infant and NA together)
-p1.seropos <- ggplot(df, aes(participant.seropositivity_))+ 
-  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), colour = forcats::fct_rev(factor(multiple.founders_))))+
-  scale_color_manual(values = mycols_founder, labels = labs)+
+# 1.2 Sampling Delay (inferred from feibig/seropositivty/timing of sampling relative to infection)
+p1.seropos <- ggplot(df, aes(sampling.delay_))+ 
+  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_))))+
   scale_fill_manual(values = mycols_founder, labels = labs)+
   scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
-  scale_x_discrete(labels = LabelX(df$participant.seropositivity_) %>% str_to_title()) +
+  scale_x_discrete(labels = LabelX(df$sampling.delay_) %>% str_to_title()) +
   theme_classic()+
-  xlab('Seropositivity')+
-  theme( axis.text.x=element_text(angle=45, hjust=1))+
+  xlab('Sampling Delay')+
+  theme(axis.text.x=element_text(angle=45, hjust=1))+
   ylab('Frequency')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
@@ -112,8 +111,7 @@ p1.seropos <- ggplot(df, aes(participant.seropositivity_))+
 ###################################################################################################
 # 1.3 Subtype
 p1.subtype <- ggplot(df, aes(grouped.subtype_))+
-  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), colour = forcats::fct_rev(factor(multiple.founders_))))+
-  scale_color_manual(values = mycols_founder, labels = labs)+
+  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_))))+
   scale_fill_manual(values = mycols_founder, labels = labs)+
   scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
   theme_classic()+
@@ -127,9 +125,8 @@ p1.subtype <- ggplot(df, aes(grouped.subtype_))+
 # 1.4 Number of consensus sequences analysed
 numseqs_df <- GetNumSeqs(df)
 
-p1.numseq <- ggplot(numseqs_df , aes(sequencing.number))+
-  geom_histogram(binwidth=5, (aes(fill = forcats::fct_rev(factor(multiple.founders)), colour = forcats::fct_rev(factor(multiple.founders)))))+
-  scale_color_manual(values = mycols_founder, labels = labs)+
+p1.numseq <- ggplot(numseqs_df , aes(sequencing.number_))+
+  geom_histogram(binwidth=5, (aes(fill = forcats::fct_rev(factor(multiple.founders_)))))+
   scale_fill_manual(values = mycols_founder, labels = labs)+
   scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
   theme_classic()+
@@ -149,7 +146,7 @@ p1.exposure <- ggplot(df, aes(riskgroup_))+
   scale_y_continuous(limits = c(0,1000), expand = c(0,0)) +
   scale_x_discrete(labels = LabelX(df$riskgroup_)) +
   theme_classic()+
-  xlab('Reported Exposure')+
+  xlab('Risk Group')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
   ylab('Frequency')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity") 
@@ -157,16 +154,22 @@ p1.exposure <- ggplot(df, aes(riskgroup_))+
 
 ###################################################################################################
 # 1.6 Detailed barplot displaying route of transmission (with direction subcategories)
-names <- c('reported.exposure' , 'sub.exposure' , 'frequency')
-exposures_df <- stacked_categories(df$reported.exposure, names)
+colnames <- c('reported.exposure' , 'sub.exposure' , 'frequency')
+exposures_df <- stacked_categories(df$reported.exposure_, colnames)
+exposures_df$sub.exposure <- factor(exposures_df$sub.exposure, levels = c('MTF', 'FTM', 'nodirection',
+                                                                          'MSM',
+                                                                          'PreP', 'IntraP', 'PostP', 'notiming',
+                                                                          'PWID'))
 
 p1.6 <- ggplot(exposures_df, aes(x = reported.exposure , y = frequency))+
-  geom_bar(stat = 'identity' , aes(fill = sub.exposure, colour = sub.exposure), position = 'stack')+
-  scale_color_manual(values = mycols_method)+
-  scale_fill_manual(values = mycols_method)+
+  geom_bar(stat = 'identity' , aes(fill = sub.exposure), position = 'stack')+
+  scale_fill_manual(values = mycols_method, labels = c('MTF', 'FTM', 'No Direction',
+                                                       'MSM',
+                                                       'Pre-Partum', 'Intra-Partum', 'Post-Partum', 'No Timing',
+                                                       'PWID'))+
   scale_y_continuous(limits = c(0,1000), expand = c(0,0)) +
   theme_classic()+
-  xlab('Exposure')+
+  xlab('Risk Group')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
   ylab('Frequency') + labs(fill = "Reported Exposure", colour = "Reported Exposure")
 
@@ -174,8 +177,7 @@ p1.6 <- ggplot(exposures_df, aes(x = reported.exposure , y = frequency))+
 # 1.7 Sequencing Gene
 
 p1.sg <- ggplot(df, aes(sequencing.gene_))+
-  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), colour = forcats::fct_rev(factor(multiple.founders_))))+
-  scale_color_manual(values = mycols_founder, labels = labs)+
+  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_))))+
   scale_fill_manual(values = mycols_founder, labels = labs)+
   scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
   scale_x_discrete(labels = c('Env', 'Gag', 'Pol', 'NFLG')) +
@@ -183,15 +185,15 @@ p1.sg <- ggplot(df, aes(sequencing.gene_))+
   xlab('Gene Analysed')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
   ylab('Frequency')+
-  labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity") 
+  labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
+
 
 
 ###################################################################################################
 # 1.8 Alignment Length
 
 p1.alignment <- ggplot(df, aes(alignment.length_))+
-  geom_histogram(aes(fill = forcats::fct_rev(factor(multiple.founders_)), colour = forcats::fct_rev(factor(multiple.founders_))))+
-  scale_color_manual(values = mycols_founder, labels = labs)+
+  geom_histogram(aes(fill = forcats::fct_rev(factor(multiple.founders_))))+
   scale_fill_manual(values = mycols_founder, labels = labs)+
   scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
   theme_classic()+
@@ -202,8 +204,8 @@ p1.alignment <- ggplot(df, aes(alignment.length_))+
 
 ###################################################################################################
 # Combine basic covariate plots into figure (with labels and axis)
-grid1 <- cowplot::plot_grid(p1.exposure + theme(legend.position="none"),
-                            p1.6+theme(legend.position= c(0.9,0.8)), nrow = 1 ,align = "hv", axis = "bt" , labels = "AUTO")
+grid1 <- cowplot::plot_grid(p1.exposure + theme(legend.position= c(0.85,0.87)),
+                            p1.6+theme(legend.position= c(0.85,0.7)), nrow = 1 ,align = "hv", axis = "bt" , labels = "AUTO")
 
 grid2 <- cowplot::plot_grid(p1.method + theme(legend.position="none"),
                    p1.subtype + theme(legend.position="none"), 
@@ -215,10 +217,9 @@ grid2 <- cowplot::plot_grid(p1.method + theme(legend.position="none"),
 
 cowplot::plot_grid(grid1, grid2, nrow = 2)
 # Print to file
-tiff("covar_barplot.tiff" , width = 14 , height = 20)
-figure1
+jpeg("panel1.jpeg" ,width = 4500, height = 4000, res = 380 ,units = "px", pointsize = 12)
+cowplot::plot_grid(grid1, grid2, nrow = 2)
 dev.off()
-
 ###################################################################################################
 ###################################################################################################
 # Geographic and Timewise structere of transmission
@@ -256,11 +257,10 @@ p2.1 <- ggplot(region_exp,aes(x = reported.exposure_,
 p2.2 <- ggplot(df, aes(year_))+
   geom_histogram(aes(fill = riskgroup_, 
                      colour = riskgroup_), 
-                 bins = 8,
-                 position = 'fill') +
+                 bins = 8) +
   scale_color_viridis_d() +
   scale_fill_viridis_d() +
-  scale_y_continuous(#limits = c(0,600), 
+  scale_y_continuous(limits = c(0,500), 
                      expand = c(0,0)) +
   scale_x_continuous(expand = c(0,0)) +
   theme_classic(base_size = 10,
@@ -269,7 +269,7 @@ p2.2 <- ggplot(df, aes(year_))+
   
   labs(fill = 'Risk Group', 
        x = 'Year of Publication', 
-       y = 'Proportion of Reported Infections')+
+       y = 'Frequency')+
   guides(color = FALSE)+
   theme(legend.position = 'bottom') 
 
@@ -278,6 +278,7 @@ grid3 <- cowplot::plot_grid(p2.1, p2.2, ncol = 2, labels = 'AUTO', align = 'hv')
 jpeg("geog_transmission.jpeg" ,width = 4500, height = 4000, res = 380 ,units = "px", pointsize = 12)
 grid3 
 dev.off()
+
 ###################################################################################################
 ###################################################################################################
 # END #
