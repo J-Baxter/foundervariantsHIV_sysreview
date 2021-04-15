@@ -26,6 +26,7 @@ library(data.table)
 library(meta)
 source('generalpurpose_funcs.R')
 
+
 PlotNumSeqs <- function(data, plt_name){
   require(ggplot2)
   plt <- ggplot(data) +
@@ -41,6 +42,157 @@ PlotNumSeqs <- function(data, plt_name){
 }
 
 
+# One-step GLMM accounting for clustering of studies using a random intercept
+CalcPoissonMetaReg <- function(data, formula, opt = NULL){
+  
+  if(is.character(opt)){
+    cntrl <- glmerControl(optCtrl = list(maxfun = 5000000),
+                          check.nobs.vs.nlev = 'ignore',
+                          check.nobs.vs.nRE = 'ignore',
+                          optimizer = opt)
+  }else{
+    cntrl <- glmerControl(optCtrl = list(maxfun = 5000000),
+                          check.nobs.vs.nlev = 'ignore',
+                          check.nobs.vs.nRE = 'ignore')
+  }
+  
+  options(warn = 1)
+  f <- as.formula(formula)
+  environment(f) <- environment()
+  model <- lme4::glmer(f,
+                       data = data,
+                       family ="poisson",
+                       nAGQ = 1,
+                       control = cntrl)
+  return(model)
+}
+
+
+# Extracts covariate names from lmer function syntax
+GetName <- function(x, effects = NULL) {
+  require(stringr)
+  
+  if(is.null(effects)){
+    print('requires user to specify whether fixed or random effects are required')
+  }
+  
+  if(effects == 'fixed'){
+    name <-gsub(".*[:~:] (.+?) [:(:].*", "\\1", x) %>%
+      gsub("[:+:]([:^+:]*)$","",.) %>%
+      gsub("[:.:]" , " " , .) %>% 
+      gsub("[:_:]" , "" , .) %>%
+      str_to_title()%>%
+      str_trim()
+    
+  }else if( effects == 'random'){
+    name <-gsub("^[^\\(]+", "\\1", x, perl = T) %>%
+      gsub("_" , "" , .) %>%
+      gsub(":" , " : " , .) %>%
+      str_to_title()%>%
+      str_trim()
+  }
+  
+  return(name)
+}
+
+
+# Extract intercept, fixed effects and random effects from the models
+# Output is a list of dataframes as described above
+GetEffects <- function(model, label = "original"){
+  # Calculate CIs
+  options(warn = 1)
+  
+  ci <- confint.merMod(model, 
+                       method = 'boot',
+                       .progress="txt", 
+                       PBargs=list(style=3), 
+                       nsim = 100
+  )
+  
+  re.num <- ranef(model) %>% length()
+  
+  # Extract Fixed Effects
+  if (length(fixef(model)) > 1){
+    
+    fe <- fixef(model) 
+    sd <- sqrt(diag(vcov(model)))
+    ci.fe <- ci[-c(1,re.num),]
+    nom <- names(fe)
+    
+    fix_df <- cbind.data.frame(nom = nom,
+                               est = fe,
+                               sd = sd,
+                               ci.lb = ci.fe[,1],
+                               ci.ub = ci.fe[,2],
+                               analysis = label) %>% 
+      `row.names<-` (NULL) %>%
+      separate(nom , c('covariate' , 'level') , '_')
+    
+  }else{
+    fe <- fixef(model) 
+    ci.fe <- ci[re.num,]
+    nom <- names(fe)
+    sd <-  NA
+    
+    fix_df <- cbind.data.frame(nom = nom,
+                               est = fe,
+                               sd = sd,
+                               ci.lb = ci.fe[1],
+                               ci.ub = ci.fe[2],
+                               analysis = label) %>% 
+      `row.names<-` (NULL) %>%
+      separate(nom , c('covariate' , 'level') , '_')
+  }
+  
+  int_df <- fix_df[which(is.na(fix_df$level)),]
+  fix_df <- fix_df[which(!is.na(fix_df$level)),]
+  
+  # Extract Random Effects
+  if (length(ranef(model)) > 1){
+    re <- ranef(model)
+    re.mean <- lapply(re, function(x) mean(x$`(Intercept)`)) %>%
+      do.call(rbind.data.frame,.) %>% `colnames<-` ('mean')
+    
+    re.sd <- VarCorr(model) %>% as.data.frame()
+    
+    ci.re <- ci[1:re.num,]
+    
+    re_df <- cbind.data.frame(groups = gsub('_', '', re.sd[,1]),
+                              mean = re.mean,
+                              vcov = re.sd[,4],
+                              sd = re.sd[,5],
+                              ci.lb = ci.re[,1],
+                              ci.ub = ci.re[,2],
+                              analysis = label) %>% 
+      `row.names<-` (NULL)
+  }else{
+    re <- ranef(model)
+    re.mean <- lapply(re, function(x) mean(x$`(Intercept)`)) %>%
+      do.call(rbind.data.frame,.) %>% `colnames<-` ('mean')
+    
+    re.sd <- VarCorr(model) %>% as.data.frame()
+    
+    ci.re <- ci[1:re.num,]
+    
+    re_df <- cbind.data.frame(groups = gsub('_', '', re.sd[,1]),
+                              mean = re.mean,
+                              vcov = re.sd[,4],
+                              sd = re.sd[,5],
+                              ci.lb = ci.re[1],
+                              ci.ub = ci.re[2],
+                              analysis = label) %>% 
+      `row.names<-` (NULL)
+  }
+  
+  
+  out <- list(int_df, fix_df, re_df) %>% `names<-` (c('int' , 'fe', 're'))
+  
+  return(out)
+}
+
+
+###################################################################################################
+###################################################################################################
 # Set seed
 set.seed(4472)
 
@@ -65,17 +217,22 @@ df <- SetBaseline(df, baseline.covar, baseline.level)
 df$alignment.length_ <- scale(df$alignment.length_)
 df$minimum.number.of.founders_ <- as.factor(df$minimum.number.of.founders_)
 
-#
-df_num.split <- split.data.frame(df,df$reported.exposure_)
+###################################################################################################
+###################################################################################################
+# Visual inspection and raw summary statistics
+# Stratified by route of exposure
 
-## Plot number of founder variants, stratified by route of exposure
+# Plot
+df_num.split <- split.data.frame(df,df$reported.exposure_)
 plt_list <- mapply(PlotNumSeqs, data = df_num.split, plt_name = names(df_num.split), SIMPLIFY = F)
+
 
 cowplot::plot_grid(plotlist = plt_list, ncol = 3, align = 'hv', axis = 'b')
 
-## Summary Stats #founders
+# Summary Stats - first removing all single founder infections
 df_nosingles <- df %>% filter(minimum.number.of.founders_ != 1)
-test <- df_nosingles %>% 
+
+quant_summary <- df_nosingles %>% 
   group_by(reported.exposure_) %>%
   summarise(subjects = n(), 
             mean = mean(minimum.number.of.founders_), 
@@ -84,13 +241,35 @@ test <- df_nosingles %>%
             ub = max(minimum.number.of.founders_)) %>%
   as.data.frame()
 
-write.csv(test, 'numberfounders_summary.csv')
 
-# POisson Reg
-poisson_reg <- glmer(minimum.number.of.founders_ ~ reported.exposure_ -1 + (1|publication_), 
-                     data = df_nosingles, 
-                     family ="poisson" )
+###################################################################################################
+###################################################################################################
+# Regression of number of multiple founders against reported exposure
+# Random effects of study only
+# Poisson log link
 
-exp(poisson_reg@beta)
+poisson.forms <- c(p0 = "multiple.founders_ ~  1 + (1 | publication_)",
+                  p1 = "multiple.founders_ ~  reported.exposure_ -1 + (1 | publication_)")
 
-test$adjusted.mean <- exp(poisson_reg@beta)
+poisson.effectstruct = GetName(poisson.forms, effects = 'random')
+
+poisson.models <- CalcPoissonMetaReg(poisson.forms, data = df_nosingles)
+
+poisson_reg_effects <- GetEffects(poisson_reg)
+
+poisson_summary <- poisson_reg_effects$fe %>%
+  select(c(poisson.mean = est, 
+           poisson.cilb = ci.lb, 
+           poisson.ciub = ci.ub)) %>%
+  exp()
+
+out <- cbind.data.frame(quant_summary, poisson_summary)
+
+write.csv(out, 'numberfounders_summary.csv')
+
+
+###################################################################################################
+###################################################################################################
+# END # 
+###################################################################################################
+###################################################################################################
