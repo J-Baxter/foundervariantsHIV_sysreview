@@ -72,3 +72,25 @@ df_num.split <- split.data.frame(df,df$reported.exposure_)
 plt_list <- mapply(PlotNumSeqs, data = df_num.split, plt_name = names(df_num.split), SIMPLIFY = F)
 
 cowplot::plot_grid(plotlist = plt_list, ncol = 3, align = 'hv', axis = 'b')
+
+## Summary Stats #founders
+df_nosingles <- df %>% filter(minimum.number.of.founders_ != 1)
+test <- df_nosingles %>% 
+  group_by(reported.exposure_) %>%
+  summarise(subjects = n(), 
+            mean = mean(minimum.number.of.founders_), 
+            median = median(minimum.number.of.founders_), 
+            lb = min(minimum.number.of.founders_),
+            ub = max(minimum.number.of.founders_)) %>%
+  as.data.frame()
+
+write.csv(test, 'numberfounders_summary.csv')
+
+# POisson Reg
+poisson_reg <- glmer(minimum.number.of.founders_ ~ reported.exposure_ -1 + (1|publication_), 
+                     data = df_nosingles, 
+                     family ="poisson" )
+
+exp(poisson_reg@beta)
+
+test$adjusted.mean <- exp(poisson_reg@beta)
