@@ -113,5 +113,51 @@ SetBaseline <- function(data,covar,baseline){
   return(dataframe)
 }
 
+
+###################################################################################################
+# Execute a list of lme4 models in parallel
+RunParallel <- function(func, v1, v2, ...){
+  options(warn = 1)
+  
+  # Set up cluster (fork)
+  cl <- detectCores() %>% `-` (2) 
+  
+  if (class(v2) == 'data.frame'){
+    
+    start <- Sys.time()
+    start
+    
+    para <- mclapply(v1,
+                     func, 
+                     data = v2,
+                     ...,
+                     mc.cores = cl,
+                     mc.set.seed = FALSE) #child process has the same initial random number generator (RNG) state as the current R session
+    
+    end <- Sys.time()
+    elapsed <- end-start
+    print(elapsed)
+  }else if(class(v2) != 'data.frame'){
+    
+    start <- Sys.time()
+    start
+    para <- mcmapply(func,
+                     v1,
+                     v2,
+                     ...,
+                     mc.cores = cl,
+                     mc.set.seed = FALSE,
+                     SIMPLIFY = F) 
+    
+    end <- Sys.time()
+    elapsed <- end-start
+    print(elapsed)
+  }
+  
+  
+  return(para)
+}
+
+
 ###################################################################################################
 ###################################################################################################
