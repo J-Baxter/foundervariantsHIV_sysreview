@@ -2,7 +2,8 @@
 ###################################################################################################
 # IPD meta analysis of HIV founder variant multiplicity
 # Interpretation and meta analysis of number of founder variants
-# One-step binomial GLMM allowing for clustering by study. uncorrelated random effects between studies
+# Raw Summary Statistics and Poisson adjusted means
+# One-step Poisson GLMM allowing for clustering by study. uncorrelated random effects between studies
 
 # Sensitivity analyses:
 # SA1. 
