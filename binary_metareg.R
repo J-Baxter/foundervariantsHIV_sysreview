@@ -28,6 +28,7 @@ library(reshape2)
 library(cowplot)
 library(stringr)
 library(data.table)
+library(insight)
 source('~/foundervariantsHIV_sysreview/generalpurpose_funcs.R')
 
 # One-step GLMM accounting for clustering of studies using a random intercept
@@ -165,57 +166,30 @@ LOOCV.dat <- function(data){
 
 
 # Extract estimates from LOOCV to create dataframe (input for influence plot)
-DFInfluence <- function(model,labs){
+DFInfluenceMV <- function(model,labs){
   
-  names <- paste("Omitting" , labs %>% names(), sep = " ") %>% as.factor()
-  beta = numeric()
-  ci.lb = numeric()
-  ci.ub = numeric() 
+  names <- paste("Omitting" , labs %>% names(), sep = " ") %>% 
+    as.factor() %>%
+    rep(each = 9)
   
-  if (class(model[[1]]) == "rma" || class(model[[1]]) == "rma.uni" || class(model[[1]]) == "rma.glmm"){
+  beta = list()
+  if (class(model[[1]]) =="glmerMod"){
     for (i in 1:length(model)){
-      beta[i] <- model[[i]]$beta
-      ci.lb[i] <-model[[i]]$ci.lb
-      ci.ub[i] <- model[[i]]$ci.ub
-    }
-  }else if (class(model[[1]]) =="glmerMod"){
-    for (i in 1:length(model)){
-      ci <- confint(model[[i]])
-      beta[i] <- summary(model[[i]])$coefficients[1,1]
-      ci.lb[i] <-ci[nrow(ci),1]
-      ci.ub[i] <- ci[nrow(ci),2]
-    }
-  }else if (class(model) =="metaprop"){
-    beta <- model$TE.random
-    ci.lb <- model$lower.random
-    ci.ub <- model$upper.random
-    
-  }else if (class(model[[1]]) =="glimML"){
-    #Bootstrapped Binomial CIs-check Chuang-Stein 1993
-    for (i in 1:length(model)){
-      binom.ci <- varbin(subjects,multiplefounders, data = model[[i]]@data)@tab[5,c(3,4)] %>%
-        as.numeric() %>%
-        transf.logit()
-      beta[i] <- model[[i]]@param[1]
-      ci.lb[i] <- binom.ci[1]
-      ci.ub[i] <- binom.ci[2]
+      beta[[i]] <- summary(model[[i]])$coefficients[1:9,] %>% cbind.data.frame()
     }
   }else{
     stop('no valid model detected.')
   }
   
   influence_out <- cbind.data.frame('trial'= names,
-                                    "estimate" = transf.ilogit(beta),
-                                    "ci.lb" = transf.ilogit(ci.lb),
-                                    "ci.ub"= transf.ilogit(ci.ub)) 
-  
+                                    "estimate" = do.call(rbind.data.frame,beta))
   
   return(influence_out)
 }
 
 # Generate resampled datasets and calculate model estimates for psuedo-bootstrap 
 # sensitivity analysis of inclusion/exclusion criteria
-BootMetaReg <- function(data, replicates){
+BootMetaRegMV <- function(data, replicates){
   require(parallel)
   require(lme4)
   require(dplyr)
@@ -231,7 +205,7 @@ BootMetaReg <- function(data, replicates){
   start <- Sys.time()
   print(start)
   
-  boot_reg <- mclapply(CalcRandMetaReg, resampled, 
+  boot_reg <- mclapply(resampled, CalcRandMetaReg, 
                        formula = model_selected.form,
                        opt = 'bobyqa',
                        mc.cores = 4,
@@ -243,15 +217,15 @@ BootMetaReg <- function(data, replicates){
   
   remove(cl)
   
-  rand_boot.est <- lapply(rand_boot, function(mod) mod$beta) %>%
-    do.call(rbind.data.frame,.) %>%
-    {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
-  
-  rand_boot.het <- lapply(rand_boot, function(mod) CalcHet(mod, analysis = "metareg")) %>%
+  boot_reg.est <- lapply(boot_reg, function(mod) summary(mod)$coefficients[1:9,] %>% cbind.data.frame()) %>%
     do.call(rbind.data.frame,.)
 
   
-  out <- cbind.data.frame(rand_boot.est, rand_boot.het)
+  boot_reg.het <- lapply(boot_reg, function(mod) CalcHet(mod, analysis = "metareg")) %>%
+    do.call(rbind.data.frame,.)
+
+  
+  out <- cbind.data.frame(boot_reg.est, boot_reg.het)
   
   
   return(out)
@@ -293,6 +267,7 @@ baseline.level <- c("HSX:MTF", "haplotype", "B" , "whole.genome" , "<21")
 df <- SetBaseline(df, baseline.covar, baseline.level)
 df$alignment.length_ <- scale(df$alignment.length_)
 
+df_props <- CalcProps(df)
 ###################################################################################################
 ###################################################################################################
 # STAGE 1: Selecting Random Effects
@@ -416,13 +391,13 @@ model_selected.effectstruct <- GetName(model_selected.form, effects = 'fixed')
 # SA1. Influence of Individual Studies (LOOCV)
 df_loocv <- LOOCV.dat(df)[[1]]
 publist_loocv <- LOOCV.dat(df)[[2]]
+RunParallel(CalcRandMetaReg, model_selected.form, df_loocv , opt = 'bobyqa')
 
-model_selected.influence <- mclapply(CalcRandMetaReg, df_loocv, 
+model_selected.influence <- mclapply(df_loocv, CalcRandMetaReg,
                                      formula = model_selected.form,
-                                     opt = 'bobyqa',
                                      mc.cores = 4,
                                      mc.set.seed = FALSE) %>%
-  DFInfluence(., labs = publist_loocv) 
+  DFInfluenceMV(., labs = publist_loocv) 
 
 
 # SA2. Exclusion of small sample sizes (less than n = 10)
@@ -438,11 +413,11 @@ model_selected.nosmallsample.out <- list(CheckModels(model_selected.nosmallsampl
 
 
 # SA3. Exclusion of studies with 0 multiple founder variants 
-publist.nozeros <- subset(df_props , multiplefounders != 0 , select = publication) %>%
-  pull(.,var=publication) %>%
+publist.nozeros <- subset(df_props , multiplefounders != 0 , select = publication_) %>%
+  pull(.,var=publication_) %>%
   unique()
 
-df.nozeros <- df[df$publication %in% publist.nozeros,]
+df.nozeros <- df[df$publication_ %in% publist.nozeros,]
 
 model_selected.nozeros <- CalcRandMetaReg(df.nozeros, model_selected.form, opt = 'bobyqa')
 model_selected.nozeros.out <- list(CheckModels(model_selected.nozeros), 
@@ -450,11 +425,11 @@ model_selected.nozeros.out <- list(CheckModels(model_selected.nozeros),
 
 
 # SA4. Exclusion of all studies that do not use SGA
-publist.sgaonly <- subset(df , sample.amplification == 'SGA', select = publication) %>%
-  pull(.,var=publication) %>%
+publist.sgaonly <- subset(df , sample.amplification_ == 'SGA', select = publication_) %>%
+  pull(.,var=publication_) %>%
   unique()
 
-df.sgaonly <- df[df$publication %in% publist.sgaonly,]
+df.sgaonly <- df[df$publication_ %in% publist.sgaonly,]
 
 model_selected.sgaonly <- CalcRandMetaReg(df.sgaonly, model_selected.form, opt = 'bobyqa')
 model_selected.sgaonly.out <- list(CheckModels(model_selected.sgaonly), 
@@ -467,7 +442,7 @@ resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   droplevels()
 
-model_selected.boot_participant <- BootMetaReg(resampling_df , 1000)
+model_selected.boot_participant <- BootMetaRegMV(resampling_df , 10)
 
 # SA6. Optimisation Algorithm selected by glmerCrtl
 opt.algo <- c('bobyqa', 'Nelder_Mead')
