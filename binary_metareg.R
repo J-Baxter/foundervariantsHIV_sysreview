@@ -225,7 +225,7 @@ BootMetaRegMV <- function(data, replicates){
     do.call(rbind.data.frame,.)
 
   
-  out <- cbind.data.frame(boot_reg.est, boot_reg.het)
+  out <- cbind.data.frame(boot_reg.est, boot_reg.het, rep= rep(1:replicates, each=9))
   
   
   return(out)
@@ -471,6 +471,7 @@ opt.algo <- c('bobyqa', 'Nelder_Mead')
 algo <- lapply(opt.algo, function(x) CalcRandMetaReg(df , model_selected.form, opt = x))
 lapply(algo, check_convergence)
 
+
 # SA7. Delay/Repeat permutation tests
 sa7_dflist <- list()
 
@@ -536,15 +537,13 @@ sa <- list(model_selected.nosmallsample.out[[2]],
 sa.names <- c('sa_int.csv', 'sa_fe.csv', 'sa_re.csv')  %>% paste0('../results/', .)
 mapply(write.csv, sa, file = sa.names, row.names = T)  
 
-
-
-
-
-
+s5 <- model_selected.boot_participant 
+write.csv(s5, '../results/mv_resampl.csv')
 
 s7 <- Effects2File(sa7_effects)
 s7.names <- c('s7_int.csv', 's7_fe.csv', 's7_re.csv')  %>% paste0('../results/', .)
 mapply(write.csv, s7, file = s7.names, row.names = T)
+
 ###################################################################################################
 ###################################################################################################
 # END # 
