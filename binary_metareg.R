@@ -243,6 +243,28 @@ Effects2File <- function(effectslist){
 }
 
 
+ConcatSA <- function(data){
+  int <- list()
+  fe <- list()
+  re <- list()
+  
+  for (i in 1:length(data)){
+    int[[i]] <- data[[i]]$int
+    fe[[i]] <- data[[i]]$fe
+    re[[i]] <- data[[i]]$re
+  }
+  
+  int.df <- do.call(rbind.data.frame, int)
+  fe.df <- do.call(rbind.data.frame, fe)
+  re.df <- do.call(rbind.data.frame, re)
+  
+  out <- list("int" = int.df,
+              "fe" = fe.df,
+              "re" = re.df)
+  return(out)
+}
+
+
 ###################################################################################################
 ###################################################################################################
 # Set seed
@@ -391,7 +413,7 @@ model_selected.effectstruct <- GetName(model_selected.form, effects = 'fixed')
 # SA1. Influence of Individual Studies (LOOCV)
 df_loocv <- LOOCV.dat(df)[[1]]
 publist_loocv <- LOOCV.dat(df)[[2]]
-RunParallel(CalcRandMetaReg, model_selected.form, df_loocv , opt = 'bobyqa')
+
 
 model_selected.influence <- mclapply(df_loocv, CalcRandMetaReg,
                                      formula = model_selected.form,
@@ -421,7 +443,7 @@ df.nozeros <- df[df$publication_ %in% publist.nozeros,]
 
 model_selected.nozeros <- CalcRandMetaReg(df.nozeros, model_selected.form, opt = 'bobyqa')
 model_selected.nozeros.out <- list(CheckModels(model_selected.nozeros), 
-                                   GetEffects(model_selected.nozeros, label = 'no_small')) 
+                                   GetEffects(model_selected.nozeros, label = 'no_zero')) 
 
 
 # SA4. Exclusion of all studies that do not use SGA
@@ -433,7 +455,7 @@ df.sgaonly <- df[df$publication_ %in% publist.sgaonly,]
 
 model_selected.sgaonly <- CalcRandMetaReg(df.sgaonly, model_selected.form, opt = 'bobyqa')
 model_selected.sgaonly.out <- list(CheckModels(model_selected.sgaonly), 
-                                   GetEffects(model_selected.sgaonly, label = 'no_small')) 
+                                   GetEffects(model_selected.sgaonly, label = 'sga_only')) 
 
 
 # SA5. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
@@ -442,7 +464,7 @@ resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   droplevels()
 
-model_selected.boot_participant <- BootMetaRegMV(resampling_df , 10)
+model_selected.boot_participant <- BootMetaRegMV(resampling_df , 1000) #To re run
 
 # SA6. Optimisation Algorithm selected by glmerCrtl
 opt.algo <- c('bobyqa', 'Nelder_Mead')
@@ -488,23 +510,40 @@ sa7_effects <- RunParallel(GetEffects, sa7_mods, names(sa7_dflist))
 # Selection file includes AIC, loglikelihood, R2, logloss and LRT (as calculated)
 # Sensitivity analyses to follow
 
+dir.create(file.path('../results')) 
+
+# Model Build
 t1 <- Effects2File(raneff.effects) # Error 
-t1.names <- c('raneff_int.csv', 'raneff_fe.csv', 'raneff_re.csv')
+t1.names <- c('raneff_int.csv', 'raneff_fe.csv', 'raneff_re.csv') %>% paste0('../results/', .)
 mapply(write.csv, t1, file = t1.names, row.names = T)
 
-t2 <- Effects2File(fixeff_uni.effects) #fixef_univariate
-t2.names <- c('fixef_univariate_int.csv', 'fixef_univariate_fe.csv', 'fixef_univariate_re.csv')
+t2 <- Effects2File(fixeff_modelbuild.nomultico.effects)
+t2.names <- c('fixef_modelbuild_int.csv', 'fixef_modelbuild_fe.csv', 'fixef_modelbuild_re.csv') %>% paste0('../results/', .)
 mapply(write.csv, t2, file = t2.names, row.names = T)
 
-t3 <- Effects2File(fixeff_modelbuild.nomultico.effects)
-t3.names <- c('fixef_modelbuild_int.csv', 'fixef_modelbuild_fe.csv', 'fixef_modelbuild_re.csv')
-mapply(write.csv, t3, file = t3.names, row.names = T)
+t3 <- rbind.data.frame(raneff.selection, fixeff_modelbuild.selection)
+write.csv(t3, '../results/model_selection.csv')
 
-t4 <- rbind.data.frame(raneff.selection, fixeff_modelbuild.selection)
-write.csv(t4, 'model_selection.csv')
+# Sensitivity Analyses
+s1 <- model_selected.influence
+write.csv(s1, '../results/loocv_mv.csv')
+
+sa <- list(model_selected.nosmallsample.out[[2]],
+           model_selected.nozeros.out[[2]],
+           model_selected.sgaonly.out[[2]]) %>%
+  ConcatSA()
+
+sa.names <- c('sa_int.csv', 'sa_fe.csv', 'sa_re.csv')  %>% paste0('../results/', .)
+mapply(write.csv, sa, file = sa.names, row.names = T)  
+
+
+
+
+
+
 
 s7 <- Effects2File(sa7_effects)
-s7.names <- c('s7_int.csv', 's7_fe.csv', 's7_re.csv')
+s7.names <- c('s7_int.csv', 's7_fe.csv', 's7_re.csv')  %>% paste0('../results/', .)
 mapply(write.csv, s7, file = s7.names, row.names = T)
 ###################################################################################################
 ###################################################################################################
