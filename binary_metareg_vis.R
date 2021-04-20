@@ -11,18 +11,25 @@ library(metafor)
 library(dplyr)
 library(magick)
 PlotMetaReg <- function(data, var){
-  mycols_founder <- RColorBrewer::brewer.pal(name = 'RdBu', n = 8)[c(2,7)]
+  mycols_founder <- c(RColorBrewer::brewer.pal(name = 'RdBu', n = 8)[c(2,7)], '#000000')
   data.subset <- data[which(data$covariate %in% var),]
   
   plt <- ggplot(data.subset) +
-    geom_point(aes(x= est, y = reorder(level,est) ,col =  est<0), shape = 18, size = 6) +
+    geom_point(aes(x= exp(est), 
+                   y = reorder(level,est) ,
+                   col =  ifelse(exp(est)>1 & exp(ci.lb)>1, "A", ifelse(exp(est)<1 & exp(ci.ub)<1, "B",  'C'))),
+                   shape = 4, 
+                   size = 6) +
     theme_bw() + 
-    geom_linerange(aes(y = level, xmin= ci.lb, xmax= ci.ub, col =  est<0))+
-    scale_x_continuous(limits = c(-3,3),
+    geom_linerange(aes(y = level, 
+                       xmin= exp(ci.lb), 
+                       xmax= exp(ci.ub), 
+                       col = ifelse(exp(est)>1 & exp(ci.lb)>1, "A", ifelse(exp(est)<1 & exp(ci.ub)<1, "B",  'C'))))+
+    scale_x_continuous(#limits = c(0.0001,20),
                        expand = c(0,0), 
-                       name = "Log Odds Ratio")+
-    scale_colour_manual(values = mycols_founder) +
-    geom_vline(xintercept = 0, linetype = 'dashed')+
+                       name = "Odds Ratio")+
+    scale_colour_manual(values = setNames(c("#D6604D", "#4393C3", '#000000'), c('A',"B","C"))) +
+    geom_vline(xintercept = 1, linetype = 'dashed')+
     theme(
       axis.line.y = element_blank(),
       axis.ticks.y = element_blank(),
@@ -59,12 +66,12 @@ FPlot <- function(data,plotname){
 
 ###################################################################################################
 # Set directory and import results
-setwd("./data")
+setwd("../results")
 
 fe <- read.csv('fixef_modelbuild_fe.csv')
 int <- read.csv('fixef_modelbuild_int.csv')
 re <- read.csv('fixef_modelbuild_re.csv')
-model_selected.effectstruct <-"Reported Exposure + Grouped Method + Sequencing Gene + Participant Seropositivity" #GetName(model_selected.form, effects = 'fixed') #Requires var from binary_metareg.R
+model_selected.effectstruct <-"Reported Exposure + Grouped Method + Sequencing Gene + Sampling Delay" #GetName(model_selected.form, effects = 'fixed') #Requires var from binary_metareg.R
 
 selected.fe <- fe[which(fe$analysis %in% model_selected.effectstruct),]
 
@@ -74,7 +81,7 @@ selected.re <- re[which(re$analysis %in% model_selected.effectstruct),]
 
 ###################################################################################################
 # Plot Fixed Effects and CIs from selected model (output to jpeg)
-plt.list <- lapply(c('reported.exposure','grouped.method', 'sequencing.gene', 'sampling.delay'), PlotMetaReg, data = ci$fe) #selected.fe 
+plt.list <- lapply(c('reported.exposure','grouped.method', 'sequencing.gene', 'sampling.delay'), PlotMetaReg, data = selected.fe) #selected.fe 
 plt_grid1 <- cowplot::plot_grid(plt.list[[2]]+scale_y_discrete(labels = c("model" = 'Model', 
                                                                           "phylogenetic" = 'Phylogenetic',
                                                                           "distance" = 'Distance',
