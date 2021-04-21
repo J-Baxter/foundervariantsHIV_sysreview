@@ -283,8 +283,8 @@ df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
 
 # Set reference levels for meta regression
 # HSX:MTF, haplotype (highlighter), unknown seropositivity, B, whole genome
-baseline.covar <- c("reported.exposure_", "grouped.method_", "grouped.subtype_","sequencing.gene_", "sampling.delay_")
-baseline.level <- c("HSX:MTF", "haplotype", "B" , "whole.genome" , "<21")
+baseline.covar <- c("reported.exposure_", "grouped.method_", "grouped.subtype_","sequencing.gene_", "sampling.delay_",'alignment.bin_')
+baseline.level <- c("HSX:MTF", "haplotype", "B" , "whole.genome" , "<21", 'NFLG')
 
 df <- SetBaseline(df, baseline.covar, baseline.level)
 df$alignment.length_ <- scale(df$alignment.length_)
@@ -327,14 +327,14 @@ fixeff_modelbuild.forms<- c(f00 = "multiple.founders_ ~  1  + (1 | publication_)
                             f02 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + (1 | publication_) + (1 | cohort_)",
                             f03 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sampling.delay_ + (1 | publication_) + (1 | cohort_)",
                             f04 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + (1 | publication_) + (1 | cohort_)",
-                            f05 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + alignment.length_ + (1 | publication_) + (1 | cohort_)",
+                            f05 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)",
                             f06 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + grouped.subtype_ + (1 | publication_)+ (1 | cohort_)",
-                            f07 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + alignment.length_ + (1 | publication_) + (1 | cohort_)",
+                            f07 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)",
                             f08 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + sampling.delay_ + (1 | publication_) + (1 | cohort_)",
                             f09 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + grouped.subtype_ + (1 | publication_) + (1 | cohort_)",
-                            f10 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + sampling.delay_ + alignment.length_ + (1 | publication_) + (1 | cohort_)",
+                            f10 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + sampling.delay_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)",
                             f11 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + sampling.delay_ + grouped.subtype_ + (1 | publication_) + (1 | cohort_)",
-                            f12 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + sampling.delay_ + alignment.length_ + grouped.subtype_ + (1 | publication_) + (1 | cohort_)")
+                            f12 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + sampling.delay_ + alignment.bin_ + grouped.subtype_ + (1 | publication_) + (1 | cohort_)")
 
 fixeff_modelbuild.effectstruct <- GetName(fixeff_modelbuild.forms, effects = 'fixed')
 fixeff_modelbuild.models <- RunParallel(CalcRandMetaReg, fixeff_modelbuild.forms, df , opt = 'bobyqa') 
@@ -351,13 +351,39 @@ fixeff_modelbuild.check <- CheckModels(fixeff_modelbuild.models) %>%
 
 fixeff_modelbuild.models.converged <- fixeff_modelbuild.models[which(fixeff_modelbuild.check$converged)]
 fixeff_modelbuild.forms.converged <- fixeff_modelbuild.forms[which(fixeff_modelbuild.check$converged)]
-fixeff_modelbuild.effectstruct.converged <- GetName(fixeff_modelbuild.forms.converged, effects = 'fixed')
+
 
 # 3. Check for multicollinearity between fixed effects
 fe_multico <- lapply(fixeff_modelbuild.models.converged, check_collinearity)
-fixeff_modelbuild.models.nomultico <- fixeff_modelbuild.models.converged[-c(7,9)]
-fixeff_modelbuild.forms.nomultico <- fixeff_modelbuild.forms.converged[-c(7,9)]
-fixeff_modelbuild.effectstruct.nomultico <- GetName(fixeff_modelbuild.forms.nomultico, effects = 'fixed')
+fixeff_modelbuild.models.nomultico <- fixeff_modelbuild.models.converged[-c(7,10)]
+fixeff_modelbuild.forms.nomultico <- fixeff_modelbuild.forms.converged[-c(7,9,10)]
+
+
+###################################################################################################
+# STAGE 4: Evaluating the inclusion on interactions
+interaction_modelbuild.forms <- c(i0 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sampling.delay_ + sequencing.gene_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)",
+                                  i1 = "multiple.founders_ ~ reported.exposure_+ grouped.method_*sequencing.gene_ + sampling.delay_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)",
+                                  i2 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sampling.delay_ + sequencing.gene_*alignment.bin_ + (1 | publication_) + (1 | cohort_)")
+  
+interaction_modelbuild.models <- RunParallel(CalcRandMetaReg, interaction_modelbuild.forms, df , opt = 'bobyqa') 
+interaction_modelbuild.effectstruct <- GetName(interaction_modelbuild.forms, effects = 'fixed')
+
+interaction_modelbuild.check <- CheckModels(interaction_modelbuild.models)%>% 
+  `row.names<-`(interaction_modelbuild.effectstruct)
+
+interaction_modelbuild.models.converged <- interaction_modelbuild.models[which(interaction_modelbuild.check$converged)]
+interaction_modelbuild.forms.converged <- interaction_modelbuild.forms[which(interaction_modelbuild.check$converged)]
+
+# Converged Models
+models_converged <- c(fixeff_modelbuild.models.nomultico, interaction_modelbuild.models.converged[-1])
+forms_converged <- c(fixeff_modelbuild.forms.nomultico, interaction_modelbuild.forms.converged[-1])
+effectstruct_converged <- GetName(forms.converged, effects = 'fixed')
+
+###################################################################################################
+# Model selection
+
+
+
 
 # 4. Binned residuals (ideally >95% within SE, but >90% is satisfactory)
 binned <- lapply(fixeff_modelbuild.models.nomultico, binned_residuals)
@@ -370,22 +396,8 @@ fixeff_modelbuild.nomultico.effects <- RunParallel(GetEffects, fixeff_modelbuild
 # gene.segment and alignment.length
 # Final selection concluded following evaluation of interaction terms
 
-###################################################################################################
-# STAGE 4: Evaluating the inclusion on interactions
-interaction_modelbuild.forms <- c(i0 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sampling.delay_ + sequencing.gene_ + (1 | publication_) + (1 | cohort_)",
-                                  i1 = "multiple.founders_ ~ reported.exposure_*grouped.subtype_ + grouped.method_ + sampling.delay_ + sequencing.gene_ + (1 | publication_) + (1 | cohort_)",
-                                  i2 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sampling.delay_ + sequencing.gene_*alignment.length_ + (1 | publication_) + (1 | cohort_)")
-  
-interaction_modelbuild.models <- RunParallel(CalcRandMetaReg, interaction_modelbuild.forms, df , opt = 'bobyqa') 
-interaction_modelbuild.effectstruct <- GetName(interaction_modelbuild.forms, effects = 'fixed')
 
-interaction_modelbuild.check <- CheckModels(interaction_modelbuild.models)%>% 
-  `row.names<-`(interaction_modelbuild.effectstruct)
 
-# No interaction models converge succesfully
-
-###################################################################################################
-# Model selection
 # function identifies nesting of models to calculate LTR
 fixeff_modelbuild.selection <- ModelComp(fixeff_modelbuild.models.nomultico) %>% 
   `row.names<-`(fixeff_modelbuild.effectstruct.nomultico)
@@ -525,6 +537,7 @@ mapply(write.csv, t2, file = t2.names, row.names = T)
 t3 <- rbind.data.frame(raneff.selection, fixeff_modelbuild.selection)
 write.csv(t3, '../results/model_selection.csv')
 
+
 # Sensitivity Analyses
 s1 <- model_selected.influence
 write.csv(s1, '../results/loocv_mv.csv')
@@ -544,6 +557,10 @@ s7 <- Effects2File(sa7_effects)
 s7.names <- c('s7_int.csv', 's7_fe.csv', 's7_re.csv')  %>% paste0('../results/', .)
 mapply(write.csv, s7, file = s7.names, row.names = T)
 
+
+# Selected Model
+model_selected.coef <- summary(model_selected)$coefficients %>% cbind.data.frame()
+write.csv(model_selected.coef, '../results/mv_selectedmodelcoeff.csv')
 ###################################################################################################
 ###################################################################################################
 # END # 
