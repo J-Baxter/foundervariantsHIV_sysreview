@@ -191,7 +191,7 @@ GetName <- function(x, effects = NULL) {
 ###################################################################################################
 # Extract intercept, fixed effects and random effects from the models
 # Output is a list of dataframes
-GetEffects <- function(model, label = "original"){
+GetCoefs <- function(model, label = "original"){
   # Calculate CIs
   options(warn = 1)
   
@@ -211,12 +211,15 @@ GetEffects <- function(model, label = "original"){
     sd <- sqrt(diag(vcov(model)))
     ci.fe <- ci[-c(1,re.num),]
     nom <- names(fe)
+    sum <- summary(model)$coefficients
     
     fix_df <- cbind.data.frame(nom = nom,
                                est = fe,
                                sd = sd,
                                ci.lb = ci.fe[,1],
                                ci.ub = ci.fe[,2],
+                               z.val = sum[,3],
+                               p.val = sum[,4],
                                analysis = label) %>% 
       `row.names<-` (NULL) %>%
       separate(nom , c('covariate' , 'level') , '_')
@@ -226,12 +229,15 @@ GetEffects <- function(model, label = "original"){
     ci.fe <- ci[re.num,]
     nom <- names(fe)
     sd <-  NA
+    sum <- summary(model)$coefficients
     
     fix_df <- cbind.data.frame(nom = nom,
                                est = fe,
                                sd = sd,
                                ci.lb = ci.fe[1],
                                ci.ub = ci.fe[2],
+                               z.val = sum[,3],
+                               p.val = sum[,4],
                                analysis = label) %>% 
       `row.names<-` (NULL) %>%
       separate(nom , c('covariate' , 'level') , '_')
