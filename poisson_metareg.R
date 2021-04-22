@@ -77,7 +77,7 @@ set.seed(4472)
 # Import data
 # Note that this filters the covariates specified and removes levels where n<5
 # Also removes unknown exposures
-setwd("./data")
+setwd("../data")
 df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
@@ -87,7 +87,7 @@ df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
 
 # Set reference levels for meta regression
 # HSX:MTF, haplotype (highlighter), unknown seropositivity, B, whole genome
-baseline.covar <- c("reported.exposure_", "grouped.method_", "grouped.subtype_","sequencing.gene_", "delay.sampling_")
+baseline.covar <- c("reported.exposure_", "grouped.method_", "grouped.subtype_","sequencing.gene_", "sampling.delay_")
 baseline.level <- c("HSX:MTF", "haplotype", "B" , "whole.genome" , "<21")
 
 df <- SetBaseline(df, baseline.covar, baseline.level)
@@ -128,7 +128,8 @@ quant_summary <- df_nosingles %>%
 # Poisson log link
 
 poisson.forms <- c(p0 = "minimum.number.of.founders_ ~  1 + (1 | publication_)",
-                  p1 = "minimum.number.of.founders_ ~  reported.exposure_ -1 + (1 | publication_)")
+                  p1 = "minimum.number.of.founders_ ~  reported.exposure_ -1 + (1 | publication_)",
+                  p2 = "minimum.number.of.founders_ ~  reported.exposure_ + grouped.method_ + sampling.delay_ + (1 | publication_)")
 
 poisson.effectstruct = GetName(poisson.forms, effects = 'random')
 
@@ -145,7 +146,7 @@ poisson_summary <- poisson_reg_stratified$fe %>%
   exp()
 
 out <- cbind.data.frame(quant_summary, poisson_summary)
-write.csv(out, 'numberfounders_summary.csv')
+write.csv(out, '../results/numberfounders_summary.csv')
 
 
 ###################################################################################################
