@@ -338,26 +338,21 @@ fixeff_modelbuild.models <- RunParallel(CalcRandMetaReg, fixeff_modelbuild.forms
 # Model diagnostics prior to selection of fixed effects structure
 # 1. Identify models that satisfy convergence threshold
 # 2. Check Singularity
-# 3. Check for multicollinearity between fixed effects
 
-# 1. & 2. Check model convergence and singularity
+
+# Check model convergence and singularity
 fixeff_modelbuild.check <- CheckModels(fixeff_modelbuild.models) %>% 
   `row.names<-`(fixeff_modelbuild.effectstruct)
 
-fixeff_modelbuild.models.converged <- fixeff_modelbuild.models[which(fixeff_modelbuild.check$converged)]
-fixeff_modelbuild.forms.converged <- fixeff_modelbuild.forms[which(fixeff_modelbuild.check$converged)]
-
-# 3. Check for multicollinearity between fixed effects
-fe_multico <- lapply(fixeff_modelbuild.models.converged, check_collinearity)
-fixeff_modelbuild.models.nomultico <- fixeff_modelbuild.models.converged[-c(7,9,10)]
-fixeff_modelbuild.forms.nomultico <- fixeff_modelbuild.forms.converged[-c(7,9,10)]
+fixeff_modelbuild.models.converged <- fixeff_modelbuild.models[(which(fixeff_modelbuild.check$converged & !fixeff_modelbuild.check$is.singular))]
+fixeff_modelbuild.forms.converged <- fixeff_modelbuild.models[(which(fixeff_modelbuild.check$converged & !fixeff_modelbuild.check$is.singular))]
 
 
 ###################################################################################################
 # STAGE 4: Evaluating the inclusion on interactions
-interaction_modelbuild.forms <- c(i0 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sampling.delay_ + sequencing.gene_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)",
-                                  i1 = "multiple.founders_ ~ reported.exposure_+ grouped.method_*sequencing.gene_ + sampling.delay_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)",
-                                  i2 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sampling.delay_ + sequencing.gene_*alignment.bin_ + (1 | publication_) + (1 | cohort_)")
+interaction_modelbuild.forms <- c(i1 = "multiple.founders_ ~ reported.exposure_ + grouped.method_*sequencing.gene_  + sampling.delay_ + (1 | publication_) + (1 | cohort_)",
+                                  i2 = "multiple.founders_ ~ reported.exposure_ + grouped.method_*sequencing.gene_ + sampling.delay_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)",
+                                  i3 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sampling.delay_ + sequencing.gene_*alignment.bin_ + (1 | publication_) + (1 | cohort_)")
   
 interaction_modelbuild.models <- RunParallel(CalcRandMetaReg, interaction_modelbuild.forms, df , opt = 'bobyqa') 
 interaction_modelbuild.effectstruct <- GetName(interaction_modelbuild.forms, effects = 'fixed')
@@ -365,16 +360,25 @@ interaction_modelbuild.effectstruct <- GetName(interaction_modelbuild.forms, eff
 interaction_modelbuild.check <- CheckModels(interaction_modelbuild.models)%>% 
   `row.names<-`(interaction_modelbuild.effectstruct)
 
-interaction_modelbuild.models.converged <- interaction_modelbuild.models[which(interaction_modelbuild.check$converged)]
-interaction_modelbuild.forms.converged <- interaction_modelbuild.forms[which(interaction_modelbuild.check$converged)]
+# Check model convergence and singularity
+interaction_modelbuild.models.converged <- interaction_modelbuild.models[(which(interaction_modelbuild.check$converged & !interaction_modelbuild.check$is.singular))]
+interaction_modelbuild.forms.converged <- interaction_modelbuild.forms[(which(interaction_modelbuild.check$converged & !interaction_modelbuild.check$is.singular))]
 
-# Converged Models
+# Converged Models and extract effects
 models_converged <- c(fixeff_modelbuild.models.nomultico, interaction_modelbuild.models.converged)
 forms_converged <- c(fixeff_modelbuild.forms.nomultico, interaction_modelbuild.forms.converged)
 effectstruct_converged <- GetName(forms.converged, effects = 'fixed')
 
 ###################################################################################################
 # Model selection
+
+
+# 3. Check for multicollinearity between fixed effects
+fe_multico <- lapply(fixeff_modelbuild.models.converged, check_collinearity)
+fixeff_modelbuild.models.nomultico <- fixeff_modelbuild.models.converged[-c(7,9,10)]
+fixeff_modelbuild.forms.nomultico <- fixeff_modelbuild.forms.converged[-c(7,9,10)]
+
+
 
 # Binned residuals (ideally >95% within SE, but >90% is satisfactory)
 binned <- lapply(models_converged, binned_residuals)
