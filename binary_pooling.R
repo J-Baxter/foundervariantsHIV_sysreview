@@ -89,14 +89,6 @@ CalcOnestepBiRand <- function(data){
 }
 
 
-# Two-step (Compound dist) GLMM accounting for clustering of studies using dispersion param Phi
-# of beta distriubtion to capture between study heterogeneity of p
-CalcTwostepBetaBi <- function(proportions){
-  model <- betabin(cbind(multiplefounders, subjects - multiplefounders) ~ 1, ~ 1, data = proportions)
-  return(model)
-}
-
-
 # Extracts estimates of summary effect from models
 CalcEstimates <- function(model , analysis = "original", mermod.method = 'Profile'){
   if (class(model) == "rma" || class(model) == "rma.uni" || class(model) == "rma.glmm"){
@@ -265,15 +257,13 @@ BootParticipant <- function(data, replicates){
     makeCluster()
   
   clusterEvalQ(cl, c(library(lme4), library(metafor), library(aod), library(dplyr),
-                     set.seed(4472),'CalcOnestepBiRand', 'CalcTwostepBiNorm',
-                     'CalcTwostepBetaBi'))
+                     set.seed(4472),'CalcOnestepBiRand', 'CalcTwostepBiNorm'))
   
   start <- Sys.time()
   print(start)
   
   twostep_boot <- parLapply(cl = cl, resampled_props, CalcTwostepBiNorm)
   rand_boot <- parLapply(cl = cl, resampled_props, CalcOnestepBiRand)
-  beta_boot <- parLapply(cl = cl, resampled_props, CalcTwostepBetaBi)
   
   end <- Sys.time()
   elapsed <- end-start
@@ -296,20 +286,11 @@ BootParticipant <- function(data, replicates){
   rand_boot.het <- lapply(rand_boot, function(mod) CalcHet(mod, analysis = "onestep_bi_rand")) %>%
     do.call(rbind.data.frame,.)
   
-  beta_boot.est <- lapply(beta_boot, function(mod) mod@param[1]) %>%
-    do.call(rbind.data.frame,.) %>%
-    {cbind.data.frame("estimate"=transf.ilogit(.[,1]))}
-  
-  beta_boot.het <- lapply(beta_boot, function(mod) CalcHet(mod, analysis = "twostep_betabi")) %>%
-    do.call(rbind.data.frame,.)
-  
   boot_estimates <- rbind.data.frame(twostep_boot.est,
-                                     rand_boot.est,
-                                     beta_boot.est)
+                                     rand_boot.est)
   
   boot_het <- rbind.data.frame(twostep_boot.het,
-                               rand_boot.het,
-                               beta_boot.het)
+                               rand_boot.het)
   
   out <- cbind.data.frame(boot_estimates, boot_het) %>% .[,-2]
 
@@ -363,34 +344,17 @@ onestep_bi_rand.sum
 onestep_bi_rand.est <- CalcEstimates(onestep_bi_rand)
 onestep_bi_rand.het <- CalcHet(onestep_bi_rand)
 
-###################################################################################################
 
-# 3. Beta-binomial model
-# the event rate pi for the ith study is drawn from a beta distirbution. conditional on pi, the number of 
-# individuals xi in the ith study of size ni who experience the events of interest follows a binomial 
-# distribution B(ni;pi) (From Chuang-Stein 1993).
-# Laplace approximate ML estimation
-df_props$multiplefounders[df_props$multiplefounders == 0 ] <- 0.0005 # refactor to CalcProps function
-
-twostep_betabi <- CalcTwostepBetaBi(df_props)
-
-twostep_betabi.sum <- summary(twostep_betabi)
-twostep_betabi.sum
-twostep_betabi.est <- CalcEstimates(twostep_betabi)
-twostep_betabi.het <- CalcHet(twostep_betabi)
- 
 ###################################################################################################
 ###################################################################################################
 # Model comparison: Estimated sumary effects (prop, CI), between study variance (tau, I^)
 # Tau2 = Var(theta_i), theta_i = E[theta_i]
   estimates <- rbind.data.frame(twostep_binorm.est,
-                                onestep_bi_rand.est,
-                                twostep_betabi.est)
+                                onestep_bi_rand.est)
 
 
 heterogeneity <- rbind.data.frame(twostep_binorm.het,
-                                  onestep_bi_rand.het,
-                                  twostep_betabi.het )
+                                  onestep_bi_rand.het)
 
   
 ###################################################################################################
@@ -414,12 +378,8 @@ twostep_binorm.influence <- lapply(dfp_loocv, function(x) CalcTwostepBiNorm(data
 onestep_bi_rand.influence <-  lapply(dfp_loocv ,CalcOnestepBiRand) %>%
   DFInfluence(., labs =publist_loocv) %>% {cbind.data.frame(.,'model' = 'onestep_bi_rand')}
 
-twostep_betabi.influence <-  lapply(dfp_loocv ,CalcTwostepBetaBi) %>%
-  DFInfluence(., labs = publist_loocv) %>% {cbind.data.frame(.,'model' = 'twostep_betabi')}
-
 influence_df <- rbind.data.frame(twostep_binorm.influence,
-                                 onestep_bi_rand.influence,
-                                 twostep_betabi.influence)
+                                 onestep_bi_rand.influence)
 
 
 # SA2. Exclusion of small sample sizes (less than n = 10)
@@ -441,14 +401,9 @@ onestep_bi_rand.nosmallsample.out <- list(CalcEstimates(onestep_bi_rand.nosmalls
                                           CalcHet(onestep_bi_rand.nosmallsample)) %>%
   cbind.data.frame(.)
 
-twostep_betabi.nosamllsample <- CalcTwostepBetaBi(df_props.nosmallsample)
-twostep_betabi.nosamllsample.out <- list(CalcEstimates(twostep_betabi.nosamllsample, analysis = "no_small"),
-                                          CalcHet(twostep_betabi.nosamllsample)) %>%
-  cbind.data.frame(.)
 
 SA2_results <-  rbind.data.frame(twostep_binorm.nosmallsample.out,
-                                 onestep_bi_rand.nosmallsample.out,
-                                 twostep_betabi.nosamllsample.out)
+                                 onestep_bi_rand.nosmallsample.out)
 
 
 # SA3. Exclusion of studies with 0 multiple founder variants 
@@ -470,14 +425,9 @@ onestep_bi_rand.nozeros.out <- list(CalcEstimates(onestep_bi_rand.nozeros, analy
                                     CalcHet(onestep_bi_rand.nozeros)) %>%
   cbind.data.frame(.)
 
-twostep_betabi.nozeros <- CalcTwostepBetaBi(df_props.nozeros)
-twostep_betabi.nozeros.out <- list(CalcEstimates(twostep_betabi.nozeros , analysis = "no_zeros"),
-                                   CalcHet(twostep_betabi.nozeros)) %>%
-  cbind.data.frame(.) #expectation is this is no better than binomial models
 
 SA3_results <- rbind.data.frame(twostep_binorm.nozeros.out, 
-                                onestep_bi_rand.nozeros.out,
-                                twostep_betabi.nozeros.out)
+                                onestep_bi_rand.nozeros.out)
 
 # SA4. Exclusion of all studies that do not use SGA
 publist.sgaonly <- subset(df , sample.amplification_ == 'SGA' , select = publication_) %>%
@@ -498,14 +448,9 @@ onestep_bi_rand.sgaonly.out <- list(CalcEstimates(onestep_bi_rand.sgaonly, analy
                                     CalcHet(onestep_bi_rand.sgaonly)) %>%
   cbind.data.frame(.)
 
-twostep_betabi.sgaonly <- CalcTwostepBetaBi(df_props.sgaonly)
-twostep_betabi.sgaonly.out <- list(CalcEstimates(twostep_betabi.sgaonly , analysis = "sga_only"),
-                                   CalcHet(twostep_betabi.sgaonly)) %>%
-  cbind.data.frame(.) 
 
 SA4_results <- rbind.data.frame(twostep_binorm.sgaonly.out, 
-                                onestep_bi_rand.sgaonly.out,
-                                twostep_betabi.sgaonly.out)
+                                onestep_bi_rand.sgaonly.out)
 
 # SA5. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
 resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(., noreps = FALSE)
