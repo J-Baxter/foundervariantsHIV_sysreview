@@ -367,43 +367,32 @@ interaction_modelbuild.forms.converged <- interaction_modelbuild.forms[(which(in
 # Converged Models and extract effects
 models_converged <- c(fixeff_modelbuild.models.nomultico, interaction_modelbuild.models.converged)
 forms_converged <- c(fixeff_modelbuild.forms.nomultico, interaction_modelbuild.forms.converged)
-effectstruct_converged <- GetName(forms.converged, effects = 'fixed')
+effectstruct_converged <- GetName(forms_converged, effects = 'fixed')
 
 ###################################################################################################
 # Model selection
 
-
-# 3. Check for multicollinearity between fixed effects
-fe_multico <- lapply(fixeff_modelbuild.models.converged, check_collinearity)
-fixeff_modelbuild.models.nomultico <- fixeff_modelbuild.models.converged[-c(7,9,10)]
-fixeff_modelbuild.forms.nomultico <- fixeff_modelbuild.forms.converged[-c(7,9,10)]
-
-
+# Check for multicollinearity between fixed effects
+# Ignore interactions as this will artificially inflate VIF
+multico <- lapply(models_converged, check_collinearity)
 
 # Binned residuals (ideally >95% within SE, but >90% is satisfactory)
 binned <- lapply(models_converged, binned_residuals)
 binnedplots <- PlotBinned(binned)
 
 # Extract fixed and random effects for models that satisfy model checks and assumptions
-fixeff_modelbuild.nomultico.effects <- RunParallel(GetEffects, fixeff_modelbuild.models.nomultico, fixeff_modelbuild.effectstruct.nomultico)
-
-# Models f0-f5 & f8 converge. f7 and f10 is discounted due to a high degree of collinearity between
-# gene.segment and alignment.length
-# Final selection concluded following evaluation of interaction terms
-
-
+models_converged.effects <- RunParallel(GetEffects, models_converged , effectstruct_converged)
 
 # function identifies nesting of models to calculate LTR
-fixeff_modelbuild.selection <- ModelComp(fixeff_modelbuild.models.nomultico) %>% 
-  `row.names<-`(fixeff_modelbuild.effectstruct.nomultico)
-fixeff_modelbuild.multico.check <- CheckModels(fixeff_modelbuild.models.nomultico)%>% 
-  `row.names<-`(fixeff_modelbuild.effectstruct.nomultico)
+# Also calculates pseudo R2 and ICC
+models_converged.comp <- ModelComp(models_converged) %>% 
+  `row.names<-`(effectstruct_converged)
 
 # No significant differences between pairwise LTR, negligble chenge in AIC/BIC
 # Model selected = Reported Exposure + Grouped Method + Sequencing Gene + Participant Seropositivity
 # Model effects sent to file as part of fixeff_modelbuild.nomultico.effects
-model_selected <- fixeff_modelbuild.models.nomultico[[7]]
-model_selected.form <- fixeff_modelbuild.forms.nomultico[[7]]
+model_selected <- models_converged[[8]]
+model_selected.form <- forms_converged[[8]]
 model_selected.effectstruct <- GetName(model_selected.form, effects = 'fixed')
 
 
