@@ -57,6 +57,28 @@ CalcRandMetaReg <- function(data, formula, opt = NULL){
 }
 
 
+# Wrapper to performance::check_collinearity
+# filters according to a tolerance VIF value (default = 5)
+CheckCollinearity <- function(model, tol = 5){
+  require(performance)
+  filtered <- list()
+  
+  if (class(model) == 'list'){
+    check <- lapply(model, performance::check_collinearity %>%
+                      as.data.frame())
+    
+    filtered <- check[which(sapply(check, function(x) max(x[,2])<= tol))]
+    
+    out <- filtered %>% 
+      .[!sapply(.,is.null)] %>%
+      do.call(rbind.data.frame, .) %>%
+      cbind.data.frame(model = (gsub('\\.[:1,2,3,4:]', '', row.names(.) %>% as.character())))
+  }
+  
+  return(out)
+}
+
+
 # Plot binned residuals
 # Y = average residual, X = Founder Variant Multiplicity, Ribbon = SE
 PlotBinned <- function(data){
@@ -135,14 +157,15 @@ CheckModels <- function(modellist){
   if (class(modellist) == 'list'){
     is.sing <- lapply(modellist, check_singularity) %>% do.call(rbind.data.frame, .)
     is.con <- lapply(modellist, check_convergence) %>% do.call(rbind.data.frame, .)
+    
   }else{
     is.sing <- check_singularity(modellist) 
-    is.con <- check_convergence(modellist) 
+    is.con <- check_convergence(modellist)
   }
   
   
   out <- cbind.data.frame(is.sing, is.con) %>% 
-  `colnames<-` (c('is.singular', 'converged'))
+  `colnames<-` (c('is.singular', 'is.converged'))
   
   rownames(out) <- names(modellist)
 
@@ -294,25 +317,25 @@ df_props <- CalcProps(df)
 ###################################################################################################
 # STAGE 1: Selecting Random Effects
 
-raneff.forms <- c(r0 = "multiple.founders_ ~  1 + (1 | publication_)",
-                  r1 = "multiple.founders_ ~  1 + (1 | publication_) + (1 | cohort_)",
-                  r2 = "multiple.founders_ ~  1 + (1 | publication_) + (1 | cohort_) + (1 | cohort_:publication_)")
+raneff_forms <- c(r1 = "multiple.founders_ ~  1 + (1 | publication_)",
+                  r2 = "multiple.founders_ ~  1 + (1 | publication_) + (1 | cohort_)",
+                  r3 = "multiple.founders_ ~  1 + (1 | publication_) + (1 | cohort_) + (1 | cohort_:publication_)")
 
-raneff.effectstruct = GetName(raneff.forms, effects = 'random')
+raneff_effectstruct = GetName(raneff_forms, effects = 'random')
 
 # Run models
-raneff.models <- RunParallel(CalcRandMetaReg, raneff.forms, df)
+raneff_models <- RunParallel(CalcRandMetaReg, raneff_forms, df)
 
 # Check model convergence and singularity
-raneff.check <- CheckModels(raneff.models) %>% 
-  `row.names<-`(raneff.effectstruct)
+raneff_check <- CheckModels(raneff_models) %>% 
+  `row.names<-`(raneff_effectstruct)
 
 # Extract random effects
-raneff.effects <- RunParallel(GetEffects, raneff.models, raneff.effectstruct)
+raneff_effects <- RunParallel(GetEffects, raneff_models, raneff_effectstruct)
 
 # Model selection
-raneff.selection <- ModelComp(raneff.models) %>% 
-  `row.names<-`(raneff.effectstruct)
+raneff_selection <- ModelComp(raneff_models) %>% 
+  `row.names<-`(raneff_effectstruct)
 
 # RE Selected = "(1 | publication) + (1|cohort)", significantly p(<0.05) better fit than publication only.
 # AIC in agreement, BIC between first two models is indistinguishable
@@ -322,59 +345,65 @@ raneff.selection <- ModelComp(raneff.models) %>%
 # Random effects as previously specified
 # Baseline covariates: HSX:MTF, phylogenetic, unknown seropositivity, B, env
 
-fixeff_modelbuild.forms<- c(f00 = "multiple.founders_ ~  1  + (1 | publication_) + (1 | cohort_)",
-                            f01 = "multiple.founders_ ~ reported.exposure_ + (1 | publication_) + (1 | cohort_)",
-                            f02 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + (1 | publication_) + (1 | cohort_)",
-                            f03 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sampling.delay_ + (1 | publication_) + (1 | cohort_)",
-                            f04 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + (1 | publication_) + (1 | cohort_)",
-                            f05 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)",
-                            f06 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)",
-                            f07 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + sampling.delay_ + (1 | publication_) + (1 | cohort_)",
-                            f08 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + sampling.delay_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)")
+fixeff_forms<- c(f01 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + (1 | publication_) + (1 | cohort_)",
+                 f02 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sampling.delay_ + (1 | publication_) + (1 | cohort_)",
+                 f03 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + (1 | publication_) + (1 | cohort_)",
+                 f04 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)",
+                 f05 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)",
+                 f06 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + sampling.delay_ + (1 | publication_) + (1 | cohort_)",
+                 f07 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + sampling.delay_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)")
 
-fixeff_modelbuild.effectstruct <- GetName(fixeff_modelbuild.forms, effects = 'fixed')
-fixeff_modelbuild.models <- RunParallel(CalcRandMetaReg, fixeff_modelbuild.forms, df , opt = 'bobyqa') 
+fixeff_effectstruct <- GetName(fixeff_forms, effects = 'fixed')
+fixeff_models <- RunParallel(CalcRandMetaReg, fixeff_forms, df , opt = 'bobyqa') 
 
 # Model diagnostics prior to selection of fixed effects structure
 # 1. Identify models that satisfy convergence threshold
-# 2. Check Singularity
+# 2. Check Singularity (all values in variance-covariance matrix >0)
+# 3. Check multicollinearity between fixed effects (Variance Inflation Factor, VIF >5 )
 
+fixeff_check <- CheckModels(fixeff_models) %>% 
+  `row.names<-`(fixeff_effectstruct)
 
-# Check model convergence and singularity
-fixeff_modelbuild.check <- CheckModels(fixeff_modelbuild.models) %>% 
-  `row.names<-`(fixeff_modelbuild.effectstruct)
+fixeff_multico <- CheckCollinearity(fixeff_models) %>% 
+  `row.names<-`(fixeff_effectstruct)
 
-fixeff_modelbuild.models.converged <- fixeff_modelbuild.models[(which(fixeff_modelbuild.check$converged & !fixeff_modelbuild.check$is.singular))]
-fixeff_modelbuild.forms.converged <- fixeff_modelbuild.models[(which(fixeff_modelbuild.check$converged & !fixeff_modelbuild.check$is.singular))]
+fixeff_models.viable <- fixeff_models[which(fixeff_check$is.converged & 
+                                              !fixeff_check$is.singular  & 
+                                              (names(fixeff_models) %in% unique(fixeff_multico$model)))]
+
+fixeff_forms.viable <- fixeff_forms[(which(fixeff_check$is.converged &
+                                             !fixeff_check$is.singular))]
 
 
 ###################################################################################################
 # STAGE 4: Evaluating the inclusion on interactions
-interaction_modelbuild.forms <- c(i1 = "multiple.founders_ ~ reported.exposure_ + grouped.method_*sequencing.gene_  + sampling.delay_ + (1 | publication_) + (1 | cohort_)",
-                                  i2 = "multiple.founders_ ~ reported.exposure_ + grouped.method_*sequencing.gene_ + sampling.delay_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)",
-                                  i3 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sampling.delay_ + sequencing.gene_*alignment.bin_ + (1 | publication_) + (1 | cohort_)")
+interact_forms <- c(i1 = "multiple.founders_ ~ reported.exposure_ + grouped.method_*sequencing.gene_  + sampling.delay_ + (1 | publication_) + (1 | cohort_)",
+                    i2 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_*alignment.bin_ + (1 | publication_) + (1 | cohort_)",
+                    i3 = "multiple.founders_ ~ reported.exposure_ + grouped.method_*sequencing.gene_ + sampling.delay_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)",
+                    i4 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sampling.delay_ + sequencing.gene_*alignment.bin_ + (1 | publication_) + (1 | cohort_)")
   
-interaction_modelbuild.models <- RunParallel(CalcRandMetaReg, interaction_modelbuild.forms, df , opt = 'bobyqa') 
-interaction_modelbuild.effectstruct <- GetName(interaction_modelbuild.forms, effects = 'fixed')
+interact_models <- RunParallel(CalcRandMetaReg, interact_forms, df , opt = 'bobyqa') 
+interact_effectstruct <- GetName(interact_forms, effects = 'fixed')
 
-interaction_modelbuild.check <- CheckModels(interaction_modelbuild.models)%>% 
-  `row.names<-`(interaction_modelbuild.effectstruct)
+interact_check <- CheckModels(interact_models)%>% 
+  `row.names<-`(interact_effectstruct)
 
 # Check model convergence and singularity
-interaction_modelbuild.models.converged <- interaction_modelbuild.models[(which(interaction_modelbuild.check$converged & !interaction_modelbuild.check$is.singular))]
-interaction_modelbuild.forms.converged <- interaction_modelbuild.forms[(which(interaction_modelbuild.check$converged & !interaction_modelbuild.check$is.singular))]
+interact_models.converged <- interact_models[(which(interact_check$converged & !interact_check$is.singular))]
+interact_forms.converged <- interact_forms[(which(interact_check$converged & !interact_check$is.singular))]
 
-# Converged Models and extract effects
-models_converged <- c(fixeff_modelbuild.models.nomultico, interaction_modelbuild.models.converged)
-forms_converged <- c(fixeff_modelbuild.forms.nomultico, interaction_modelbuild.forms.converged)
-effectstruct_converged <- GetName(forms_converged, effects = 'fixed')
 
 ###################################################################################################
-# Model selection
+# Viable Models
 
-# Check for multicollinearity between fixed effects
-# Ignore interactions as this will artificially inflate VIF
-multico <- lapply(models_converged, check_collinearity)
+models_viable <- c(fixeff_models.viable , interact_models.converged)
+forms_viable <- c(fixeff_forms.viable, interact_forms.converged)
+effectstruct_viable <- GetName(forms_viable, effects = 'fixed')
+
+
+###################################################################################################
+###################################################################################################
+# Model selection
 
 # Binned residuals (ideally >95% within SE, but >90% is satisfactory)
 binned <- lapply(models_converged, binned_residuals)
@@ -391,7 +420,7 @@ models_converged.comp <- ModelComp(models_converged) %>%
 # No significant differences between pairwise LTR, negligble chenge in AIC/BIC
 # Model selected = Reported Exposure + Grouped Method + Sequencing Gene + Participant Seropositivity
 # Model effects sent to file as part of fixeff_modelbuild.nomultico.effects
-model_selected <- models_converged[[8]]
+model_selected <- models_converged[[7]]
 model_selected.form <- forms_converged[[8]]
 model_selected.effectstruct <- GetName(model_selected.form, effects = 'fixed')
 
