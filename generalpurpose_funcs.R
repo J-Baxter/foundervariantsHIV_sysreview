@@ -77,18 +77,6 @@ CalcProps <- function(.data, ...){
 
 
 ###################################################################################################
-# Does what is says on the tin
-# Assumes sampling distribution of parameters is multivariate normal
-CalcCI <- function(u,se,threshold){
-  value <- 1-(threshold/2)
-  upper <- u + se*qnorm(value)
-  lower <- u - se*qnorm(value)
-  ci <- c(lower,upper)
-  return(ci)
-}
-
-
-###################################################################################################
 # Set baseline contasts for GLMM
 SetBaseline <- function(data,covar,baseline){
   dataframe <- data
@@ -185,6 +173,31 @@ GetName <- function(x, effects = NULL) {
   }
   
   return(name)
+}
+
+
+###################################################################################################
+# Extracts covariate names from lmer function syntax
+# Pipeline for check_singularity, check_convergence and logloss functions
+CheckModels <- function(modellist){
+  require(performance)
+  
+  if (class(modellist) == 'list'){
+    is.sing <- lapply(modellist, check_singularity) %>% do.call(rbind.data.frame, .)
+    is.con <- lapply(modellist, check_convergence) %>% do.call(rbind.data.frame, .)
+    
+  }else{
+    is.sing <- check_singularity(modellist) 
+    is.con <- check_convergence(modellist)
+  }
+  
+  
+  out <- cbind.data.frame(is.sing, is.con) %>% 
+    `colnames<-` (c('is.singular', 'is.converged'))
+  
+  rownames(out) <- names(modellist)
+  
+  return(out)
 }
 
 
@@ -290,5 +303,25 @@ GetCoefs <- function(model, label = "original"){
 }
 
 
+###################################################################################################
+# Extract Marginal effects and calculate bootstraped prediction/confidence intervals
+
+GetMarginals <- function(model, label = "original"){
+  # Calculate CIs
+  options(warn = 1)
+  
+  ci <- confint.merMod(model, 
+                       method = 'boot',
+                       .progress="txt", 
+                       PBargs=list(style=3), 
+                       nsim = 100
+  )
+  
+
+
+  out <- 
+  
+  return(out)
+}
 ###################################################################################################
 ###################################################################################################
