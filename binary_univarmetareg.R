@@ -31,7 +31,7 @@ CalcRandMetaReg <- function(data, formula, opt = NULL){
     cntrl <- glmerControl(optCtrl = list(maxfun = 5000000),
                           check.nobs.vs.nlev = 'ignore',
                           check.nobs.vs.nRE = 'ignore',
-                          optimizer = opt)
+                          optimizer = 'bobyqa')
   }else{
     cntrl <- glmerControl(optCtrl = list(maxfun = 5000000),
                           check.nobs.vs.nlev = 'ignore',
@@ -44,7 +44,7 @@ CalcRandMetaReg <- function(data, formula, opt = NULL){
   model <- lme4::glmer(f,
                        data = data,
                        family = binomial(link = "logit"),
-                       nAGQ = 7,
+                       nAGQ = 1,
                        control = cntrl)
   return(model)
 }
@@ -116,12 +116,12 @@ df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
 # Equivalent to a subgroup analysis with random effects for subgroup and cohort
 # Pooled heterogeneity calculation
 
-unipooled_forms <- c(f1 = "multiple.founders_ ~  riskgroup_ -1 + (1 | publication_)",
-                  f2 = "multiple.founders_ ~ reported.exposure_ -1 + ( 1 | publication_)",
-                  f3 = "multiple.founders_ ~ grouped.method_ -1 + ( 1 | publication_)",
-                  f4 = "multiple.founders_ ~ sequencing.gene_ -1  + (1 | publication_)",
-                  f5 = "multiple.founders_ ~ alignment.bin_  -1 + (1 | publication_)",
-                  f6 = "multiple.founders_ ~ sampling.delay_ -1 + ( 1 | publication_)")
+unipooled_forms <- c(f1 = "multiple.founders_ ~  riskgroup_ - 1 + (1 | publication_)",
+                  f2 = "multiple.founders_ ~ reported.exposure_ - 1 + ( 1 | publication_)",
+                  f3 = "multiple.founders_ ~ grouped.method_ - 1 + ( 1 | publication_)",
+                  f4 = "multiple.founders_ ~ sequencing.gene_ - 1  + (1 | publication_)",
+                  f5 = "multiple.founders_ ~ alignment.bin_  - 1 + (1 | publication_)",
+                  f6 = "multiple.founders_ ~ sampling.delay_ - 1 + ( 1 | publication_)")
 
 unipooled_effectstruct <- GetName(unipooled_forms, effects = 'fixed')
 
@@ -133,8 +133,8 @@ unipooled_check <- CheckModels(unipooled_models)%>%
   `row.names<-`(unipooled_effectstruct)
 
 # Check model convergence and singularity
-unipooled_models.converged <- unipooled_models[(which(unipooled_check$converged & !unipooled_check$is.singular))]
-unipooled_forms.converged <- unipooled_forms[(which(unipooled_check$converged & !unipooled_check$is.singular))]
+unipooled_models.converged <- unipooled_models[which(unipooled_check$is.converged & !unipooled_check$is.singular)]
+unipooled_forms.converged <- unipooled_forms[(which(unipooled_check$is.converged & !unipooled_check$is.singular))]
 
 ###################################################################################################
 # STAGE 3: Univariate meta-regression of individual covariates against founder variant multiplicity
