@@ -313,6 +313,8 @@ df <- SetBaseline(df, baseline.covar, baseline.level)
 df$alignment.length_ <- scale(df$alignment.length_)
 
 df_props <- CalcProps(df)
+
+
 ###################################################################################################
 ###################################################################################################
 # STAGE 1: Selecting Random Effects
@@ -339,6 +341,7 @@ raneff_selection <- ModelComp(raneff_models) %>%
 
 # RE Selected = "(1 | publication) + (1|cohort)", significantly p(<0.05) better fit than publication only.
 # AIC in agreement, BIC between first two models is indistinguishable
+
 
 ###################################################################################################
 # STAGE 2: Selecting Fixed effects to be included in model (bottom up approach)
@@ -395,22 +398,23 @@ interact_forms.converged <- interact_forms[(which(interact_check$converged & !in
 
 ###################################################################################################
 # Viable Models
-
 models_viable <- c(fixeff_models.viable , interact_models.converged)
 forms_viable <- c(fixeff_forms.viable, interact_forms.converged)
 effectstruct_viable <- GetName(forms_viable, effects = 'fixed')
 
+# Extract fixed and random effect coefficients and calculate bootstrapped 95% CIs
+models_converged.coef <- RunParallel(GetCoefs, models_viable, effectstruct_viable)
+
+# Extract marginal effects of fixed effects and calculate bootstrapped 95% CIs
+models_converged.marginals <- RunParallel(GetMarginals, models_viable, effectstruct_viable)
 
 ###################################################################################################
 ###################################################################################################
 # Model selection
 
 # Binned residuals (ideally >95% within SE, but >90% is satisfactory)
-binned <- lapply(models_converged, binned_residuals)
+binned <- lapply(models_viable, binned_residuals)
 binnedplots <- PlotBinned(binned)
-
-# Extract fixed and random effects for models that satisfy model checks and assumptions
-models_converged.effects <- RunParallel(GetEffects, models_converged , effectstruct_converged)
 
 # function identifies nesting of models to calculate LTR
 # Also calculates pseudo R2 and ICC
