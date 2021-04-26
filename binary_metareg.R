@@ -31,31 +31,6 @@ library(data.table)
 library(insight)
 source('~/foundervariantsHIV_sysreview/generalpurpose_funcs.R')
 
-# One-step GLMM accounting for clustering of studies using a random intercept
-CalcRandMetaReg <- function(data, formula, opt = NULL){
-  
-  if(is.character(opt)){
-    cntrl <- glmerControl(optCtrl = list(maxfun = 5000000),
-                          check.nobs.vs.nlev = 'ignore',
-                          check.nobs.vs.nRE = 'ignore',
-                          optimizer = opt)
-  }else{
-    cntrl <- glmerControl(optCtrl = list(maxfun = 5000000),
-                          check.nobs.vs.nlev = 'ignore',
-                          check.nobs.vs.nRE = 'ignore')
-  }
-  
-  options(warn = 1)
-  f <- as.formula(formula)
-  environment(f) <- environment()
-  model <- lme4::glmer(f,
-                 data = data,
-                 family = binomial(link = "logit"),
-                 nAGQ = 1,
-                 control = cntrl)
-  return(model)
-}
-
 
 # Wrapper to performance::check_collinearity
 # filters according to a tolerance VIF value (default = 5)
@@ -149,28 +124,6 @@ ModelComp <- function(modellist){
   return(out)
 }
 
-
-# Pipeline for check_singularity, check_convergence and logloss functions
-CheckModels <- function(modellist){
-  require(performance)
-  
-  if (class(modellist) == 'list'){
-    is.sing <- lapply(modellist, check_singularity) %>% do.call(rbind.data.frame, .)
-    is.con <- lapply(modellist, check_convergence) %>% do.call(rbind.data.frame, .)
-    
-  }else{
-    is.sing <- check_singularity(modellist) 
-    is.con <- check_convergence(modellist)
-  }
-  
-  
-  out <- cbind.data.frame(is.sing, is.con) %>% 
-  `colnames<-` (c('is.singular', 'is.converged'))
-  
-  rownames(out) <- names(modellist)
-
-  return(out)
-}
 
 # Create list of dataframes for leave-one-out cross validation
 LOOCV.dat <- function(data){
@@ -362,24 +315,26 @@ fixeff_models <- RunParallel(CalcRandMetaReg, fixeff_forms, df , opt = 'bobyqa')
 # Model diagnostics prior to selection of fixed effects structure
 # 1. Identify models that satisfy convergence threshold
 # 2. Check Singularity (all values in variance-covariance matrix >0)
-# 3. Check multicollinearity between fixed effects (Variance Inflation Factor, VIF >5 )
+# 3. Check multicollinearity between fixed effects (Variance Inflation Factor, VIF >5 removed)
 
 fixeff_check <- CheckModels(fixeff_models) %>% 
   `row.names<-`(fixeff_effectstruct)
 
-fixeff_multico <- CheckCollinearity(fixeff_models) %>% 
-  `row.names<-`(fixeff_effectstruct)
+fixeff_multico <- CheckCollinearity(fixeff_models)
 
 fixeff_models.viable <- fixeff_models[which(fixeff_check$is.converged & 
                                               !fixeff_check$is.singular  & 
                                               (names(fixeff_models) %in% unique(fixeff_multico$model)))]
 
-fixeff_forms.viable <- fixeff_forms[(which(fixeff_check$is.converged &
-                                             !fixeff_check$is.singular))]
+fixeff_forms.viable <- fixeff_forms[which(fixeff_check$is.converged &
+                                             !fixeff_check$is.singular & 
+                                             (names(fixeff_models) %in% unique(fixeff_multico$model)))]
 
 
 ###################################################################################################
 # STAGE 4: Evaluating the inclusion on interactions
+# NB A*B = A + B + A:B
+
 interact_forms <- c(i1 = "multiple.founders_ ~ reported.exposure_ + grouped.method_*sequencing.gene_  + sampling.delay_ + (1 | publication_) + (1 | cohort_)",
                     i2 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_*alignment.bin_ + (1 | publication_) + (1 | cohort_)",
                     i3 = "multiple.founders_ ~ reported.exposure_ + grouped.method_*sequencing.gene_ + sampling.delay_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)",
@@ -392,8 +347,8 @@ interact_check <- CheckModels(interact_models)%>%
   `row.names<-`(interact_effectstruct)
 
 # Check model convergence and singularity
-interact_models.converged <- interact_models[(which(interact_check$converged & !interact_check$is.singular))]
-interact_forms.converged <- interact_forms[(which(interact_check$converged & !interact_check$is.singular))]
+interact_models.converged <- interact_models[(which(interact_check$is.converged & !interact_check$is.singular))]
+interact_forms.converged <- interact_forms[(which(interact_check$is.converged & !interact_check$is.singular))]
 
 
 ###################################################################################################
@@ -403,10 +358,15 @@ forms_viable <- c(fixeff_forms.viable, interact_forms.converged)
 effectstruct_viable <- GetName(forms_viable, effects = 'fixed')
 
 # Extract fixed and random effect coefficients and calculate bootstrapped 95% CIs
-models_converged.coef <- RunParallel(GetCoefs, models_viable, effectstruct_viable)
+models_viable.coef <- RunParallel(GetCoefs, models_viable, effectstruct_viable)
 
-# Extract marginal effects of fixed effects and calculate bootstrapped 95% CIs
-models_converged.marginals <- RunParallel(GetMarginals, models_viable, effectstruct_viable)
+# Extract estimated marginal means of fixed effects and calculate 95% CIs
+# estimated marginal means average the coefficients of selected vars over all factors
+
+models_viable.marginals <- mapply(GetEMM, model = models_viable, 
+                                     byvar = 'reported.exposure_', 
+                                     label = effectstruct_viable,
+                                     SIMPLIFY = F)
 
 ###################################################################################################
 ###################################################################################################
@@ -418,8 +378,8 @@ binnedplots <- PlotBinned(binned)
 
 # function identifies nesting of models to calculate LTR
 # Also calculates pseudo R2 and ICC
-models_converged.comp <- ModelComp(models_converged) %>% 
-  `row.names<-`(effectstruct_converged)
+models_viable.comp <- ModelComp(models_viable) %>% 
+  `row.names<-`(effectstruct_viable)
 
 # No significant differences between pairwise LTR, negligble chenge in AIC/BIC
 # Model selected = Reported Exposure + Grouped Method + Sequencing Gene + Participant Seropositivity
