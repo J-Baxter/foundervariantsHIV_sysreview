@@ -137,31 +137,7 @@ unipooled_models.converged <- unipooled_models[which(unipooled_check$is.converge
 unipooled_forms.converged <- unipooled_forms[(which(unipooled_check$is.converged & !unipooled_check$is.singular))]
 
 ###################################################################################################
-# STAGE 3: Univariate meta-regression of individual covariates against founder variant multiplicity
-# Stratified heterogeneity calculation
 
-unistrat_forms <- c(f1 = "multiple.founders_ ~  riskgroup_ -1 + (riskgroup_ -1 | publication_)",
-                     f2 = "multiple.founders_ ~ reported.exposure_ -1 + ( reported.exposure_ -1 | publication_)",
-                     f3 = "multiple.founders_ ~ grouped.method_ -1 + ( grouped.method_ -1 | publication_)",
-                     f4 = "multiple.founders_ ~ sequencing.gene_ -1  + (sequencing.gene_ -1 | publication_)",
-                     f5 = "multiple.founders_ ~ alignment.bin_  -1 + (alignment.bin_  -1 | publication_)",
-                     f6 = "multiple.founders_ ~ sampling.delay_ -1 + ( sampling.delay_ -1 | publication_)")
-
-unistrat_effectstruct <- GetName(unistrat_forms, effects = 'fixed')
-
-# Run models
-unistrat_models <- RunParallel(CalcRandMetaReg, unistrat_forms, df)
-
-# Check model convergence and singularity
-unistrat_check <- CheckModels(unistrat_models)%>% 
-  `row.names<-`(unistrat_effectstruct)
-
-# Check model convergence and singularity
-unistrat_models.converged <- unistrat_models[(which(unistrat_check$converged & !unistrat_check$is.singular))]
-unistrat_forms.converged <- unistrat_forms[(which(unistrat_check$converged & !unistrat_check$is.singular))]
-
-###################################################################################################
-# Tabulate outputs
 
 
 ###################################################################################################
