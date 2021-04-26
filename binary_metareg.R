@@ -29,6 +29,7 @@ library(cowplot)
 library(stringr)
 library(data.table)
 library(insight)
+library(emmeans)
 source('~/foundervariantsHIV_sysreview/generalpurpose_funcs.R')
 
 
@@ -58,11 +59,7 @@ CheckCollinearity <- function(model, tol = 5){
 # Y = average residual, X = Founder Variant Multiplicity, Ribbon = SE
 PlotBinned <- function(data){
   
-  if (class(data) == "list"){
-    plt_list <- list()
-    
-    for (i in 1:length(data)){
-      plt_list[[i]] <- ggplot(data = data[[i]]) + 
+      plt<- ggplot(data) + 
         geom_ribbon(aes(x = xbar, ymin = -se, ymax = se), fill = "white", colour = "grey60") + 
         geom_point(aes(x = xbar, y = ybar , colour = group), shape = 4, size = 3)+
         geom_abline(intercept = 0, slope = 0, linetype = "dashed")+
@@ -73,16 +70,13 @@ PlotBinned <- function(data){
                            labels = scales::percent,
                            limits = c(0,0.73),
                            expand = c(0, 0.005)) +
-        scale_y_continuous(name = element_blank())+
+        scale_y_continuous(name = element_blank(), 
+                          limits = c(-0.5,0.5),
+                          expand = c(0, 0.005))+
         theme(legend.position = "none")
-    }
-  }else{
-    warning('data supplied is not a list')
-  }
-  
-  plts <- cowplot::plot_grid(plotlist = plt_list , labels = "AUTO")
-  print(plts)
-  return(plts)
+
+
+  return(plt)
 }
 
 
@@ -362,7 +356,6 @@ models_viable.coef <- RunParallel(GetCoefs, models_viable, effectstruct_viable)
 
 # Extract estimated marginal means of fixed effects and calculate 95% CIs
 # estimated marginal means average the coefficients of selected vars over all factors
-
 models_viable.marginals <- mapply(GetEMM, model = models_viable, 
                                      byvar = 'reported.exposure_', 
                                      label = effectstruct_viable,
@@ -374,7 +367,8 @@ models_viable.marginals <- mapply(GetEMM, model = models_viable,
 
 # Binned residuals (ideally >95% within SE, but >90% is satisfactory)
 binned <- lapply(models_viable, binned_residuals)
-binnedplots <- PlotBinned(binned)
+binnedplots <- lapply(binned , PlotBinned) %>%
+  cowplot::plot_grid(plotlist = ., labels = 'AUTO', nrow = 3)
 
 # function identifies nesting of models to calculate LTR
 # Also calculates pseudo R2 and ICC
@@ -388,6 +382,24 @@ model_selected <- models_converged[[7]]
 model_selected.form <- forms_converged[[8]]
 model_selected.effectstruct <- GetName(model_selected.form, effects = 'fixed')
 
+
+###################################################################################################
+###################################################################################################
+# Validate assumptions of selected model - Includes repeats of multicolinearity and binned residuals
+# as described above
+
+# Binned residuals (ideally >95% within SE, but >90% is satisfactory) (repeat of above)
+model_selected.resid <- binned_residuals(model_selected) %>% PlotBinned()
+
+# Multicollinearity between fixed effects
+model_selected.multico <- check_collinearity(model_selected) %>% 
+  ggplot(.)+ geom_bar
+
+# Normality of Random Effects
+model_selected.re <-check_normality(model_selected, effects = 'random') 
+
+# ROC curve + AUC
+model_selected.roc <- performance_roc(model_selected)
 
 ###################################################################################################
 ###################################################################################################
