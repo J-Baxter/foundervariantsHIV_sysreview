@@ -352,7 +352,7 @@ GetEMM <- function(model, byvar, label = "original"){
   
   environment(specs) <- environment()
   
-  out <- emmeans(model, specs = specs, type = 'response') %>%
+  out <- emmeans(model, specs = specs, type = 'source') %>%
     {cbind.data.frame(.,label = label)}
   
   return(out)
