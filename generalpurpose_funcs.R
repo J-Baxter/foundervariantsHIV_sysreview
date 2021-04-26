@@ -103,6 +103,33 @@ SetBaseline <- function(data,covar,baseline){
 
 
 ###################################################################################################
+# One-step GLMM accounting for clustering of studies using a random intercept
+CalcRandMetaReg <- function(data, formula, opt = NULL){
+  
+  if(is.character(opt)){
+    cntrl <- glmerControl(optCtrl = list(maxfun = 5000000),
+                          check.nobs.vs.nlev = 'ignore',
+                          check.nobs.vs.nRE = 'ignore',
+                          optimizer = 'bobyqa')
+  }else{
+    cntrl <- glmerControl(optCtrl = list(maxfun = 5000000),
+                          check.nobs.vs.nlev = 'ignore',
+                          check.nobs.vs.nRE = 'ignore')
+  }
+  
+  options(warn = 1)
+  f <- as.formula(formula)
+  environment(f) <- environment()
+  model <- lme4::glmer(f,
+                       data = data,
+                       family = binomial(link = "logit"),
+                       nAGQ = 1,
+                       control = cntrl)
+  return(model)
+}
+
+
+###################################################################################################
 # Execute a list of lme4 models in parallel
 RunParallel <- function(func, v1, v2, ...){
   options(warn = 1)
@@ -309,7 +336,7 @@ GetCoefs <- function(model, label = "original"){
 GetEMM <- function(model, byvar, label = "original"){
   #if byvar is formula:
   if (grepl('~', byvar)){
-    var <- gsub(".*[:~:] (.+?) [:(:].*", "\\1", byvar) %>%
+    specs <- gsub(".*[:~:] (.+?) [:(:].*", "\\1", byvar) %>%
       gsub("[:+:]([:^+:]*)$","",.) %>%
       str_trim()%>%
       paste('~',., sep = ' ') %>%
@@ -317,11 +344,14 @@ GetEMM <- function(model, byvar, label = "original"){
   }
   
   else{
-    var <- byvar
+    specs <- paste('~', byvar, sep = ' ') %>%
+      str_trim()%>%
+      as.formula()
+    
   }
   
-  specs <- as.formula(var)
   environment(specs) <- environment()
+  
   out <- emmeans(model, specs = specs, type = 'response') %>%
     {cbind.data.frame(.,label = label)}
   
