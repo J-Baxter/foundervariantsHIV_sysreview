@@ -306,20 +306,24 @@ GetCoefs <- function(model, label = "original"){
 ###################################################################################################
 # Extract Marginal effects and calculate bootstraped prediction/confidence intervals
 
-GetMarginals <- function(model, label = "original"){
-  # Calculate CIs
-  options(warn = 1)
+GetEMM <- function(model, byvar, label = "original"){
+  #if byvar is formula:
+  if (grepl('~', byvar)){
+    var <- gsub(".*[:~:] (.+?) [:(:].*", "\\1", byvar) %>%
+      gsub("[:+:]([:^+:]*)$","",.) %>%
+      str_trim()%>%
+      paste('~',., sep = ' ') %>%
+      as.formula()
+  }
   
-  ci <- confint.merMod(model, 
-                       method = 'boot',
-                       .progress="txt", 
-                       PBargs=list(style=3), 
-                       nsim = 100
-  )
+  else{
+    var <- byvar
+  }
   
-
-
-  out <- 
+  specs <- as.formula(var)
+  environment(specs) <- environment()
+  out <- emmeans(model, specs = specs, type = 'response') %>%
+    {cbind.data.frame(.,label = label)}
   
   return(out)
 }
