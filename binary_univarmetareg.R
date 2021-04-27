@@ -182,7 +182,7 @@ unipooled_models.coef <- RunParallel(GetCoefs, unipooled_models.converged, unipo
 unipooled_models.marginals <- mapply(GetEMM, model = unipooled_models, 
                                      byvar = as.list(unipooled_forms), 
                                      label = unipooled_effectstruct,
-                                     SIMPLIFY = F)
+                                     SIMPLIFY = F) %>% do.call(rbind.data.frame,.)
 
 
 ###################################################################################################
@@ -264,6 +264,7 @@ resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
 
 model_selected.boot_participant <- BootMetaRegUV(resampling_df, unipooled_forms[[1]], 5) 
 
+
 # SA6. Optimisation Algorithm selected by glmerCrtl
 opt.algo <- c('bobyqa', 'Nelder_Mead')
 algo <- mapply(CalcRandMetaReg, model_selected.form, opt.algo, data = df, SIMPLIFY = F)
@@ -280,22 +281,17 @@ lapply(algo, check_convergence)
 # Effect files contain intercept, fixed and random effects including CI
 # Selection file includes AIC, loglikelihood, R2, logloss and LRT (as calculated)
 # Sensitivity analyses to follow
+ifelse(!dir.exists('../results'), dir.create(file.path('../results')), FALSE)
 
-dir.create(file.path('../results')) 
-
-# Model Build
-t1 <- Effects2File(raneff.effects) # Error 
-t1.names <- c('raneff_int.csv', 'raneff_fe.csv', 'raneff_re.csv') %>% paste0('../results/', .)
+# Model Coefficients
+t1 <- Effects2File(unipooled_models.coef) # Error 
+t1.names <- c('unimetareg_int.csv', 'unimetareg_fe.csv', 'unimetareg_re.csv') %>% paste0('../results/', .)
 mapply(write.csv, t1, file = t1.names, row.names = T)
 
-t2 <- Effects2File(fixeff_modelbuild.nomultico.effects)
-t2.names <- c('fixef_modelbuild_int.csv', 'fixef_modelbuild_fe.csv', 'fixef_modelbuild_re.csv') %>% paste0('../results/', .)
-mapply(write.csv, t2, file = t2.names, row.names = T)
+# Model EMM
+write.csv(unipooled_models.marginals, '../results/unimetareg_emm.csv')
 
-t3 <- rbind.data.frame(raneff.selection, fixeff_modelbuild.selection)
-write.csv(t3, '../results/model_selection.csv')
-
-
+# Sensitivity Analyses
 
 ###################################################################################################
 ###################################################################################################
