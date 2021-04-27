@@ -60,7 +60,6 @@ unipooled_forms <- c(f1 = "multiple.founders_ ~ riskgroup_  + (1 | publication_)
 
 unipooled_effectstruct <- GetName(unipooled_forms, effects = 'fixed')
 
-
 # Run models
 unipooled_models <- RunParallel(CalcRandMetaReg, unipooled_forms, df)
 
@@ -72,16 +71,19 @@ unipooled_check <- CheckModels(unipooled_models)%>%
 unipooled_models.converged <- unipooled_models[which(unipooled_check$is.converged & !unipooled_check$is.singular)]
 unipooled_forms.converged <- unipooled_forms[(which(unipooled_check$is.converged & !unipooled_check$is.singular))]
 unipooled_effectstruct.converged <- unipooled_effectstruct[(which(unipooled_check$is.converged & !unipooled_check$is.singular))]
+
+
 ###################################################################################################
 # Extract fixed and random effect coefficients and calculate bootstrapped 95% CIs
 # fixed effects coefficients exponentiated to odds ratios
-models_converged.coef <- RunParallel(GetCoefs, unipooled_models.converged, unipooled_effectstruct.converged )
+unipooled_models.coef <- RunParallel(GetCoefs, unipooled_models.converged, unipooled_effectstruct.converged)
 
 # Extract marginal effects of fixed effects and calculate bootstrapped 95% CIs
-models_converged.marginals <- mapply(GetEMM, model = unipooled_models, 
+unipooled_models.marginals <- mapply(GetEMM, model = unipooled_models, 
                                      byvar = as.list(unipooled_forms), 
                                      label = unipooled_effectstruct,
                                      SIMPLIFY = F)
+
 
 ###################################################################################################
 # Sensitivity analyses on selected model
@@ -98,7 +100,7 @@ df_loocv <- LOOCV.dat(df)[[1]]
 publist_loocv <- LOOCV.dat(df)[[2]]
 
 
-model_selected.influence <- mclapply(df_loocv, CalcRandMetaReg,
+unipooled_models.influence <- mclapply(df_loocv, CalcRandMetaReg,
                                      formula = model_selected.form,
                                      mc.cores = 4,
                                      mc.set.seed = FALSE) %>%
@@ -112,9 +114,16 @@ publist.nosmallsample <- subset(df_props , subjects > 9 , select = publication_)
 
 df.nosmallsample <- df[df$publication_ %in% publist.nosmallsample,]
 
-model_selected.nosmallsample <- CalcRandMetaReg(df.nosmallsample, model_selected.form, opt = 'bobyqa')
-model_selected.nosmallsample.out <- list(CheckModels(model_selected.nosmallsample), 
-                                         GetEffects(model_selected.nosmallsample, label = 'no_small')) 
+unipooled_models.nosmallsample <- RunParallel(CalcRandMetaReg, unipooled_forms, df.nosmallsample, opt = 'bobyqa')
+
+unipooled_models.nosmallsample.out <- list(CheckModels(unipooled_models.nosmallsample), 
+                                           RunParallel(GetCoefs, 
+                                                       unipooled_models.nosmallsample, 
+                                                       paste0(unipooled_effectstruct.converged, '.no_small')),
+                                           mapply(GetEMM,
+                                                  model = unipooled_models.nosmallsample, 
+                                                  byvar = as.list(unipooled_forms),
+                                                  paste0(unipooled_effectstruct.converged, '.no_small'), SIMPLIFY = F)) 
 
 
 # SA3. Exclusion of studies with 0 multiple founder variants 
@@ -124,9 +133,16 @@ publist.nozeros <- subset(df_props , multiplefounders != 0 , select = publicatio
 
 df.nozeros <- df[df$publication_ %in% publist.nozeros,]
 
-model_selected.nozeros <- CalcRandMetaReg(df.nozeros, model_selected.form, opt = 'bobyqa')
-model_selected.nozeros.out <- list(CheckModels(model_selected.nozeros), 
-                                   GetEffects(model_selected.nozeros, label = 'no_zero')) 
+unipooled_models.nozeros <- RunParallel(CalcRandMetaReg, unipooled_forms, df.nozeros, opt = 'bobyqa')
+
+unipooled_models.nozeros.out <- list(CheckModels(unipooled_models.nozeros), 
+                                           RunParallel(GetCoefs, 
+                                                       unipooled_models.nozeros, 
+                                                       paste0(unipooled_effectstruct.converged, '.no_zero')),
+                                           mapply(GetEMM,
+                                                  model = unipooled_models.nozeros, 
+                                                  byvar = as.list(unipooled_forms),
+                                                  label = paste0(unipooled_effectstruct.converged, '.no_zero'), SIMPLIFY = F)) 
 
 
 # SA4. Exclusion of all studies that do not use SGA
@@ -136,9 +152,16 @@ publist.sgaonly <- subset(df , sample.amplification_ == 'SGA', select = publicat
 
 df.sgaonly <- df[df$publication_ %in% publist.sgaonly,]
 
-model_selected.sgaonly <- CalcRandMetaReg(df.sgaonly, model_selected.form, opt = 'bobyqa')
-model_selected.sgaonly.out <- list(CheckModels(model_selected.sgaonly), 
-                                   GetEffects(model_selected.sgaonly, label = 'sga_only')) 
+unipooled_models.sgaonly <- RunParallel(CalcRandMetaReg, unipooled_forms, df.sgaonly, opt = 'bobyqa')
+
+unipooled_models.sgaonly.out <- list(CheckModels(unipooled_models.sgaonly), 
+                                           RunParallel(GetCoefs, 
+                                                       unipooled_models.sgaonly, 
+                                                       paste0(unipooled_effectstruct.converged, '.sga_only')),
+                                           mapply(GetEMM,
+                                                  model = unipooled_models.sgaonly, 
+                                                  byvar = as.list(unipooled_forms),
+                                                  label = paste0(unipooled_effectstruct.converged, '.sga_only'), SIMPLIFY = F)) 
 
 
 # SA5. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
@@ -147,11 +170,11 @@ resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   droplevels()
 
-model_selected.boot_participant <- BootMetaRegMV(resampling_df , 1000) #To re run
+model_selected.boot_participant <- BootMetaRegUV(resampling_df , 1000) 
 
 # SA6. Optimisation Algorithm selected by glmerCrtl
 opt.algo <- c('bobyqa', 'Nelder_Mead')
-algo <- lapply(opt.algo, function(x) CalcRandMetaReg(df , model_selected.form, opt = x))
+algo <- mapply(CalcRandMetaReg, model_selected.form, opt.algo, data = df, SIMPLIFY = F)
 lapply(algo, check_convergence)
 
 
