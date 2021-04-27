@@ -277,13 +277,29 @@ resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
 unipooled_models.boot_participant <- BootMetaRegUV(resampling_df, unipooled_forms, 1000) 
 
 
-# SA6. Optimisation Algorithm selected by glmerCrtl - not output to file
-opt.algo <- c('bobyqa', 'Nelder_Mead')
-algo <- mapply(CalcRandMetaReg, model_selected.form, opt.algo, data = df, SIMPLIFY = F)
-lapply(algo, check_convergence)
-
+# SA6. Optimisation Algorithm selected by glmerCrtl - not run
 
 # SA7. Compare down-sampled to full dataset
+# SA7. Delay/Repeat permutation tests
+sa7_dflist <- list()
+
+sa7_dflist$sing <- df
+sa7_dflist$rep <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
+  formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay'), noreps = FALSE) %>%
+  filter(reported.exposure_ != 'unknown.exposure') %>%
+  SetBaseline(baseline.covar, baseline.level) %>%
+  droplevels()
+
+sa7_modgrid <- expand.grid(data = sa7_dflist, formula = unipooled_forms, stringsAsFactors = F)
+sa7_mods <- mapply(CalcRandMetaReg, data = sa7_modgrid[[1]] , formula = sa7_modgrid[[2]],SIMPLIFY = F)
+sa7_coef<- RunParallel(GetCoefs, sa7_mods, names(sa7_dflist))
+
+sa7_emm <- mapply(GetEMM,
+                  model = sa7_mods, 
+                  byvar = rep(unipooled_forms, each = 2),
+                  label = rep(paste0(unipooled_effectstruct.converged, '.reps'),each = 2), SIMPLIFY = F) %>% 
+  do.call(rbind.data.frame,.)
+sa7_emm$data <- gsub('\\..*', '\\1'  ,rownames(sa7_emm))
 
 
 
@@ -337,8 +353,16 @@ mapply(write.csv, sa5.coef_out , file = sa5.names, row.names = T)
 sa5.emm <- lapply(unipooled_models.boot_participant, function(x) x[[2]]) %>% do.call(rbind.data.frame,.)
 write.csv(sa5.emm, '../results/unimetareg_sa5_emm.csv')
 
-#SA7
+#SA7 - Coef
+sa7_coef.out <- list(int = lapply(sa7_coef, function(x) x$int) %>% do.call(rbind.data.frame,.),
+                     fe = lapply(sa7_coef, function(x) x$fe) %>% do.call(rbind.data.frame,.),
+                     re = lapply(sa7_coef, function(x) x$re) %>% do.call(rbind.data.frame,.))
 
+sa7.names <- c('unimetareg_sa7_int.csv', 'unimetareg_sa7_fe.csv', 'unimetareg_sa7_re.csv')  %>% paste0('../results/', .)
+mapply(write.csv, sa7_coef.out , file = sa7.names, row.names = T)  
+
+#SA7 - EMM
+write.csv(sa7_emm , '../results/unimetareg_sa7_emm.csv')
 
 ###################################################################################################
 ###################################################################################################
