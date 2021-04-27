@@ -67,10 +67,12 @@ GetInfluence <- function(data, form){
   publist_loocv <- LOOCV.dat(df)[[2]]
   
   out <- mclapply(df_loocv, CalcRandMetaReg,
-                  formula = unipooled_forms[[1]],
+                  formula = form,
                   mc.cores = 4,
                   mc.set.seed = FALSE) %>%
-    DFInfluenceUV(., labs = publist_loocv) 
+    DFInfluenceUV(., labs = publist_loocv)
+  
+  out$var <- GetName(form, effects = 'fixed')
   
   return(out)
 }
@@ -78,7 +80,7 @@ GetInfluence <- function(data, form){
 
 # Generate resampled datasets and calculate model estimates for psuedo-bootstrap 
 # sensitivity analysis of inclusion/exclusion criteria
-BootMetaRegUV <- function(data, formula, replicates){
+BootMetaRegUV <- function(data, formulas, replicates){
   require(parallel)
   require(lme4)
   require(dplyr)
@@ -86,38 +88,44 @@ BootMetaRegUV <- function(data, formula, replicates){
   resampled <- lapply(1:replicates, function(x,y) {y %>% group_by(participant.id_) %>% slice_sample(n=1)},
                       y = data)
   
-  cl <- detectCores() %>%
-    `-` (2)
+  out <- list()
   
-  start <- Sys.time()
-  print(start)
+  for (i in (1:length(formulas))){
+    cl <- detectCores() %>%
+      `-` (2)
+    
+    start <- Sys.time()
+    print(start)
+    
+    boot_reg <- mclapply(resampled, CalcRandMetaReg, 
+                         formula = formulas[[i]],
+                         opt = 'bobyqa',
+                         mc.cores = 4,
+                         mc.set.seed = FALSE)
+    
+    end <- Sys.time()
+    elapsed <- end-start
+    print(elapsed)
+    
+    remove(cl)
+    
+    
+    boot_reg.coef <-  RunParallel(GetCoefs, 
+                                  boot_reg, 
+                                  paste0(GetName(formulas[[i]], effects = 'fixed'), '.boot')) 
+    
+    
+    boot_reg.marg <- lapply(boot_reg, 
+                            GetEMM,
+                            byvar = formulas[[i]],
+                            label = paste0(GetName(formulas[[i]], effects = 'fixed'), '.boot')) %>%
+      do.call(rbind.data.frame,.)
+    
+    
+    
+    out[[i]] <- list(boot_reg.coef, boot_reg.marg)
+  }
   
-  boot_reg <- mclapply(resampled, CalcRandMetaReg, 
-                       formula = formula,
-                       opt = 'bobyqa',
-                       mc.cores = 4,
-                       mc.set.seed = FALSE)
-  
-  end <- Sys.time()
-  elapsed <- end-start
-  print(elapsed)
-  
-  remove(cl)
-  
-  
-  boot_reg.coef <-  RunParallel(GetCoefs, 
-                                boot_reg, 
-                                paste0(GetName(formula, effects = 'fixed'), '.boot')) 
-  
-  
-  boot_reg.marg <- lapply(boot_reg, 
-                          GetEMM,
-                          byvar = formula,
-                          label = paste0(GetName(formula, effects = 'fixed'), '.boot'))
-  
-
-  
-  out <- list(boot_reg.coef, boot_reg.marg)
   
   
   return(out)
@@ -196,7 +204,8 @@ unipooled_models.marginals <- mapply(GetEMM, model = unipooled_models,
 # SA7. Compare down-sampled to full dataset
 
 # SA1. Influence of Individual Studies (LOOCV)
-unipooled_models.influence <- lapply(unipooled_forms, GetInfluence, data = df) 
+unipooled_models.influence <- lapply(unipooled_forms, GetInfluence, data = df) %>% 
+  do.call(rbind.data.frame,.)
 
 
 # SA2. Exclusion of small sample sizes (less than n = 10)
@@ -215,7 +224,8 @@ unipooled_models.nosmallsample.out <- list(CheckModels(unipooled_models.nosmalls
                                            mapply(GetEMM,
                                                   model = unipooled_models.nosmallsample, 
                                                   byvar = as.list(unipooled_forms),
-                                                  paste0(unipooled_effectstruct.converged, '.no_small'), SIMPLIFY = F)) 
+                                                  paste0(unipooled_effectstruct.converged, '.no_small'), SIMPLIFY = F) %>%
+                                             do.call(rbind.data.frame,.)) 
 
 
 # SA3. Exclusion of studies with 0 multiple founder variants 
@@ -234,7 +244,8 @@ unipooled_models.nozeros.out <- list(CheckModels(unipooled_models.nozeros),
                                            mapply(GetEMM,
                                                   model = unipooled_models.nozeros, 
                                                   byvar = as.list(unipooled_forms),
-                                                  label = paste0(unipooled_effectstruct.converged, '.no_zero'), SIMPLIFY = F)) 
+                                                  label = paste0(unipooled_effectstruct.converged, '.no_zero'), SIMPLIFY = F) %>%
+                                       do.call(rbind.data.frame,.)) 
 
 
 # SA4. Exclusion of all studies that do not use SGA
@@ -253,7 +264,8 @@ unipooled_models.sgaonly.out <- list(CheckModels(unipooled_models.sgaonly),
                                            mapply(GetEMM,
                                                   model = unipooled_models.sgaonly, 
                                                   byvar = as.list(unipooled_forms),
-                                                  label = paste0(unipooled_effectstruct.converged, '.sga_only'), SIMPLIFY = F)) 
+                                                  label = paste0(unipooled_effectstruct.converged, '.sga_only'), SIMPLIFY = F) %>% 
+                                       do.call(rbind.data.frame,.)) 
 
 
 # SA5. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
@@ -262,10 +274,10 @@ resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   droplevels()
 
-model_selected.boot_participant <- BootMetaRegUV(resampling_df, unipooled_forms[[1]], 5) 
+unipooled_models.boot_participant <- BootMetaRegUV(resampling_df, unipooled_forms, 5) 
 
 
-# SA6. Optimisation Algorithm selected by glmerCrtl
+# SA6. Optimisation Algorithm selected by glmerCrtl - not output to file
 opt.algo <- c('bobyqa', 'Nelder_Mead')
 algo <- mapply(CalcRandMetaReg, model_selected.form, opt.algo, data = df, SIMPLIFY = F)
 lapply(algo, check_convergence)
@@ -292,6 +304,41 @@ mapply(write.csv, t1, file = t1.names, row.names = T)
 write.csv(unipooled_models.marginals, '../results/unimetareg_emm.csv')
 
 # Sensitivity Analyses
+# LOOCV (beta coefficients only)
+write.csv(unipooled_models.influence, '../results/unimetareg_sa1.csv')
+
+#SA2-4 coefficients
+sa2_4.coef <- list(unipooled_models.nosmallsample.out[[2]],
+           unipooled_models.nozeros.out[[2]],
+           unipooled_models.sgaonly.out[[2]]) %>%
+  ConcatSA()
+
+sa2_4.coef.names <- c('unimetareg_sa2-4_int.csv', 'unimetareg_sa2-4_fe.csv', 'unimetareg_sa2-4_re.csv')  %>% paste0('../results/', .)
+mapply(write.csv, sa2_4.coef.coef, file = sa2_4.coef.names, row.names = T)  
+
+
+#SA2-4 EMM
+sa2_4.coef.emm <- rbind.data.frame(unipooled_models.nosmallsample.out[[3]],
+                unipooled_models.nozeros.out[[3]],
+                unipooled_models.sgaonly.out[[3]]) 
+
+write.csv(sa2_4.coef.emm, '../results/unimetareg_sa2-4_emm.csv')
+
+#SA5 - coefficients
+sa5.coef <- lapply(unipooled_models.boot_participant, function(x) x[[1]]) %>% lapply(.,Effects2File)
+sa5.coef_out <- list(int = lapply(sa5.coef, function(x) x$int) %>% do.call(rbind.data.frame,.),
+                    fe = lapply(sa5.coef, function(x) x$fe) %>% do.call(rbind.data.frame,.),
+                    re = lapply(sa5.coef, function(x) x$re) %>% do.call(rbind.data.frame,.))
+
+sa5.names <- c('unimetareg_sa5_int.csv', 'unimetareg_sa5_fe.csv', 'unimetareg_sa5_re.csv')  %>% paste0('../results/', .)
+mapply(write.csv, sa5.coef_out , file = sa5.names, row.names = T)  
+
+#SA5 - EMM
+sa5.emm <- lapply(unipooled_models.boot_participant, function(x) x[[2]]) %>% do.call(rbind.data.frame,.)
+write.csv(sa5.emm, '../results/unimetareg_sa5_emm.csv')
+
+#SA7
+
 
 ###################################################################################################
 ###################################################################################################
