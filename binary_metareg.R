@@ -344,24 +344,11 @@ interact_check <- CheckModels(interact_models)%>%
 interact_models.converged <- interact_models[(which(interact_check$is.converged & !interact_check$is.singular))]
 interact_forms.converged <- interact_forms[(which(interact_check$is.converged & !interact_check$is.singular))]
 
-
-###################################################################################################
 # Viable Models
 models_viable <- c(fixeff_models.viable , interact_models.converged)
 forms_viable <- c(fixeff_forms.viable, interact_forms.converged)
 effectstruct_viable <- GetName(forms_viable, effects = 'fixed')
 
-# Extract fixed and random effect coefficients and calculate bootstrapped 95% CIs
-models_viable.coef <- RunParallel(GetCoefs, models_viable, effectstruct_viable)
-
-# Extract estimated marginal means of fixed effects and calculate 95% CIs
-# estimated marginal means average the coefficients of selected vars over all factors
-models_viable.marginals <- mapply(GetEMM, model = models_viable, 
-                                     byvar = 'reported.exposure_', 
-                                     label = effectstruct_viable,
-                                     SIMPLIFY = F)
-
-###################################################################################################
 ###################################################################################################
 # Model selection
 
@@ -378,9 +365,21 @@ models_viable.comp <- ModelComp(models_viable) %>%
 # No significant differences between pairwise LTR, negligble chenge in AIC/BIC
 # Model selected = Reported Exposure + Grouped Method + Sequencing Gene + Participant Seropositivity
 # Model effects sent to file as part of fixeff_modelbuild.nomultico.effects
-model_selected <- models_converged[[7]]
-model_selected.form <- forms_converged[[8]]
+model_selected <- models_viable$f06
+model_selected.form <- forms_viable[[5]]
 model_selected.effectstruct <- GetName(model_selected.form, effects = 'fixed')
+
+
+###################################################################################################
+###################################################################################################
+# Extract fixed and random effect coefficients and calculate bootstrapped 95% CIs
+models_viable.coef <- GetCoefs(model_selected, model_selected.effectstruct)
+
+# Extract estimated marginal means of fixed effects and calculate 95% CIs
+# estimated marginal means average the coefficients of selected vars over all factors
+models_viable.marginals <- GetEMM(model = models_viable, 
+                                  byvar = 'reported.exposure_', 
+                                  label = model_selected.effectstruct)
 
 
 ###################################################################################################
@@ -392,14 +391,13 @@ model_selected.effectstruct <- GetName(model_selected.form, effects = 'fixed')
 model_selected.resid <- binned_residuals(model_selected) %>% PlotBinned()
 
 # Multicollinearity between fixed effects
-model_selected.multico <- check_collinearity(model_selected) %>% 
-  ggplot(.)+ geom_bar
+model_selected.multico <- check_collinearity(model_selected) %>% plot()
 
 # Normality of Random Effects
-model_selected.re <-check_normality(model_selected, effects = 'random') 
+model_selected.re <-check_normality(model_selected, effects = 'random') %>% plot()
 
 # ROC curve + AUC
-model_selected.roc <- performance_roc(model_selected)
+model_selected.roc <- performance_roc(model_selected) %>% plot()
 
 ###################################################################################################
 ###################################################################################################
@@ -432,7 +430,10 @@ df.nosmallsample <- df[df$publication_ %in% publist.nosmallsample,]
 
 model_selected.nosmallsample <- CalcRandMetaReg(df.nosmallsample, model_selected.form, opt = 'bobyqa')
 model_selected.nosmallsample.out <- list(CheckModels(model_selected.nosmallsample), 
-                                         GetEffects(model_selected.nosmallsample, label = 'no_small')) 
+                                         GetCoefs(model_selected.nosmallsample, label = 'no_small'),
+                                         GetEMM( model = model_selected.nosmallsample, 
+                                                 byvar = 'reported.exposure_', 
+                                                 label = 'no_small')) 
 
 
 # SA3. Exclusion of studies with 0 multiple founder variants 
@@ -444,7 +445,10 @@ df.nozeros <- df[df$publication_ %in% publist.nozeros,]
 
 model_selected.nozeros <- CalcRandMetaReg(df.nozeros, model_selected.form, opt = 'bobyqa')
 model_selected.nozeros.out <- list(CheckModels(model_selected.nozeros), 
-                                   GetEffects(model_selected.nozeros, label = 'no_zero')) 
+                                   GetEffects(model_selected.nozeros, label = 'no_zero'),
+                                   GetEMM( model = model_selected.nosmallsample, 
+                                           byvar = 'reported.exposure_', 
+                                           label = 'no_small')) ) 
 
 
 # SA4. Exclusion of all studies that do not use SGA
@@ -456,7 +460,10 @@ df.sgaonly <- df[df$publication_ %in% publist.sgaonly,]
 
 model_selected.sgaonly <- CalcRandMetaReg(df.sgaonly, model_selected.form, opt = 'bobyqa')
 model_selected.sgaonly.out <- list(CheckModels(model_selected.sgaonly), 
-                                   GetEffects(model_selected.sgaonly, label = 'sga_only')) 
+                                   GetEffects(model_selected.sgaonly, label = 'sga_only'),
+                                   GetEMM( model = model_selected.nosmallsample, 
+                                           byvar = 'reported.exposure_', 
+                                           label = 'no_small'))) 
 
 
 # SA5. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
