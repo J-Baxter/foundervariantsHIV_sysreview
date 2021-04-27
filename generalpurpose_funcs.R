@@ -239,7 +239,7 @@ GetCoefs <- function(model, label = "original"){
                        method = 'boot',
                        .progress="txt", 
                        PBargs=list(style=3), 
-                       nsim = 10
+                       nsim = 250
   )
   
   re.num <- ranef(model) %>% length()
