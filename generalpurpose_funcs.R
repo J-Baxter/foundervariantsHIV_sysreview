@@ -131,7 +131,7 @@ CalcRandMetaReg <- function(data, formula, opt = NULL){
 
 ###################################################################################################
 # Execute a list of lme4 models in parallel
-RunParallel <- function(func, v1, v2, ...){
+RunParallel <- function(func, v1, v2, ...){9
   options(warn = 1)
   
   # Set up cluster (fork)
@@ -239,7 +239,7 @@ GetCoefs <- function(model, label = "original"){
                        method = 'boot',
                        .progress="txt", 
                        PBargs=list(style=3), 
-                       nsim = 100
+                       nsim = 10
   )
   
   re.num <- ranef(model) %>% length()
@@ -354,8 +354,23 @@ GetEMM <- function(model, byvar, label = "original"){
   
   out <- emmeans(model, specs = specs, type = 'source') %>%
     {cbind.data.frame(.,label = label)}
-  
+  colnames(out)[1] <- 'covariate_level'
   return(out)
 }
+
+
+###################################################################################################
+Effects2File <- function(effectslist){
+  int <- lapply(effectslist, function(x) x$int) %>% do.call(rbind.data.frame, .)
+  fe <- lapply(effectslist, function(x) x$fe) %>% do.call(rbind.data.frame, .)
+  re <- lapply(effectslist, function(x) x$re) %>% do.call(rbind.data.frame, .)
+  
+  out <- list(int, fe, re)
+  names(out) <- c('int', 'fe', 're')
+  return(out)
+}
+
+
+
 ###################################################################################################
 ###################################################################################################
