@@ -274,7 +274,7 @@ resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   droplevels()
 
-unipooled_models.boot_participant <- BootMetaRegUV(resampling_df, unipooled_forms, 5) 
+unipooled_models.boot_participant <- BootMetaRegUV(resampling_df, unipooled_forms, 1000) 
 
 
 # SA6. Optimisation Algorithm selected by glmerCrtl - not output to file

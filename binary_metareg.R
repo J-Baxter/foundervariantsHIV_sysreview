@@ -279,9 +279,6 @@ raneff_models <- RunParallel(CalcRandMetaReg, raneff_forms, df)
 raneff_check <- CheckModels(raneff_models) %>% 
   `row.names<-`(raneff_effectstruct)
 
-# Extract random effects
-raneff_effects <- RunParallel(GetEffects, raneff_models, raneff_effectstruct)
-
 # Model selection
 raneff_selection <- ModelComp(raneff_models) %>% 
   `row.names<-`(raneff_effectstruct)
@@ -373,11 +370,12 @@ model_selected.effectstruct <- GetName(model_selected.form, effects = 'fixed')
 ###################################################################################################
 ###################################################################################################
 # Extract fixed and random effect coefficients and calculate bootstrapped 95% CIs
-models_viable.coef <- GetCoefs(model_selected, model_selected.effectstruct)
+models_selected.coef <- GetCoefs(model_selected, model_selected.effectstruct)
+
 
 # Extract estimated marginal means of fixed effects and calculate 95% CIs
 # estimated marginal means average the coefficients of selected vars over all factors
-models_viable.marginals <- GetEMM(model = models_viable, 
+models_selected.marginals <- GetEMM(model = model_selected, 
                                   byvar = 'reported.exposure_', 
                                   label = model_selected.effectstruct)
 
@@ -448,7 +446,7 @@ model_selected.nozeros.out <- list(CheckModels(model_selected.nozeros),
                                    GetEffects(model_selected.nozeros, label = 'no_zero'),
                                    GetEMM( model = model_selected.nosmallsample, 
                                            byvar = 'reported.exposure_', 
-                                           label = 'no_small')) ) 
+                                           label = 'no_small')) 
 
 
 # SA4. Exclusion of all studies that do not use SGA
@@ -463,7 +461,7 @@ model_selected.sgaonly.out <- list(CheckModels(model_selected.sgaonly),
                                    GetEffects(model_selected.sgaonly, label = 'sga_only'),
                                    GetEMM( model = model_selected.nosmallsample, 
                                            byvar = 'reported.exposure_', 
-                                           label = 'no_small'))) 
+                                           label = 'no_small'))
 
 
 # SA5. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
@@ -519,19 +517,16 @@ sa7_effects <- RunParallel(GetEffects, sa7_mods, names(sa7_dflist))
 # Selection file includes AIC, loglikelihood, R2, logloss and LRT (as calculated)
 # Sensitivity analyses to follow
 
-dir.create(file.path('../results')) 
+ifelse(!dir.exists('../results'), dir.create(file.path('../results')), FALSE)
 
-# Model Build
-t1 <- Effects2File(raneff.effects) # Error 
-t1.names <- c('raneff_int.csv', 'raneff_fe.csv', 'raneff_re.csv') %>% paste0('../results/', .)
-mapply(write.csv, t1, file = t1.names, row.names = T)
+# Selected Model
+models_selected.names <- c('multimetareg_int.csv', 'multimetareg_fe.csv', 'unimetareg_re.csv') %>% paste0('../results/', .)
+mapply(write.csv, models_selected.coef , file = models_selected.names, row.names = T)
 
-t2 <- Effects2File(fixeff_modelbuild.nomultico.effects)
-t2.names <- c('fixef_modelbuild_int.csv', 'fixef_modelbuild_fe.csv', 'fixef_modelbuild_re.csv') %>% paste0('../results/', .)
-mapply(write.csv, t2, file = t2.names, row.names = T)
+write.csv(models_selected.marginals, 'multimetareg_emm.csv', row.names = T)
 
-t3 <- rbind.data.frame(raneff.selection, fixeff_modelbuild.selection)
-write.csv(t3, '../results/model_selection.csv')
+t3 <- rbind.data.frame(raneff_selection, models_viable.comp )
+write.csv(t3, '../results/multimetareg_modelselection.csv')
 
 
 # Sensitivity Analyses
