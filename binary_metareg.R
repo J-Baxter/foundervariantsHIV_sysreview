@@ -443,7 +443,7 @@ df.nozeros <- df[df$publication_ %in% publist.nozeros,]
 
 model_selected.nozeros <- CalcRandMetaReg(df.nozeros, model_selected.form, opt = 'bobyqa')
 model_selected.nozeros.out <- list(CheckModels(model_selected.nozeros), 
-                                   GetEffects(model_selected.nozeros, label = 'no_zero'),
+                                   GetCoefs(model_selected.nozeros, label = 'no_zero'),
                                    GetEMM( model = model_selected.nosmallsample, 
                                            byvar = 'reported.exposure_', 
                                            label = 'no_small')) 
@@ -458,7 +458,7 @@ df.sgaonly <- df[df$publication_ %in% publist.sgaonly,]
 
 model_selected.sgaonly <- CalcRandMetaReg(df.sgaonly, model_selected.form, opt = 'bobyqa')
 model_selected.sgaonly.out <- list(CheckModels(model_selected.sgaonly), 
-                                   GetEffects(model_selected.sgaonly, label = 'sga_only'),
+                                   GetCoefs(model_selected.sgaonly, label = 'sga_only'),
                                    GetEMM( model = model_selected.nosmallsample, 
                                            byvar = 'reported.exposure_', 
                                            label = 'no_small'))
@@ -525,6 +525,7 @@ mapply(write.csv, models_selected.coef , file = models_selected.names, row.names
 
 write.csv(models_selected.marginals, 'multimetareg_emm.csv', row.names = T)
 
+#Model Comp
 t3 <- rbind.data.frame(raneff_selection, models_viable.comp )
 write.csv(t3, '../results/multimetareg_modelselection.csv')
 
