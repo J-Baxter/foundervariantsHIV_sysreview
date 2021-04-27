@@ -24,6 +24,106 @@ library(meta)
 source('~/foundervariantsHIV_sysreview/generalpurpose_funcs.R')
 
 
+# Extract estimates from LOOCV to create dataframe (input for influence plot)
+DFInfluenceUV <- function(model,labs){
+  
+  nfixed <- fixef(model[[1]]) %>% length()
+  #print(nfixed)
+  #print(which(lapply(model, function(x) fixef(x) %>% length()) %>% unlist() !=nfixed ))
+  names <- paste("Omitting" , labs %>% names(), sep = " ") %>% 
+    as.factor() %>%
+    rep(.,each = nfixed)
+  
+  beta = list()
+  if (class(model[[1]]) =="glmerMod"){
+    for (i in 1:length(model)){
+      beta[[i]] <- summary(model[[i]])$coefficients %>% cbind.data.frame()
+      
+      if(nrow(beta[[i]]) != nfixed){
+        #print(beta[[i]])
+        fixed <- names(fixef(model[[1]]))
+        col <- ncol(beta[[i]])
+        missing <- fixed[which(!fixed %in% rownames(beta[[i]]))]
+        #print(fixed)
+        #print(missing)
+        #print(rownames(beta[[i]]))
+        newrow <- cbind.data.frame(rep(NA, col) %>% rbind()) %>% `rownames<-` (missing)
+        names(newrow) <- names(beta[[i]])
+        beta[[i]] <- rbind.data.frame(beta[[i]], newrow)
+      }
+      }
+    }else{
+      stop('no valid model detected.')
+      }
+  influence_out <- cbind.data.frame('trial'= names, "estimate" = do.call(rbind.data.frame,beta))
+  return(influence_out)
+  
+  }
+
+
+GetInfluence <- function(data, form){
+  
+  df_loocv <- LOOCV.dat(df)[[1]]
+  publist_loocv <- LOOCV.dat(df)[[2]]
+  
+  out <- mclapply(df_loocv, CalcRandMetaReg,
+                  formula = unipooled_forms[[1]],
+                  mc.cores = 4,
+                  mc.set.seed = FALSE) %>%
+    DFInfluenceUV(., labs = publist_loocv) 
+  
+  return(out)
+}
+
+
+# Generate resampled datasets and calculate model estimates for psuedo-bootstrap 
+# sensitivity analysis of inclusion/exclusion criteria
+BootMetaRegUV <- function(data, formula, replicates){
+  require(parallel)
+  require(lme4)
+  require(dplyr)
+  
+  resampled <- lapply(1:replicates, function(x,y) {y %>% group_by(participant.id_) %>% slice_sample(n=1)},
+                      y = data)
+  
+  cl <- detectCores() %>%
+    `-` (2)
+  
+  start <- Sys.time()
+  print(start)
+  
+  boot_reg <- mclapply(resampled, CalcRandMetaReg, 
+                       formula = formula,
+                       opt = 'bobyqa',
+                       mc.cores = 4,
+                       mc.set.seed = FALSE)
+  
+  end <- Sys.time()
+  elapsed <- end-start
+  print(elapsed)
+  
+  remove(cl)
+  
+  
+  boot_reg.coef <-  RunParallel(GetCoefs, 
+                                boot_reg, 
+                                paste0(GetName(formula, effects = 'fixed'), '.boot')) 
+  
+  
+  boot_reg.marg <- lapply(boot_reg, 
+                          GetEMM,
+                          byvar = formula,
+                          label = paste0(GetName(formula, effects = 'fixed'), '.boot'))
+  
+
+  
+  out <- list(boot_reg.coef, boot_reg.marg)
+  
+  
+  return(out)
+}
+
+
 ###################################################################################################
 ###################################################################################################
 # Set seed
@@ -96,15 +196,7 @@ unipooled_models.marginals <- mapply(GetEMM, model = unipooled_models,
 # SA7. Compare down-sampled to full dataset
 
 # SA1. Influence of Individual Studies (LOOCV)
-df_loocv <- LOOCV.dat(df)[[1]]
-publist_loocv <- LOOCV.dat(df)[[2]]
-
-
-unipooled_models.influence <- mclapply(df_loocv, CalcRandMetaReg,
-                                     formula = model_selected.form,
-                                     mc.cores = 4,
-                                     mc.set.seed = FALSE) %>%
-  DFInfluenceMV(., labs = publist_loocv) 
+unipooled_models.influence <- lapply(unipooled_forms, GetInfluence, data = df) 
 
 
 # SA2. Exclusion of small sample sizes (less than n = 10)
@@ -170,7 +262,7 @@ resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   droplevels()
 
-model_selected.boot_participant <- BootMetaRegUV(resampling_df , 1000) 
+model_selected.boot_participant <- BootMetaRegUV(resampling_df, unipooled_forms[[1]], 5) 
 
 # SA6. Optimisation Algorithm selected by glmerCrtl
 opt.algo <- c('bobyqa', 'Nelder_Mead')
