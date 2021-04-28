@@ -4,6 +4,15 @@
 # Framework for univariate IPD meta-regression under a one-step approach
 # One-step binomial GLMM allowing for clustering by study. uncorrelated random effects between studies
 
+# Sensitivity analyses conducted on all models:
+# SA1. Influence of Individual Studies
+# SA2. Exclusion of small sample sizes (less than n = 10)
+# SA3. Exclusion of studies with 0 multiple founder variants
+# SA4. Exclusion of all studies that do not use SGA
+# SA5. Resampling of participants for which we have multiple measurments (takes pre-formatted DF)
+# SA6. Optimisation Algorithm selected by glmerCrtl
+# SA7. Inclusion of unknown sampling delay with repeated studies
+
 ###################################################################################################
 ###################################################################################################
 # Dependencies

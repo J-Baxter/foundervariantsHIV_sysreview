@@ -10,7 +10,13 @@
 # STAGE 4: Evaluating the inclusion on interactions
 
 # Sensitivity analyses conducted on final model:
-# SA1. 
+# SA1. Influence of Individual Studies
+# SA2. Exclusion of small sample sizes (less than n = 10)
+# SA3. Exclusion of studies with 0 multiple founder variants
+# SA4. Exclusion of all studies that do not use SGA
+# SA5. Resampling of participants for which we have multiple measurments (takes pre-formatted DF)
+# SA6. Optimisation Algorithm selected by glmerCrtl
+# SA7. Inclusion of unknown sampling delay with repeated studies
 
 ###################################################################################################
 ###################################################################################################
@@ -30,6 +36,7 @@ library(stringr)
 library(data.table)
 library(insight)
 library(emmeans)
+library(ggsci)
 source('~/foundervariantsHIV_sysreview/generalpurpose_funcs.R')
 
 
@@ -405,7 +412,8 @@ model_selected.roc <- performance_roc(model_selected) %>% plot()
 # SA3. Exclusion of studies with 0 multiple founder variants
 # SA4. Exclusion of all studies that do not use SGA
 # SA5. Resampling of participants for which we have multiple measurments (takes pre-formatted DF)
-# SA6. Inclusion of unknown sampling delay with repeated studies
+# SA6. Optimisation Algorithm selected by glmerCrtl
+# SA7. Inclusion of unknown sampling delay with repeated studies
 
 # SA1. Influence of Individual Studies (LOOCV)
 df_loocv <- LOOCV.dat(df)[[1]]
@@ -509,7 +517,7 @@ sa7_dflist$sa7_nounknown.rep <- read.csv("data_master_11121.csv", na.strings = "
 
 sa7_mods <- lapply(sa7_dflist, CalcRandMetaReg, formula = model_selected.form)
 
-sa7_effects <- RunParallel(GetEffects, sa7_mods, names(sa7_dflist))
+sa7_effects <- RunParallel(GetCoefs, sa7_mods, names(sa7_dflist))
 ###################################################################################################
 ###################################################################################################
 # Outputs to file
