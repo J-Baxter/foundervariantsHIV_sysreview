@@ -462,20 +462,22 @@ boot_participant <- BootParticipant(resampling_df , 1000)
 ###################################################################################################
 # Outputs
 # CSV of pooling model results (estimates only) with SAs 2 + 3
+ifelse(!dir.exists('../results'), dir.create(file.path('../results')), FALSE)
+
 originals <- cbind.data.frame(estimates, heterogeneity)
 pooled_est <- rbind.data.frame(originals,
                                SA2_results,
                                SA3_results,
                                SA4_results) %>% .[,-c(6,11)]
 
-write.csv(pooled_est , file = 'bp_estsa2sa3sa4.csv', row.names = F)
+write.csv(pooled_est , file = '../results/pooling_estsa2sa3sa4.csv', row.names = F)
 
 
 # CSV study influence
-write.csv(influence_df, file = 'bp_sa1.csv',row.names = F)
+write.csv(influence_df, file = '../results/pooling_sa1.csv',row.names = F)
 
 # CSV resampling (pseudo bootstrapping)
-write.csv(boot_participant, file = 'bp_resampl.csv',row.names = F)
+write.csv(boot_participant, file = '../results/pooling_boot.csv',row.names = F)
 
 # Forest Plot 1-step BN
 jpeg("testplot.jpeg" ,width = 5250, height = 6500, res = 380 ,units = "px", pointsize = 12)

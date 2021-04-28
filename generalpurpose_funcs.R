@@ -332,7 +332,6 @@ GetCoefs <- function(model, label = "original"){
 
 ###################################################################################################
 # Extract Marginal effects and calculate bootstraped prediction/confidence intervals
-
 GetEMM <- function(model, byvar, label = "original"){
   #if byvar is formula:
   if (grepl('~', byvar)){
@@ -369,7 +368,6 @@ Effects2File <- function(effectslist){
   names(out) <- c('int', 'fe', 're')
   return(out)
 }
-
 
 
 ###################################################################################################
