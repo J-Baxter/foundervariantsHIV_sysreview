@@ -73,11 +73,11 @@ PlotBinned <- function(data){
         theme_classic() +
         theme(panel.background = element_rect(fill = 'gray95' )) +
         scale_color_npg() +
-        scale_x_continuous(name = element_blank(), 
+        scale_x_continuous(name = 'Probability of Multiple Founders', 
                            labels = scales::percent,
                            limits = c(0,0.73),
                            expand = c(0, 0.005)) +
-        scale_y_continuous(name = element_blank(), 
+        scale_y_continuous(name = 'Average Residual', 
                           limits = c(-0.5,0.5),
                           expand = c(0, 0.005))+
         theme(legend.position = "none")
@@ -404,6 +404,10 @@ model_selected.re <-check_normality(model_selected, effects = 'random') %>% plot
 # ROC curve + AUC
 model_selected.roc <- performance_roc(model_selected) %>% plot()
 
+jpeg("../results/model_assumptions.jpeg" ,width = 5000, height = 4000, res = 380 ,units = "px", pointsize = 12)
+cowplot::plot_grid(model_selected.resid, model_selected.multico,  plotlist = model_selected.re, model_selected.roc,
+                   ncol = 2, labels = 'AUTO')
+dev.off()
 ###################################################################################################
 ###################################################################################################
 # Sensitivity analyses on selected model
