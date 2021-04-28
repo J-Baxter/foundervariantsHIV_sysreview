@@ -21,6 +21,7 @@ library(cowplot)
 library(stringr)
 library(data.table)
 library(meta)
+library(emmeans)
 source('~/foundervariantsHIV_sysreview/generalpurpose_funcs.R')
 
 
@@ -100,7 +101,7 @@ BootMetaRegUV <- function(data, formulas, replicates){
     boot_reg <- mclapply(resampled, CalcRandMetaReg, 
                          formula = formulas[[i]],
                          opt = 'bobyqa',
-                         mc.cores = 4,
+                         mc.cores = cl,
                          mc.set.seed = FALSE)
     
     end <- Sys.time()
@@ -109,10 +110,9 @@ BootMetaRegUV <- function(data, formulas, replicates){
     
     remove(cl)
     
-    
-    boot_reg.coef <-  RunParallel(GetCoefs, 
-                                  boot_reg, 
-                                  paste0(GetName(formulas[[i]], effects = 'fixed'), '.boot')) 
+    boot_reg.coef <- lapply(boot_reg, function(mod) summary(mod)$coefficients %>% 
+                             cbind.data.frame(., label = paste0(GetName(formulas[[i]], effects = 'fixed'), '.boot'))) %>%
+      do.call(rbind.data.frame,.)
     
     
     boot_reg.marg <- lapply(boot_reg, 
@@ -131,6 +131,22 @@ BootMetaRegUV <- function(data, formulas, replicates){
   return(out)
 }
 
+
+
+# Create list of dataframes for leave-one-out cross validation
+LOOCV.dat <- function(data){
+  pubs <- unique(data$publication)
+  loo <- list()
+  loo.pubs <- list()
+  
+  for (i in pubs){
+    loo[[i]] <- data[data$publication != i, ]
+    loo.pubs[[i]] <- pubs[pubs != i]
+  }
+  out <- list(loo, loo.pubs)
+  stopifnot(length(loo) == length(loo.pubs))
+  return(out)
+}
 
 ###################################################################################################
 ###################################################################################################
@@ -152,6 +168,7 @@ baseline.level <- c("HSX:MTF", "haplotype", "B" , "whole.genome" , "<21", 'NFLG'
 df <- SetBaseline(df, baseline.covar, baseline.level)
 
 
+df_props <- CalcProps(df)
 ##################################################################################################
 ###################################################################################################
 # STAGE 2: Univariate meta-regression of individual covariates against founder variant multiplicity
@@ -194,7 +211,7 @@ unipooled_models.marginals <- mapply(GetEMM, model = unipooled_models,
 
 
 ###################################################################################################
-# Sensitivity analyses on selected model
+# Sensitivity analyses on univariate models
 # SA1. Influence of Individual Studies
 # SA2. Exclusion of small sample sizes (less than n = 10)
 # SA3. Exclusion of studies with 0 multiple founder variants
@@ -280,7 +297,6 @@ unipooled_models.boot_participant <- BootMetaRegUV(resampling_df, unipooled_form
 # SA6. Optimisation Algorithm selected by glmerCrtl - not run
 
 # SA7. Compare down-sampled to full dataset
-# SA7. Delay/Repeat permutation tests
 sa7_dflist <- list()
 
 sa7_dflist$sing <- df
