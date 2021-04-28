@@ -148,6 +148,31 @@ LOOCV.dat <- function(data){
   return(out)
 }
 
+
+
+ConcatSA <- function(data){
+  int <- list()
+  fe <- list()
+  re <- list()
+  
+  for (i in 1:length(data)){
+    int[[i]] <- data[[i]]$int
+    fe[[i]] <- data[[i]]$fe
+    re[[i]] <- data[[i]]$re
+  }
+  
+  int.df <- do.call(rbind.data.frame, int)
+  fe.df <- do.call(rbind.data.frame, fe)
+  re.df <- do.call(rbind.data.frame, re)
+  
+  out <- list("int" = int.df,
+              "fe" = fe.df,
+              "re" = re.df)
+  return(out)
+}
+
+
+
 ###################################################################################################
 ###################################################################################################
 # Set seed
@@ -325,7 +350,7 @@ sa7_emm$data <- gsub('\\..*', '\\1'  ,rownames(sa7_emm))
 # Effect files contain intercept, fixed and random effects including CI
 # Selection file includes AIC, loglikelihood, R2, logloss and LRT (as calculated)
 # Sensitivity analyses to follow
-ifelse(!dir.exists('../results'), dir.create(file.path('../results')), FALSE)
+ifelse(!dir.exists('../results'), dir.create(file.path('../results/')), FALSE)
 
 # Model Coefficients
 t1 <- Effects2File(unipooled_models.coef) # Error 
@@ -340,34 +365,29 @@ write.csv(unipooled_models.marginals, '../results/unimetareg_emm.csv')
 write.csv(unipooled_models.influence, '../results/unimetareg_sa1.csv')
 
 #SA2-4 coefficients
-sa2_4.coef <- list(unipooled_models.nosmallsample.out[[2]],
-           unipooled_models.nozeros.out[[2]],
-           unipooled_models.sgaonly.out[[2]]) %>%
-  ConcatSA()
+sa2_4.coef <- list(ConcatSA(unipooled_models.nosmallsample.out[[2]]),
+                   ConcatSA(unipooled_models.nozeros.out[[2]]),
+                   ConcatSA(unipooled_models.sgaonly.out[[2]])) %>%
+  ConcatSA() 
 
 sa2_4.coef.names <- c('unimetareg_sa2-4_int.csv', 'unimetareg_sa2-4_fe.csv', 'unimetareg_sa2-4_re.csv')  %>% paste0('../results/', .)
-mapply(write.csv, sa2_4.coef.coef, file = sa2_4.coef.names, row.names = T)  
+mapply(write.csv, sa2_4.coef, file = sa2_4.coef.names, row.names = T)  
 
 
 #SA2-4 EMM
-sa2_4.coef.emm <- rbind.data.frame(unipooled_models.nosmallsample.out[[3]],
+sa2_4.emm <- rbind.data.frame(unipooled_models.nosmallsample.out[[3]],
                 unipooled_models.nozeros.out[[3]],
                 unipooled_models.sgaonly.out[[3]]) 
 
-write.csv(sa2_4.coef.emm, '../results/unimetareg_sa2-4_emm.csv')
+write.csv(sa2_4.emm, '../results/unimetareg_sa2-4_emm.csv', row.names = T)
 
 #SA5 - coefficients
-sa5.coef <- lapply(unipooled_models.boot_participant, function(x) x[[1]]) %>% lapply(.,Effects2File)
-sa5.coef_out <- list(int = lapply(sa5.coef, function(x) x$int) %>% do.call(rbind.data.frame,.),
-                    fe = lapply(sa5.coef, function(x) x$fe) %>% do.call(rbind.data.frame,.),
-                    re = lapply(sa5.coef, function(x) x$re) %>% do.call(rbind.data.frame,.))
-
-sa5.names <- c('unimetareg_sa5_int.csv', 'unimetareg_sa5_fe.csv', 'unimetareg_sa5_re.csv')  %>% paste0('../results/', .)
-mapply(write.csv, sa5.coef_out , file = sa5.names, row.names = T)  
+sa5.coef <- lapply(unipooled_models.boot_participant, function(x) x[[1]]) %>% do.call(rbind.data.frame,.)
+write.csv(sa5.coef, '../results/unimetareg_sa5_coef.csv', row.names = T)  
 
 #SA5 - EMM
 sa5.emm <- lapply(unipooled_models.boot_participant, function(x) x[[2]]) %>% do.call(rbind.data.frame,.)
-write.csv(sa5.emm, '../results/unimetareg_sa5_emm.csv')
+write.csv(sa5.emm, '../results/unimetareg_sa5_emm.csv', row.names = T)
 
 #SA7 - Coef
 sa7_coef.out <- list(int = lapply(sa7_coef, function(x) x$int) %>% do.call(rbind.data.frame,.),
@@ -378,7 +398,7 @@ sa7.names <- c('unimetareg_sa7_int.csv', 'unimetareg_sa7_fe.csv', 'unimetareg_sa
 mapply(write.csv, sa7_coef.out , file = sa7.names, row.names = T)  
 
 #SA7 - EMM
-write.csv(sa7_emm , '../results/unimetareg_sa7_emm.csv')
+write.csv(sa7_emm , '../results/unimetareg_sa7_emm.csv', row.names = T)
 
 ###################################################################################################
 ###################################################################################################
