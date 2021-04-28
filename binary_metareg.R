@@ -377,12 +377,12 @@ model_selected.effectstruct <- GetName(model_selected.form, effects = 'fixed')
 ###################################################################################################
 ###################################################################################################
 # Extract fixed and random effect coefficients and calculate bootstrapped 95% CIs
-models_selected.coef <- GetCoefs(model_selected, model_selected.effectstruct)
+model_selected.coef <- GetCoefs(model_selected, model_selected.effectstruct)
 
 
 # Extract estimated marginal means of fixed effects and calculate 95% CIs
 # estimated marginal means average the coefficients of selected vars over all factors
-models_selected.marginals <- GetEMM(model = model_selected, 
+model_selected.marginals <- GetEMM(model = model_selected, 
                                   byvar = 'reported.exposure_', 
                                   label = model_selected.effectstruct)
 
@@ -532,10 +532,10 @@ sa7_effects <- RunParallel(GetCoefs, sa7_mods, names(sa7_dflist))
 ifelse(!dir.exists('../results'), dir.create(file.path('../results')), FALSE)
 
 # Selected Model
-models_selected.names <- c('multimetareg_int.csv', 'multimetareg_fe.csv', 'unimetareg_re.csv') %>% paste0('../results/', .)
-mapply(write.csv, models_selected.coef , file = models_selected.names, row.names = T)
+model_selected.names <- c('multimetareg_int.csv', 'multimetareg_fe.csv', 'unimetareg_re.csv') %>% paste0('../results/', .)
+mapply(write.csv, model_selected.coef , file = model_selected.names, row.names = T)
 
-write.csv(models_selected.marginals, 'multimetareg_emm.csv', row.names = T)
+write.csv(model_selected.marginals, 'multimetareg_emm.csv', row.names = T)
 
 #Model Comp
 t3 <- rbind.data.frame(raneff_selection, models_viable.comp )
@@ -544,27 +544,27 @@ write.csv(t3, '../results/multimetareg_modelselection.csv')
 
 # Sensitivity Analyses
 s1 <- model_selected.influence
-write.csv(s1, '../results/loocv_mv.csv')
+write.csv(s1, '../results/multimetareg_s1.csv')
 
 sa <- list(model_selected.nosmallsample.out[[2]],
            model_selected.nozeros.out[[2]],
            model_selected.sgaonly.out[[2]]) %>%
   ConcatSA()
 
-sa.names <- c('sa_int.csv', 'sa_fe.csv', 'sa_re.csv')  %>% paste0('../results/', .)
+sa.names <- c('multimetareg_s2-4_int.csv', 'multimetareg_s2-4_fe.csv', 'multimetareg_s2-4_re.csv')  %>% paste0('../results/', .)
 mapply(write.csv, sa, file = sa.names, row.names = T)  
 
 s5 <- model_selected.boot_participant 
-write.csv(s5, '../results/mv_resampl.csv')
+write.csv(s5, '../results/multimetareg_s5.csv')
 
 s7 <- Effects2File(sa7_effects)
-s7.names <- c('s7_int.csv', 's7_fe.csv', 's7_re.csv')  %>% paste0('../results/', .)
+s7.names <- c('multimetareg_s7_int.csv', 'multimetareg_s7_fe.csv', 'multimetareg_s7_re.csv')  %>% paste0('../results/', .)
 mapply(write.csv, s7, file = s7.names, row.names = T)
 
 
 # Selected Model
 model_selected.coef <- summary(model_selected)$coefficients %>% cbind.data.frame()
-write.csv(model_selected.coef, '../results/mv_selectedmodelcoeff.csv')
+write.csv(model_selected.coef, '../results/multimetareg_selectedmodelcoeff.csv')
 ###################################################################################################
 ###################################################################################################
 # END # 
