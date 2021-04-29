@@ -434,9 +434,8 @@ phylo_effectstruct <- GetName(phylo_forms, effects = 'fixed')
 phylo_check <- CheckModels(phylo_models)%>% 
   `row.names<-`(phylo_effectstruct)
 
-phylo_emm <- lapply(phylo_models, GetEMM, byvar = 'seqs.used_', label = 'phylo') %>% do.call(rbind.data.frame,.)
-phylo_coefs <- RunParallel(GetCoefs, phylo_models, 'phylo')
-
+phylo_emm <- mapply(GetEMM, phylo_models, label = phylo_effectstruct, byvar = 'seqs.used_', SIMPLIFY = F) %>% do.call(rbind.data.frame,.)
+phylo_coefs <- RunParallel(GetCoefs, phylo_models, phylo_effectstruct) %>% Effects2File()
 ###################################################################################################
 ###################################################################################################
 # Sensitivity analyses on selected model
