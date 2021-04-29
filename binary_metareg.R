@@ -198,11 +198,7 @@ BootMetaRegMV <- function(data, replicates){
     do.call(rbind.data.frame,.)
 
   
-  boot_reg.het <- lapply(boot_reg, function(mod) CalcHet(mod, analysis = "metareg")) %>%
-    do.call(rbind.data.frame,.)
-
-  
-  out <- cbind.data.frame(boot_reg.est, boot_reg.het, rep= rep(1:replicates, each=9))
+  out <- cbind.data.frame(boot_reg.est, rep= rep(1:replicates, each=9))
   
   
   return(out)
@@ -482,7 +478,7 @@ resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   droplevels()
 
-model_selected.boot_participant <- BootMetaRegMV(resampling_df , 1000) #To re run
+model_selected.boot_participant <- BootMetaRegMV(resampling_df, 1000) #To re run
 
 # SA6. Optimisation Algorithm selected by glmerCrtl
 opt.algo <- c('bobyqa', 'Nelder_Mead')
