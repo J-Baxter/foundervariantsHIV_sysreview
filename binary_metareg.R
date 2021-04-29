@@ -404,6 +404,39 @@ jpeg("../results/model_assumptions.jpeg" ,width = 5000, height = 4000, res = 380
 cowplot::plot_grid(model_selected.resid, model_selected.multico,  plotlist = model_selected.re, model_selected.roc,
                    ncol = 2, labels = 'AUTO')
 dev.off()
+
+
+###################################################################################################
+###################################################################################################
+# Role of transmitter in phylogenetic analysis (method = phylo only)
+df_phylo <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
+  filter(., grouped.method == 'phylogenetic') %>%
+  formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
+  filter(reported.exposure_ != 'unknown.exposure') %>%
+  droplevels()
+
+
+# Set reference levels for meta regression
+# HSX:MTF, recipient only, unknown seropositivity, B, whole genome
+phylo_baseline.covar <- c("reported.exposure_", "seqs.used_", "grouped.subtype_","sequencing.gene_", "sampling.delay_",'alignment.bin_')
+phylo_baseline.level <- c("HSX:MTF", "source&recipient", "B" , "whole.genome" , "<21", 'NFLG')
+
+df_phylo <- df_phylo %>% SetBaseline(., phylo_baseline.covar, phylo_baseline.level)
+
+# Run selected model, replacing method variable for inclusion of transmitter seqs
+phylo_forms <- c(p1 = 'multiple.founders_ ~ seqs.used_ + (1 | publication_)',
+                 p2 = 'multiple.founders_ ~ reported.exposure_ + seqs.used_ + sequencing.gene_ + sampling.delay_ + (1 | publication_)')
+
+phylo_models <- RunParallel(CalcRandMetaReg, phylo_forms, df_phylo , opt = 'bobyqa') 
+
+phylo_effectstruct <- GetName(phylo_forms, effects = 'fixed')
+
+phylo_check <- CheckModels(phylo_models)%>% 
+  `row.names<-`(phylo_effectstruct)
+
+phylo_emm <- lapply(phylo_models, GetEMM, byvar = 'seqs.used_', label = 'phylo') %>% do.call(rbind.data.frame,.)
+phylo_coefs <- RunParallel(GetCoefs, phylo_models, 'phylo')
+
 ###################################################################################################
 ###################################################################################################
 # Sensitivity analyses on selected model
