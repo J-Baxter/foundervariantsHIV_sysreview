@@ -9,6 +9,7 @@
 # 4. Two-step beta-binomial GLMM, dispersion param for study labels. Laplace approximate ML estimation
 
 # estimations of mean effect size, confidence intervals and heterogeneity are presented 
+
 # Sensitivity analyses are conducted as follows:
 # SA1: leave-one-out cross validation of all models
 # SA2: exclude studies with fewer than 10 participants
@@ -84,34 +85,19 @@ CalcOnestepBiRand <- function(data){
                     drop00 = FALSE, 
                     add = 0.0005, 
                     measure= 'PLO', 
-                    nAGQ = 7)
+                    nAGQ = 1)
   return(model)
 }
 
 
 # Extracts estimates of summary effect from models
-CalcEstimates <- function(model , analysis = "original", mermod.method = 'Profile'){
+CalcEstimates <- function(model , analysis = "original"){
+  
+  # One and two step binomial models
   if (class(model) == "rma" || class(model) == "rma.uni" || class(model) == "rma.glmm"){
     beta <- model$beta
     ci.lb <- model$ci.lb
     ci.ub <- model$ci.ub
-  }
-  else if (class(model) =="glmerMod"){
-    beta <- summary(model)$coefficients[1,1]
-    ci <- confint.merMod(model, method = mermod.method)
-    ci.lb <- ci[nrow(ci),1]
-    ci.ub <- ci[nrow(ci),2]
-  }
-  else if (class(model) =="metaprop"){
-    beta <- model$TE.random
-    ci.lb <- model$lower.random
-    ci.ub <- model$upper.random
-  }
-  else if (class(model) =="glimML"){
-    beta <- model@param[1]
-    ci <- varbin(subjects,multiplefounders, data = model@data)@tab[5,c(3,4)]
-    ci.lb <- as.numeric(ci[1]) %>% transf.logit()
-    ci.ub <- as.numeric(ci[2]) %>% transf.logit()
   }
 
   results <- cbind.data.frame("estimate" = beta,
@@ -142,25 +128,8 @@ CalcHet <- function(model , analysis = "original"){
     q <- model$QE.Wld
     i2 <- model$I2
     phi <- NA
-  }else   if (class(model)[1] == "metaprop"){
-    tau2 <- model$tau2$TE
-    q <- model$Q
-    i2 <- model$I2
-    phi <- NA
   }
-  else if (class(model) =="glmerMod"){
-    tau2 <- VarCorr(model)[[1]][1]
-    q <- NA
-    i2 <- NA
-    phi <- NA
-  }
-  else if (class(model) =="glimML"){
-    tau2 <- NA
-    q <- NA
-    i2 <- NA
-    phi <- model@param[2] %>% as.numeric()
-  }
-  
+
   results <- cbind.data.frame("model" = substitute(model) %>% 
                                 deparse() %>% 
                                 gsub("[:.:].*", "", .),
@@ -203,28 +172,6 @@ DFInfluence <- function(model,labs){
       beta[i] <- model[[i]]$beta
       ci.lb[i] <-model[[i]]$ci.lb
       ci.ub[i] <- model[[i]]$ci.ub
-    }
-  }else if (class(model[[1]]) =="glmerMod"){
-    for (i in 1:length(model)){
-      ci <- confint(model[[i]])
-      beta[i] <- summary(model[[i]])$coefficients[1,1]
-      ci.lb[i] <-ci[nrow(ci),1]
-      ci.ub[i] <- ci[nrow(ci),2]
-    }
-    }else if (class(model) =="metaprop"){
-      beta <- model$TE.random
-      ci.lb <- model$lower.random
-      ci.ub <- model$upper.random
-    
-  }else if (class(model[[1]]) =="glimML"){
-    #Bootstrapped Binomial CIs-check Chuang-Stein 1993
-    for (i in 1:length(model)){
-      binom.ci <- varbin(subjects,multiplefounders, data = model[[i]]@data)@tab[5,c(3,4)] %>%
-        as.numeric() %>%
-        transf.logit()
-      beta[i] <- model[[i]]@param[1]
-      ci.lb[i] <- binom.ci[1]
-      ci.ub[i] <- binom.ci[2]
     }
   }else{
     stop('no valid model detected.')
@@ -349,7 +296,7 @@ onestep_bi_rand.het <- CalcHet(onestep_bi_rand)
 ###################################################################################################
 # Model comparison: Estimated sumary effects (prop, CI), between study variance (tau, I^)
 # Tau2 = Var(theta_i), theta_i = E[theta_i]
-  estimates <- rbind.data.frame(twostep_binorm.est,
+estimates <- rbind.data.frame(twostep_binorm.est,
                                 onestep_bi_rand.est)
 
 
