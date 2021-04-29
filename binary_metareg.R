@@ -436,6 +436,7 @@ phylo_check <- CheckModels(phylo_models)%>%
 
 phylo_emm <- mapply(GetEMM, phylo_models, label = phylo_effectstruct, byvar = 'seqs.used_', SIMPLIFY = F) %>% do.call(rbind.data.frame,.)
 phylo_coefs <- RunParallel(GetCoefs, phylo_models, phylo_effectstruct) %>% Effects2File()
+
 ###################################################################################################
 ###################################################################################################
 # Sensitivity analyses on selected model
@@ -590,9 +591,12 @@ s7.names <- c('multimetareg_s7_int.csv', 'multimetareg_s7_fe.csv', 'multimetareg
 mapply(write.csv, s7, file = s7.names, row.names = T)
 
 
-# Selected Model
-model_selected.coef <- summary(model_selected)$coefficients %>% cbind.data.frame()
-write.csv(model_selected.coef, '../results/multimetareg_selectedmodelcoeff.csv')
+# Phylo Model
+phylo.names <- c('phylo_int.csv', 'phylo_fe.csv', 'phylo_re.csv') %>% paste0('../results/', .)
+mapply(write.csv, phylo_coefs , file = phylo.names , row.names = T)
+
+write.csv(phylo_emm , 'phylo_emm.csv', row.names = T)
+
 ###################################################################################################
 ###################################################################################################
 # END # 
