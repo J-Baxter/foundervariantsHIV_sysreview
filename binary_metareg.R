@@ -410,37 +410,6 @@ dev.off()
 
 ###################################################################################################
 ###################################################################################################
-# Role of transmitter in phylogenetic analysis (method = phylo only)
-df_phylo <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
-  filter(., grouped.method == 'phylogenetic') %>%
-  formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
-  filter(reported.exposure_ != 'unknown.exposure') %>%
-  droplevels()
-
-
-# Set reference levels for meta regression
-# HSX:MTF, recipient only, unknown seropositivity, B, whole genome
-phylo_baseline.covar <- c("reported.exposure_", "seqs.used_", "grouped.subtype_","sequencing.gene_", "sampling.delay_",'alignment.bin_')
-phylo_baseline.level <- c("HSX:MTF", "source&recipient", "B" , "whole.genome" , "<21", 'NFLG')
-
-df_phylo <- df_phylo %>% SetBaseline(., phylo_baseline.covar, phylo_baseline.level)
-
-# Run selected model, replacing method variable for inclusion of transmitter seqs
-phylo_forms <- c(p1 = 'multiple.founders_ ~ seqs.used_ + (1 | publication_)',
-                 p2 = 'multiple.founders_ ~ reported.exposure_ + seqs.used_ + sequencing.gene_ + sampling.delay_ + (1 | publication_)')
-
-phylo_models <- RunParallel(CalcRandMetaReg, phylo_forms, df_phylo , opt = 'bobyqa') 
-
-phylo_effectstruct <- GetName(phylo_forms, effects = 'fixed')
-
-phylo_check <- CheckModels(phylo_models)%>% 
-  `row.names<-`(phylo_effectstruct)
-
-phylo_emm <- mapply(GetEMM, phylo_models, label = phylo_effectstruct, byvar = 'seqs.used_', SIMPLIFY = F) %>% do.call(rbind.data.frame,.)
-phylo_coefs <- RunParallel(GetCoefs, phylo_models, phylo_effectstruct) %>% Effects2File()
-
-###################################################################################################
-###################################################################################################
 # Sensitivity analyses on selected model
 # SA1. Influence of Individual Studies
 # SA2. Exclusion of small sample sizes (less than n = 10)
@@ -599,12 +568,6 @@ s7 <- Effects2File(sa7_effects)
 s7.names <- c('multimetareg_s7_int.csv', 'multimetareg_s7_fe.csv', 'multimetareg_s7_re.csv')  %>% paste0('../results/', .)
 mapply(write.csv, s7, file = s7.names, row.names = T)
 
-
-# Phylo Model
-phylo.names <- c('phylo_int.csv', 'phylo_fe.csv', 'phylo_re.csv') %>% paste0('../results/', .)
-mapply(write.csv, phylo_coefs , file = phylo.names , row.names = T)
-
-write.csv(phylo_emm , 'phylo_emm.csv', row.names = T)
 
 ###################################################################################################
 ###################################################################################################
