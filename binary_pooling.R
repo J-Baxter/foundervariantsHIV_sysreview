@@ -250,8 +250,7 @@ BootParticipant <- function(data, replicates){
 ###################################################################################################
 
 # Import data
-setwd("./data")
-df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(., noreps = TRUE)
+df <- read.csv("./data/data_master_11121.csv", na.strings = "NA") %>% formatDF(., noreps = TRUE)
 df_props <- CalcProps(df)  
 publist <- df %>%
   pull(.,var=publication_) %>%
