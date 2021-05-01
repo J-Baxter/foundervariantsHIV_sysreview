@@ -64,6 +64,8 @@ phylo_effectstruct <- GetName(phylo_forms, effects = 'fixed')
 phylo_check <- CheckModels(phylo_models)%>% 
   `row.names<-`(phylo_effectstruct)
 
+lapply(phylo_models, binned_residuals)
+
 phylo_emm <- mapply(GetEMM, phylo_models, label = phylo_effectstruct, byvar = 'seqs.used_', SIMPLIFY = F) %>% do.call(rbind.data.frame,.)
 phylo_coefs <- RunParallel(GetCoefs, phylo_models, phylo_effectstruct) %>% Effects2File()
 
@@ -71,6 +73,45 @@ phylo_coefs <- RunParallel(GetCoefs, phylo_models, phylo_effectstruct) %>% Effec
 ###################################################################################################
 # Plots
 
+phylo_plot.in <- rbind.data.frame(phylo_coefs$int,phylo_coefs$fe) %>% filter(., covariate == 'seqs.used' | covariate =='(Intercept)')
+phylo_plot.in[c(1,2), c(3,5,6)] <- 0
+
+phylo_plot.in[c(1,2), 2] <- 'source and recipient'
+
+phylo_plt <- ggplot(phylo_plot.in) +
+  geom_point(aes(x= exp(est), 
+                 y = factor(level),
+                 col =  ifelse(exp(est)>1 & exp(ci.lb)>1, "A", ifelse(exp(est)<1 & exp(ci.ub)<1, "B",  'C')),
+                 shape = analysis),
+             size = 5,
+             position = position_dodge2(width = 0.6)) +
+  theme_bw() + 
+  scale_shape(name = 'Model', labels = c('Univariate', 'Multivariate'))+
+  geom_linerange(aes(y = factor(level),
+                     xmin= exp(ci.lb), 
+                     xmax= exp(ci.ub), 
+                     col = ifelse(exp(est)>1 & exp(ci.lb)>1, "A", ifelse(exp(est)<1 & exp(ci.ub)<1, "B",  'C'))),
+                 position = position_dodge2(width = 0.6))+
+  scale_x_continuous(
+    expand = c(0,0), 
+    name = "Odds Ratio",
+    #trans = 'log10'
+  )+
+  scale_y_discrete(name = 'Sequences Analysed',labels = c( 'Recipient Only','Source & Recipient'))+
+  scale_colour_manual(values = setNames(c("#E64B35FF", "#4DBBD5FF", '#000000'), c('A',"B","C")), guide = NULL) +
+  geom_vline(xintercept = 1, linetype = 'dashed')+
+  theme(
+    axis.line.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.y = element_blank()) +
+  coord_cartesian(xlim = c(0,5)) 
+
+jpeg(filename = './results/metareg_phylo.jpeg', width = 2000, height = 2000, res = 380 ,units = "px", pointsize = 12)
+
+phylo_plt 
+
+dev.off() 
 ###################################################################################################
 # Out
 phylo.names <- c('./results/phylo_int.csv', './results/phylo_fe.csv', './results/phylo_re.csv') %>% paste0('../results/', .)
