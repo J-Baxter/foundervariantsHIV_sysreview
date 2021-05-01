@@ -331,7 +331,7 @@ GetCoefs <- function(model, label = "original"){
 
 
 ###################################################################################################
-# Extract Marginal effects and calculate bootstraped prediction/confidence intervals
+# Extract Marginal effects and prediction/confidence intervals
 GetEMM <- function(model, byvar, label = "original"){
   #if byvar is formula:
   if (grepl('~', byvar)){
@@ -357,6 +357,26 @@ GetEMM <- function(model, byvar, label = "original"){
   return(out)
 }
 
+# Extract predictions and calculate bootstraped prediction/confidence intervals
+GetPreds <- function(model, byvar, label = "original"){
+  require(ggeffects)
+  #if byvar is formula:
+  if (grepl('~', byvar)){
+    terms <- gsub(".*[:~:] (.+?) [:(:].*", "\\1", byvar) %>%
+      gsub("[:+:]([:^+:]*)$","",.) %>%
+      str_trim()
+  }
+  
+  else{
+    terms <- str_trim(byvar)
+    
+  }
+  
+  out <- ggpredict(model, terms = terms, type = 'fe') %>%
+    {cbind.data.frame(.,label = label)}
+  colnames(out)[1] <- 'covariate_level'
+  return(out)
+}
 
 ###################################################################################################
 Effects2File <- function(effectslist){
