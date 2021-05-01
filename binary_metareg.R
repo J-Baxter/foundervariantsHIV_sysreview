@@ -382,7 +382,9 @@ model_selected.marginals <- GetEMM(model = model_selected,
                                   byvar = 'reported.exposure_', 
                                   label = model_selected.effectstruct)
 
-
+model_selected.predictions <- GetPreds(model = model_selected, 
+                                   byvar = 'reported.exposure_', 
+                                   label = model_selected.effectstruct)
 ###################################################################################################
 ###################################################################################################
 # Validate assumptions of selected model - Includes repeats of multicolinearity and binned residuals
@@ -469,10 +471,10 @@ df.nosmallsample <- df[df$publication_ %in% publist.nosmallsample,]
 
 model_selected.nosmallsample <- CalcRandMetaReg(df.nosmallsample, model_selected.form, opt = 'bobyqa')
 model_selected.nosmallsample.out <- list(CheckModels(model_selected.nosmallsample), 
-                                         GetCoefs(model_selected.nosmallsample, label = 'no_small'),
+                                         GetCoefs(model_selected.nosmallsample, label = 'no_zero'),
                                          GetEMM( model = model_selected.nosmallsample, 
                                                  byvar = 'reported.exposure_', 
-                                                 label = 'no_small')) 
+                                                 label = 'no_zero')) 
 
 
 # SA3. Exclusion of studies with 0 multiple founder variants 
@@ -487,7 +489,10 @@ model_selected.nozeros.out <- list(CheckModels(model_selected.nozeros),
                                    GetCoefs(model_selected.nozeros, label = 'no_zero'),
                                    GetEMM( model = model_selected.nosmallsample, 
                                            byvar = 'reported.exposure_', 
-                                           label = 'no_small')) 
+                                           label = 'no_zero'),
+                                   GetPreds(model = model_selected.nosmallsample, 
+                                            byvar = 'reported.exposure_', 
+                                            label = 'no_zero')) 
 
 
 # SA4. Exclusion of all studies that do not use SGA
@@ -500,9 +505,12 @@ df.sgaonly <- df[df$publication_ %in% publist.sgaonly,]
 model_selected.sgaonly <- CalcRandMetaReg(df.sgaonly, model_selected.form, opt = 'bobyqa')
 model_selected.sgaonly.out <- list(CheckModels(model_selected.sgaonly), 
                                    GetCoefs(model_selected.sgaonly, label = 'sga_only'),
-                                   GetEMM( model = model_selected.nosmallsample, 
+                                   GetEMM(model = model_selected.nosmallsample, 
                                            byvar = 'reported.exposure_', 
-                                           label = 'no_small'))
+                                           label = 'sga_only'),
+                                   GetPreds(model = model_selected.nosmallsample, 
+                                           byvar = 'reported.exposure_', 
+                                           label = 'sga_only'))
 
 
 # SA5. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
@@ -561,11 +569,12 @@ sa7_effects <- RunParallel(GetCoefs, sa7_mods, names(sa7_dflist))
 ifelse(!dir.exists('../results'), dir.create(file.path('../results')), FALSE)
 
 # Selected Model
-model_selected.names <- c('multimetareg_int.csv', 'multimetareg_fe.csv', 'unimetareg_re.csv') %>% paste0('../results/', .)
+model_selected.names <- c('multimetareg_int.csv', 'multimetareg_fe.csv', 'multimetareg_re.csv') %>% paste0('../results/', .)
 mapply(write.csv, model_selected.coef , file = model_selected.names, row.names = T)
 
-write.csv(model_selected.marginals, 'multimetareg_emm.csv', row.names = T)
+write.csv(model_selected.marginals, '../results/multimetareg_emm.csv', row.names = T)
 
+write.csv(model_selected.predictions, '../results/multimetareg_preds.csv', row.names = T)
 #Model Comp
 t3 <- rbind.data.frame(raneff_selection, models_viable.comp )
 write.csv(t3, '../results/multimetareg_modelselection.csv')
