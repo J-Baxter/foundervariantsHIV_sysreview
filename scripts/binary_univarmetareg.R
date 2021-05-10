@@ -31,7 +31,7 @@ library(stringr)
 library(data.table)
 library(meta)
 library(emmeans)
-source('~/foundervariantsHIV_sysreview/generalpurpose_funcs.R')
+source('./scripts/generalpurpose_funcs.R')
 
 
 # Extract estimates from LOOCV to create dataframe (input for influence plot)

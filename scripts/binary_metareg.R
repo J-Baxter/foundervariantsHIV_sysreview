@@ -37,7 +37,7 @@ library(data.table)
 library(insight)
 library(emmeans)
 library(ggsci)
-source('~/foundervariantsHIV_sysreview/generalpurpose_funcs.R')
+source('./scripts/generalpurpose_funcs.R')
 
 
 # Wrapper to performance::check_collinearity
@@ -572,7 +572,7 @@ sa.preds <- list(model_selected.nosmallsample.out[[3]],
                  model_selected.sgaonly.out[[3]]) %>%
   do.call(rbind.data.frame,.)
 
-sapred.names <- c(, 'multimetareg_s3_pred.csv', 'multimetareg_s4_pred.csv')  %>% paste0('./results/', .)
+sapred.names <- c('multimetareg_s2_pred.csv', 'multimetareg_s3_pred.csv', 'multimetareg_s4_pred.csv')  %>% paste0('./results/', .)
 write.csv(sa.preds, './results/multimetareg_sa_pred.csv')  
 
 s5 <- model_selected.boot_participant 

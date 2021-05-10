@@ -31,7 +31,7 @@ library(ggplot2)
 library(influence.ME)
 library(kableExtra)
 library(reshape2)
-source('~/foundervariantsHIV_sysreview/generalpurpose_funcs.R')
+source('./scripts/generalpurpose_funcs.R')
 
 
 # Add increment to studies with only single founder infections (for one-step models)

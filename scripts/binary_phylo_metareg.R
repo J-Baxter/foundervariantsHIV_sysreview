@@ -24,7 +24,7 @@ library(data.table)
 library(insight)
 library(emmeans)
 library(ggsci)
-source('~/foundervariantsHIV_sysreview/generalpurpose_funcs.R')
+source('./scripts/generalpurpose_funcs.R')
 
 
 ###################################################################################################

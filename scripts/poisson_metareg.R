@@ -25,7 +25,7 @@ library(cowplot)
 library(stringr)
 library(data.table)
 library(meta)
-source('generalpurpose_funcs.R')
+source('./scripts/generalpurpose_funcs.R')
 
 
 # Plots for each founder variant (module)

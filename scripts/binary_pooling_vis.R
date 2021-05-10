@@ -9,7 +9,7 @@ library(ggsci)
 library(kableExtra)
 library(metafor)
 library(dplyr)
-
+source('./scripts/generalpurpose_funcs.R')
 
 # Plot for pseudo-bootstrap replicates of participant selection
 PltBoot <- function(data, intercept, ci.lb, ci.ub){

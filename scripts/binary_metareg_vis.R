@@ -11,6 +11,8 @@ library(metafor)
 library(dplyr)
 library(magick)
 library(stringr)
+source('./scripts/generalpurpose_funcs.R')
+
 
 PlotMetaReg <- function(data, var){
   mycols_founder <- c('#002366','#DC143C', '#000000')

@@ -16,7 +16,7 @@ library(tidyr)
 library(RColorBrewer)
 library(cowplot)
 library(stringr)
-source('~/foundervariantsHIV_sysreview/scripts/generalpurpose_funcs.R')
+source('./scripts/generalpurpose_funcs.R')
 
 
 #function for stacking categories and calculating summary frequencies
