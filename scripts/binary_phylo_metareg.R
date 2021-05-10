@@ -38,7 +38,7 @@ set.seed(4472)
 # Role of transmitter in phylogenetic analysis (method = phylo only)
 
 df_phylo <- read.csv("./data/data_master_11121.csv", na.strings = "NA") %>%
-  filter(., grouped.method == 'phylogenetic') %>%
+  filter(., grouped.method == 'phylogenetic:R' |grouped.method == 'phylogenetic:S&R') %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   droplevels()
@@ -114,7 +114,7 @@ phylo_plt
 dev.off() 
 ###################################################################################################
 # Out
-phylo.names <- c('./results/phylo_int.csv', './results/phylo_fe.csv', './results/phylo_re.csv') %>% paste0('../results/', .)
+phylo.names <- c('phylo_int.csv', 'phylo_fe.csv', 'phylo_re.csv') %>% paste0('./results/', .)
 mapply(write.csv, phylo_coefs , file = phylo.names , row.names = T)
 
 write.csv(phylo_emm , './results/phylo_emm.csv', row.names = T)

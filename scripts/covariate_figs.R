@@ -16,7 +16,7 @@ library(tidyr)
 library(RColorBrewer)
 library(cowplot)
 library(stringr)
-source('~/foundervariantsHIV_sysreview/generalpurpose_funcs.R')
+source('~/foundervariantsHIV_sysreview/scripts/generalpurpose_funcs.R')
 
 
 #function for stacking categories and calculating summary frequencies
@@ -72,7 +72,7 @@ df <- read.csv("./data/data_master_11121.csv", na.strings = "NA") %>%
 
 # Set colour palettes 
 mycols_founder <- RColorBrewer::brewer.pal(name = 'RdBu', n = 8)[c(2,7)] #c("#E64B35FF", "#4DBBD5FF")
-  
+
 nb.cols <- 12
 mycols_method <- colorRampPalette(brewer.pal(10, "RdBu"))(nb.cols)
 
@@ -171,9 +171,9 @@ exposures_df$sub.exposure <- factor(exposures_df$sub.exposure, levels = c('MTF',
 p1.6 <- ggplot(exposures_df, aes(x = reported.exposure , y = frequency))+
   geom_bar(stat = 'identity' , aes(fill = sub.exposure), position = 'stack')+
   scale_fill_manual(values= mycols_method ,labels = c('HSX: MTF', 'HSX: FTM', 'HSX: undisclosed',
-                                                       'MSM',
-                                                       'MTC: Pre-Partum', 'MTC: Intrapartum', 'MTC: Post-Partum', 'MTC: undisclosed',
-                                                       'PWID'))+
+                                                      'MSM',
+                                                      'MTC: Pre-Partum', 'MTC: Intrapartum', 'MTC: Post-Partum', 'MTC: undisclosed',
+                                                      'PWID'))+
   scale_y_continuous(limits = c(0,1000), expand = c(0,0)) +
   theme_classic()+
   xlab('Risk Group')+
@@ -216,15 +216,15 @@ p1.alignment <- ggplot(df, aes(alignment.length_))+
 # Combine basic covariate plots into figure (with labels and axis)
 grid1 <- cowplot::plot_grid( p1.6+theme(legend.position= c(0.85,0.7)),
                              p1.exposure + theme(legend.position= c(0.85,0.87)),
-                            nrow = 2 ,align = "hv", axis = "bt" , labels = "AUTO", rel_heights = c(2,1))
+                             nrow = 2 ,align = "hv", axis = "bt" , labels = "AUTO", rel_heights = c(2,1))
 
 grid2 <- cowplot::plot_grid(p1.method + theme(legend.position="none"),
-                   p1.subtype + theme(legend.position="none"), 
-                   p1.seropos + theme(legend.position="none"),
-                   p1.numseq + theme(legend.position="none"),
-                   p1.sg + theme(legend.position="none"),
-                   p1.alignment + theme(legend.position="none"),
-                   ncol = 3 , nrow = 2,align = "hv", axis = "bt" , labels = c("C", "D" , "E" , "F" , "G" , "H")) 
+                            p1.subtype + theme(legend.position="none"), 
+                            p1.seropos + theme(legend.position="none"),
+                            p1.numseq + theme(legend.position="none"),
+                            p1.sg + theme(legend.position="none"),
+                            p1.alignment + theme(legend.position="none"),
+                            ncol = 3 , nrow = 2,align = "hv", axis = "bt" , labels = c("C", "D" , "E" , "F" , "G" , "H")) 
 
 cowplot::plot_grid(grid1, grid2, nrow = 2)
 
@@ -233,13 +233,13 @@ legend <- get_legend(p1.method )
 jpeg("./results/panel1a.jpeg" ,width = 6000, height = 4000, res = 380 ,units = "px", pointsize = 12)
 
 prow <- cowplot::plot_grid(p1.method + theme(legend.position="none"),
-                                      p1.subtype + theme(legend.position="none"), 
-                                      p1.seropos + theme(legend.position="none"),
-                                      p1.numseq + theme(legend.position="none"),
-                                      p1.sg + theme(legend.position="none"),
-                                      p1.alignment + theme(legend.position="none"),
-                                      ncol = 3 , align = "hv", axis = "bt",
-                                      labels = "AUTO", rel_widths =c(1, 1))
+                           p1.subtype + theme(legend.position="none"), 
+                           p1.seropos + theme(legend.position="none"),
+                           p1.numseq + theme(legend.position="none"),
+                           p1.sg + theme(legend.position="none"),
+                           p1.alignment + theme(legend.position="none"),
+                           ncol = 3 , align = "hv", axis = "bt",
+                           labels = "AUTO", rel_widths =c(1, 1))
 
 cowplot::plot_grid(prow, legend, ncol = 2, rel_widths  = c(1,0.1))
 dev.off()
@@ -264,9 +264,9 @@ region_exp <- df %>%
   droplevels()
 
 p2.1 <- ggplot(region_exp,aes(x = reported.exposure_,
-                      y = grouped.subtype_,
-                      size = subjects, 
-                      color = (multiplefounders/subjects))) +
+                              y = grouped.subtype_,
+                              size = subjects, 
+                              color = (multiplefounders/subjects))) +
   geom_point() + 
   
   theme_minimal(base_size = 10,
@@ -342,9 +342,9 @@ delay_method <- df %>%
 
 
 p3.1 <- ggplot(delay_method, aes(x = sampling.delay_,
-                              y = grouped.method_,
-                              size = subjects, 
-                              color = (multiplefounders/subjects))) +
+                                 y = grouped.method_,
+                                 size = subjects, 
+                                 color = (multiplefounders/subjects))) +
   geom_point() + 
   
   theme_minimal(base_size = 10,
@@ -372,9 +372,9 @@ delay_exp <- df %>%
 
 
 p3.2 <- ggplot(delay_exp, aes(x = sampling.delay_,
-                                 y = reported.exposure_,
-                                 size = subjects, 
-                                 color = (multiplefounders/subjects))) +
+                              y = reported.exposure_,
+                              size = subjects, 
+                              color = (multiplefounders/subjects))) +
   geom_point() + 
   
   theme_minimal(base_size = 10,

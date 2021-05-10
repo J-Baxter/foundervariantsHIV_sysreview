@@ -66,23 +66,23 @@ CheckCollinearity <- function(model, tol = 5){
 # Y = average residual, X = Founder Variant Multiplicity, Ribbon = SE
 PlotBinned <- function(data){
   
-      plt<- ggplot(data) + 
-        geom_ribbon(aes(x = xbar, ymin = -se, ymax = se), fill = "white", colour = "grey60") + 
-        geom_point(aes(x = xbar, y = ybar , colour = group), shape = 4, size = 3)+
-        geom_abline(intercept = 0, slope = 0, linetype = "dashed")+
-        theme_classic() +
-        theme(panel.background = element_rect(fill = 'gray95' )) +
-        scale_color_npg() +
-        scale_x_continuous(name = 'Probability of Multiple Founders', 
-                           labels = scales::percent,
-                           limits = c(0,0.73),
-                           expand = c(0, 0.005)) +
-        scale_y_continuous(name = 'Average Residual', 
-                          limits = c(-0.5,0.5),
-                          expand = c(0, 0.005))+
-        theme(legend.position = "none")
-
-
+  plt<- ggplot(data) + 
+    geom_ribbon(aes(x = xbar, ymin = -se, ymax = se), fill = "white", colour = "grey60") + 
+    geom_point(aes(x = xbar, y = ybar , colour = group), shape = 4, size = 3)+
+    geom_abline(intercept = 0, slope = 0, linetype = "dashed")+
+    theme_classic() +
+    theme(panel.background = element_rect(fill = 'gray95' )) +
+    scale_color_npg() +
+    scale_x_continuous(name = 'Probability of Multiple Founders', 
+                       labels = scales::percent,
+                       limits = c(0,0.73),
+                       expand = c(0, 0.005)) +
+    scale_y_continuous(name = 'Average Residual', 
+                       limits = c(-0.5,0.5),
+                       expand = c(0, 0.005))+
+    theme(legend.position = "none")
+  
+  
   return(plt)
 }
 
@@ -113,7 +113,7 @@ ModelComp <- function(modellist){
   }
   rt.df <- do.call(rbind.data.frame, lrt) %>% 
     subset(!duplicated(AIC)) #%>%
-    #`row.names<-` (names(modellist))
+  #`row.names<-` (names(modellist))
   
   log.loss <- lapply(modellist, performance_logloss) %>% do.call(rbind.data.frame, .)
   r2 <- lapply(modellist, r2_nakagawa) %>% do.call(rbind.data.frame, .)
@@ -178,7 +178,7 @@ BootMetaRegMV <- function(data, replicates){
   
   cl <- detectCores() %>%
     `-` (2)
- 
+  
   start <- Sys.time()
   print(start)
   
@@ -194,11 +194,14 @@ BootMetaRegMV <- function(data, replicates){
   
   remove(cl)
   
-  boot_reg.est <- lapply(boot_reg, function(mod) summary(mod)$coefficients[1:9,] %>% cbind.data.frame()) %>%
+  boot_reg.coef <- lapply(boot_reg, function(mod) summary(mod)$coefficients[1:9,] %>% cbind.data.frame()) %>%
     do.call(rbind.data.frame,.)
-
+  boot_reg.coef <- lapply(boot_reg, GetPreds, byvar = 'reported.exposure_')%>%
+    do.call(rbind.data.frame,.)
   
-  out <- cbind.data.frame(boot_reg.est, rep= rep(1:replicates, each=9))
+  
+  out <- list(coefs = cbind.data.frame(boot_reg.est, rep= rep(1:replicates, each=9)),
+              preds = boot_reg.coef )
   
   
   return(out)
@@ -246,13 +249,11 @@ set.seed(4472)
 # Import data
 # Note that this filters the covariates specified and removes levels where n<5
 # Also removes unknown exposures
-
-setwd("./data")
-df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
+df <- read.csv("./data/data_master_11121.csv", na.strings = "NA") %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   droplevels()
-  
+
 
 # Set reference levels for meta regression
 # HSX:MTF, haplotype (highlighter), unknown seropositivity, B, whole genome
@@ -321,8 +322,8 @@ fixeff_models.viable <- fixeff_models[which(fixeff_check$is.converged &
                                               (names(fixeff_models) %in% unique(fixeff_multico$model)))]
 
 fixeff_forms.viable <- fixeff_forms[which(fixeff_check$is.converged &
-                                             !fixeff_check$is.singular & 
-                                             (names(fixeff_models) %in% unique(fixeff_multico$model)))]
+                                            !fixeff_check$is.singular & 
+                                            (names(fixeff_models) %in% unique(fixeff_multico$model)))]
 
 
 ###################################################################################################
@@ -333,7 +334,7 @@ interact_forms <- c(i1 = "multiple.founders_ ~ reported.exposure_ + grouped.meth
                     i2 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_*alignment.bin_ + (1 | publication_) + (1 | cohort_)",
                     i3 = "multiple.founders_ ~ reported.exposure_ + grouped.method_*sequencing.gene_ + sampling.delay_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)",
                     i4 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sampling.delay_ + sequencing.gene_*alignment.bin_ + (1 | publication_) + (1 | cohort_)")
-  
+
 interact_models <- RunParallel(CalcRandMetaReg, interact_forms, df , opt = 'bobyqa') 
 interact_effectstruct <- GetName(interact_forms, effects = 'fixed')
 
@@ -366,7 +367,7 @@ models_viable.comp <- ModelComp(models_viable) %>%
 # Model selected = Reported Exposure + Grouped Method + Sequencing Gene + Participant Seropositivity
 # Model effects sent to file as part of fixeff_modelbuild.nomultico.effects
 model_selected <- models_viable$f06
-model_selected.form <- forms_viable[[5]]
+model_selected.form <- forms_viable[[2]]
 model_selected.effectstruct <- GetName(model_selected.form, effects = 'fixed')
 
 
@@ -379,12 +380,12 @@ model_selected.coef <- GetCoefs(model_selected, model_selected.effectstruct)
 # Extract estimated marginal means of fixed effects and calculate 95% CIs
 # estimated marginal means average the coefficients of selected vars over all factors
 model_selected.marginals <- GetEMM(model = model_selected, 
-                                  byvar = 'reported.exposure_', 
-                                  label = model_selected.effectstruct)
-
-model_selected.predictions <- GetPreds(model = model_selected, 
                                    byvar = 'reported.exposure_', 
                                    label = model_selected.effectstruct)
+
+model_selected.predictions <- GetPreds(model = model_selected, 
+                                       byvar = 'reported.exposure_', 
+                                       label = model_selected.effectstruct)
 ###################################################################################################
 ###################################################################################################
 # Validate assumptions of selected model - Includes repeats of multicolinearity and binned residuals
@@ -402,9 +403,9 @@ model_selected.re <-check_normality(model_selected, effects = 'random') %>% plot
 # ROC curve + AUC
 model_selected.roc <- performance_roc(model_selected) %>% plot()
 
-jpeg("../results/model_assumptions.jpeg" ,width = 5000, height = 4000, res = 380 ,units = "px", pointsize = 12)
+jpeg("./results/model_assumptions.jpeg" ,width = 4500, height = 5000, res = 350 ,units = "px", pointsize = 10)
 cowplot::plot_grid(model_selected.resid, model_selected.multico,  plotlist = model_selected.re, model_selected.roc,
-                   ncol = 2, labels = 'AUTO')
+                   ncol = 2, labels = 'AUTO', align = 'hv', axis = 'b')
 dev.off()
 
 
@@ -440,10 +441,13 @@ df.nosmallsample <- df[df$publication_ %in% publist.nosmallsample,]
 
 model_selected.nosmallsample <- CalcRandMetaReg(df.nosmallsample, model_selected.form, opt = 'bobyqa')
 model_selected.nosmallsample.out <- list(CheckModels(model_selected.nosmallsample), 
-                                         GetCoefs(model_selected.nosmallsample, label = 'no_zero'),
+                                         #GetCoefs(model_selected.nosmallsample, label = 'no_small'),
                                          GetEMM( model = model_selected.nosmallsample, 
                                                  byvar = 'reported.exposure_', 
-                                                 label = 'no_zero')) 
+                                                 label = 'no_small'),
+                                         GetPreds(model = model_selected.nosmallsample, 
+                                                  byvar = 'reported.exposure_', 
+                                                  label = 'no_small')) 
 
 
 # SA3. Exclusion of studies with 0 multiple founder variants 
@@ -455,11 +459,11 @@ df.nozeros <- df[df$publication_ %in% publist.nozeros,]
 
 model_selected.nozeros <- CalcRandMetaReg(df.nozeros, model_selected.form, opt = 'bobyqa')
 model_selected.nozeros.out <- list(CheckModels(model_selected.nozeros), 
-                                   GetCoefs(model_selected.nozeros, label = 'no_zero'),
-                                   GetEMM( model = model_selected.nosmallsample, 
+                                   #GetCoefs(model_selected.nozeros, label = 'no_zero'),
+                                   GetEMM( model = model_selected.nozeros, 
                                            byvar = 'reported.exposure_', 
                                            label = 'no_zero'),
-                                   GetPreds(model = model_selected.nosmallsample, 
+                                   GetPreds(model = model_selected.nozeros, 
                                             byvar = 'reported.exposure_', 
                                             label = 'no_zero')) 
 
@@ -473,19 +477,20 @@ df.sgaonly <- df[df$publication_ %in% publist.sgaonly,]
 
 model_selected.sgaonly <- CalcRandMetaReg(df.sgaonly, model_selected.form, opt = 'bobyqa')
 model_selected.sgaonly.out <- list(CheckModels(model_selected.sgaonly), 
-                                   GetCoefs(model_selected.sgaonly, label = 'sga_only'),
-                                   GetEMM(model = model_selected.nosmallsample, 
-                                           byvar = 'reported.exposure_', 
-                                           label = 'sga_only'),
-                                   GetPreds(model = model_selected.nosmallsample, 
-                                           byvar = 'reported.exposure_', 
-                                           label = 'sga_only'))
+                                   # GetCoefs(model_selected.sgaonly, label = 'sga_only'),
+                                   GetEMM(model = model_selected.sgaonly, 
+                                          byvar = 'reported.exposure_', 
+                                          label = 'sga_only'),
+                                   GetPreds(model = model_selected.sgaonly, 
+                                            byvar = 'reported.exposure_', 
+                                            label = 'sga_only'))
 
 
 # SA5. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
-resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
+resampling_df <- read.csv("./data/data_master_11121.csv", na.strings = "NA") %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay'), noreps = FALSE) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
+  SetBaseline(baseline.covar, baseline.level) %>%
   droplevels()
 
 model_selected.boot_participant <- BootMetaRegMV(resampling_df, 1000) #To re run
@@ -499,26 +504,26 @@ lapply(algo, check_convergence)
 # SA7. Delay/Repeat permutation tests
 sa7_dflist <- list()
 
-sa7_dflist$sa7_unknown.sing <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
+sa7_dflist$sa7_unknown.sing <- read.csv("./data/data_master_11121.csv", na.strings = "NA") %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   SetBaseline(baseline.covar, baseline.level) %>%
   droplevels()
 
-sa7_dflist$sa7_unknown.rep <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
+sa7_dflist$sa7_unknown.rep <- read.csv("./data/data_master_11121.csv", na.strings = "NA") %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay'), noreps = FALSE) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   SetBaseline(baseline.covar, baseline.level) %>%
   droplevels()
 
-sa7_dflist$sa7_nounknown.sing <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
+sa7_dflist$sa7_nounknown.sing <- read.csv("./data/data_master_11121.csv", na.strings = "NA") %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   filter(sampling.delay_ != 'unknown') %>%
   SetBaseline(baseline.covar, baseline.level) %>%
   droplevels()
 
-sa7_dflist$sa7_nounknown.rep <- read.csv("data_master_11121.csv", na.strings = "NA") %>%
+sa7_dflist$sa7_nounknown.rep <- read.csv("./data/data_master_11121.csv", na.strings = "NA") %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay'), noreps = FALSE) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   filter(sampling.delay_ != 'unknown') %>%
@@ -535,37 +540,46 @@ sa7_effects <- RunParallel(GetCoefs, sa7_mods, names(sa7_dflist))
 # Selection file includes AIC, loglikelihood, R2, logloss and LRT (as calculated)
 # Sensitivity analyses to follow
 
-ifelse(!dir.exists('../results'), dir.create(file.path('../results')), FALSE)
+ifelse(!dir.exists('./results'), dir.create(file.path('./results')), FALSE)
 
 # Selected Model
-model_selected.names <- c('multimetareg_int.csv', 'multimetareg_fe.csv', 'multimetareg_re.csv') %>% paste0('../results/', .)
+model_selected.names <- c('multimetareg_int.csv', 'multimetareg_fe.csv', 'multimetareg_re.csv') %>% paste0('./results/', .)
 mapply(write.csv, model_selected.coef , file = model_selected.names, row.names = T)
 
-write.csv(model_selected.marginals, '../results/multimetareg_emm.csv', row.names = T)
+write.csv(model_selected.marginals, './results/multimetareg_emm.csv', row.names = T)
 
-write.csv(model_selected.predictions, '../results/multimetareg_preds.csv', row.names = T)
+write.csv(model_selected.predictions, './results/multimetareg_preds.csv', row.names = T)
+
 #Model Comp
 t3 <- rbind.data.frame(raneff_selection, models_viable.comp )
-write.csv(t3, '../results/multimetareg_modelselection.csv')
+write.csv(t3, './results/multimetareg_modelselection.csv')
 
 
 # Sensitivity Analyses
 s1 <- model_selected.influence
-write.csv(s1, '../results/multimetareg_s1.csv')
+write.csv(s1, './results/multimetareg_s1.csv')
 
-sa <- list(model_selected.nosmallsample.out[[2]],
-           model_selected.nozeros.out[[2]],
-           model_selected.sgaonly.out[[2]]) %>%
+sa.coefs <- list(model_selected.nosmallsample.out[[2]],
+                 model_selected.nozeros.out[[2]],
+                 model_selected.sgaonly.out[[2]]) %>%
   ConcatSA()
 
-sa.names <- c('multimetareg_s2-4_int.csv', 'multimetareg_s2-4_fe.csv', 'multimetareg_s2-4_re.csv')  %>% paste0('../results/', .)
-mapply(write.csv, sa, file = sa.names, row.names = T)  
+sacoef.names <- c('multimetareg_s2-4_int.csv', 'multimetareg_s2-4_fe.csv', 'multimetareg_s2-4_re.csv')  %>% paste0('./results/', .)
+mapply(write.csv, sa.coefs, file = sacoef.names, row.names = T)  
+
+sa.preds <- list(model_selected.nosmallsample.out[[3]],
+                 model_selected.nozeros.out[[3]],
+                 model_selected.sgaonly.out[[3]]) %>%
+  do.call(rbind.data.frame,.)
+
+sapred.names <- c(, 'multimetareg_s3_pred.csv', 'multimetareg_s4_pred.csv')  %>% paste0('./results/', .)
+write.csv(sa.preds, './results/multimetareg_sa_pred.csv')  
 
 s5 <- model_selected.boot_participant 
-write.csv(s5, '../results/multimetareg_s5.csv')
+write.csv(s5, './results/multimetareg_s5.csv')
 
 s7 <- Effects2File(sa7_effects)
-s7.names <- c('multimetareg_s7_int.csv', 'multimetareg_s7_fe.csv', 'multimetareg_s7_re.csv')  %>% paste0('../results/', .)
+s7.names <- c('multimetareg_s7_int.csv', 'multimetareg_s7_fe.csv', 'multimetareg_s7_re.csv')  %>% paste0('./results/', .)
 mapply(write.csv, s7, file = s7.names, row.names = T)
 
 
