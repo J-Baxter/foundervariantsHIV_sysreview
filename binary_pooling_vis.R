@@ -52,11 +52,11 @@ PltBoot <- function(data, intercept, ci.lb, ci.ub){
 ###################################################################################################
 ###################################################################################################
 # Import data
-influence_df <- read.csv("./results/pooling_sa1.csv") %>% arrange(., model)
+influence_df <- read.csv("./results_nophylosplit/pooling_sa1.csv") %>% arrange(., model)
 
-pooled_models <-  read.csv('./results/pooling_estsa2sa3sa4.csv')
+pooled_models <-  read.csv('./results_nophylosplit/pooling_estsa2sa3sa4.csv')
 
-resampled_models <- read.csv('./results/pooling_boot.csv')
+resampled_models <- read.csv('./results_nophylosplit/pooling_boot.csv')
 
 models <- c('Two-Step Binomial-Normal',
             'One-Step Binomial GLMM')
@@ -90,7 +90,7 @@ tbl <- kbl(og_models_formatted ,
 # Panel: Sensitivity analyses (exclusion criteria and resampling)
 
 # Exclusion critera dot and whisker plot
-senseplot <- ggplot(pooled_models,
+senseplot <- ggplot(pooled_models[which(pooled_models$analysis != 'no_small'),],
                     aes(x= forcats::fct_rev(model), y = estimate, color = analysis)) +
   
   geom_point( shape = 4, 
@@ -116,7 +116,7 @@ senseplot <- ggplot(pooled_models,
                  position = position_dodge(0.5)) +
   
   scale_color_npg(name = 'Analysis', labels = c(
-    no_small = "Studies with (n<10) omitted",
+    #no_small = "Studies with (n<10) omitted",
     no_zeros = "Studies with (p=0) omitted",
     original = "Full analysis",
     sga_only = 'Only SGA sequences')) + 
@@ -178,7 +178,9 @@ cowplot::plot_grid(senseplot,
                    boot_plt , ncol = 2,  rel_widths  = c(1,1) ,labels = "AUTO", align = 'h', axis = 'b', greedy = F)
 dev.off()
 
-
+jpeg("./results/boot_sensitivity.jpeg" ,width = 5000, height = 2500, res = 380 ,units = "px", pointsize = 12)
+cowplot::plot_grid(boot_plt ,sa5_plt,  ncol = 2,  rel_widths  = c(1,1) ,labels = "AUTO", align = 'h', axis = 'b', greedy = F)
+dev.off()
 ###################################################################################################
 # Panel: Sensitivity analyses (Faceted Influence Plots)
 influence_df$trial <- gsub("_" , " ", influence_df$trial)
