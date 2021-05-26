@@ -63,6 +63,7 @@ models <- c('Two-Step Binomial-Normal',
 
 og_models <- cbind("model" = pooled_models[1:2,1], pooled_models[1:2,3:8] %>% round(digits = 3)) %>% arrange(., model)
 
+
 ###################################################################################################
 ###################################################################################################
 # Panel: Table of estimate and tau for pooling
@@ -90,7 +91,7 @@ tbl <- kbl(og_models_formatted ,
 # Panel: Sensitivity analyses (exclusion criteria and resampling)
 
 # Exclusion critera dot and whisker plot
-senseplot <- ggplot(pooled_models[which(pooled_models$analysis != 'no_small'),],
+senseplot <- ggplot(pooled_models,
                     aes(x= forcats::fct_rev(model), y = estimate, color = analysis)) +
   
   geom_point( shape = 4, 
@@ -116,7 +117,7 @@ senseplot <- ggplot(pooled_models[which(pooled_models$analysis != 'no_small'),],
                  position = position_dodge(0.5)) +
   
   scale_color_npg(name = 'Analysis', labels = c(
-    #no_small = "Studies with (n<10) omitted",
+    no_small = "Studies with (n<10) omitted",
     no_zeros = "Studies with (p=0) omitted",
     original = "Full analysis",
     sga_only = 'Only SGA sequences')) + 
@@ -232,7 +233,7 @@ plt <- ggplot(influence_df,aes(x = trial , y = estimate) ) +
     legend.position = 'none'
   )
 
-jpeg(filename = './results/pooling_sa1.jpeg', res = 350, width=2750, height=4000 , units = 'px', pointsize = 10)
+jpeg(filename = './results/pooling_sa1.jpeg', res = 380, width=3600, height=5000 , units = 'px', pointsize = 10)
 
 plt
 

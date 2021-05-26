@@ -4,9 +4,8 @@
 # calculates summary proportion of infections initiated by multiple founder variants
 # models implemented:
 # 1. Two-step binomial-normal model (Random effects, inverse variance pooling, reml estimator of tau)
-# 3. One-step binomial GLMM allowing for clustering by study. random effects between studies
+# 2. One-step binomial GLMM allowing for clustering by study. random effects between studies
 #    (random intercepts). approx ML fit
-# 4. Two-step beta-binomial GLMM, dispersion param for study labels. Laplace approximate ML estimation
 
 # estimations of mean effect size, confidence intervals and heterogeneity are presented 
 
@@ -84,7 +83,8 @@ CalcOnestepBiRand <- function(data){
                     data = data , 
                     drop00 = FALSE, 
                     add = 0.0005, 
-                    measure= 'PLO', 
+                    measure= 'PLO',
+                    slab = gsub('[_]', ', ' , publication_),
                     nAGQ = 1)
   return(model)
 }
@@ -250,7 +250,10 @@ BootParticipant <- function(data, replicates){
 ###################################################################################################
 
 # Import data
-df <- read.csv("./data/data_master_11121.csv", na.strings = "NA") %>% formatDF(., noreps = TRUE)
+df <- read.csv("./data/data_master_11121.csv", na.strings = "NA") %>%
+  formatDF(., filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
+  filter(reported.exposure_ != 'unknown.exposure') %>%
+  droplevels()
 df_props <- CalcProps(df)  
 publist <- df %>%
   pull(.,var=publication_) %>%
@@ -399,7 +402,10 @@ SA4_results <- rbind.data.frame(twostep_binorm.sgaonly.out,
                                 onestep_bi_rand.sgaonly.out)
 
 # SA5. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
-resampling_df <- read.csv("data_master_11121.csv", na.strings = "NA") %>% formatDF(., noreps = FALSE)
+resampling_df<- read.csv("./data/data_master_11121.csv", na.strings = "NA") %>%
+  formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
+  filter(reported.exposure_ != 'unknown.exposure') %>%
+  droplevels()
 
 boot_participant <- BootParticipant(resampling_df , 1000)
 
@@ -408,7 +414,7 @@ boot_participant <- BootParticipant(resampling_df , 1000)
 ###################################################################################################
 # Outputs
 # CSV of pooling model results (estimates only) with SAs 2 + 3
-ifelse(!dir.exists('../results'), dir.create(file.path('../results')), FALSE)
+ifelse(!dir.exists('./results'), dir.create(file.path('./results')), FALSE)
 
 originals <- cbind.data.frame(estimates, heterogeneity)
 pooled_est <- rbind.data.frame(originals,
@@ -416,27 +422,19 @@ pooled_est <- rbind.data.frame(originals,
                                SA3_results,
                                SA4_results) %>% .[,-c(6,11)]
 
-write.csv(pooled_est , file = '../results/pooling_estsa2sa3sa4.csv', row.names = F)
+write.csv(pooled_est , file = './results/pooling_estsa2sa3sa4.csv', row.names = F)
 
 
 # CSV study influence
-write.csv(influence_df, file = '../results/pooling_sa1.csv',row.names = F)
+write.csv(influence_df, file = './results/pooling_sa1.csv',row.names = F)
 
 # CSV resampling (pseudo bootstrapping)
-write.csv(boot_participant, file = '../results/pooling_boot.csv',row.names = F)
+write.csv(boot_participant, file = './results/pooling_boot.csv',row.names = F)
 
 # Forest Plot 1-step BN
-jpeg("testplot.jpeg" ,width = 5250, height = 6500, res = 380 ,units = "px", pointsize = 12)
-meta::metaprop(data = df_props,
-               n = subjects,
-               event = multiplefounders,
-               studlab = sort(publist) %>% gsub("_" , " " , .),
-               method = 'GLMM',
-               sm = 'PLOGIT',
-               incr = 0.0005,
-               allincr = F,
-               comb.fixed = F,
-               method.tau = 'ML') %>% meta::forest(hetstat = 'random')
+jpeg("./results/testplot.jpeg" ,width = 5250, height = 6500, res = 380 ,units = "px", pointsize = 12)
+
+forest.rma(onestep_bi_rand)
 
 
 dev.off()
@@ -449,8 +447,9 @@ ub <- onestep_bi_rand.nozeros$ci.ub
 u <- mean(funnel_data$b)
 se <- onestep_bi_rand.nozeros$se
 
+
 poldgpn <- data.frame(x=c(-3.8,u,1.9), y = c(1.5,0,1.5))
-plt <- ggplot(funnel_data ) +
+plt_funnel <- ggplot(funnel_data ) +
   geom_polygon(aes(x=x, y = y), data =  poldgpn ,fill = 'white', linetype = 'dashed' , color = 'black')  +
   geom_point( aes(y = se, x = b, colour = ), shape = 4, size = 3)+
   theme_classic() +
@@ -458,8 +457,14 @@ plt <- ggplot(funnel_data ) +
   scale_y_reverse(limit=c(1.5,0),  expand = c(0,0), name = 'Standard Error') +
   
   geom_segment(aes(x=u, y =1.5, xend = u, yend=0)) +
-  theme(panel.background = element_rect(fill = 'gray97' )) +
+  theme(panel.background = element_rect(fill = 'gray94' )) +
   scale_color_npg()
+
+jpeg(filename = './results/funnel_nozeros.jpeg', res = 350, width=3000, height=3000 , units = 'px', pointsize = 10)
+
+plt_funnel 
+
+dev.off()
 ###################################################################################################
 ###################################################################################################
 # END #

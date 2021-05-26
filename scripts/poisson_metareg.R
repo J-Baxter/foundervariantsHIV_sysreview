@@ -65,6 +65,39 @@ CalcTNBMetaReg <- function(data, formula, opt = NULL){
   return(model)
 }
 
+
+
+CalcFounderProbs <- function(model){
+  if (class(model) == "glmmTMB"){
+    coefs <- fixef(model) %>% unlist()
+    
+    coefs_grid <- expand.grid(coefs[1:min(5,length(coefs))], c(1,2,3)) %>% 
+      {cbind.data.frame(rep(names(coefs[1:min(5,length(coefs))]), 3),.)}
+    colnames(coefs_grid) <- c('level', 'beta', 'founders')
+    
+  } else {
+    warning('supported model not detected')
+    
+  }
+  
+  exact_probs <- mapply(function(x,y) dpois(x, lambda = exp(y)), y = coefs_grid$beta, x = coefs_grid$founders, SIMPLIFY = F) %>% 
+    do.call(rbind.data.frame,.)
+  
+  cum_probs <- mapply(function(x,y) ppois(x, lambda = exp(y)), y = coefs_grid$beta, x = coefs_grid$founders, SIMPLIFY = F) %>% 
+    do.call(rbind.data.frame,.)
+  
+  colnames(exact_probs) <- 'probability'
+  colnames(cum_probs) <- 'probability'
+  cum_probs$founders <- rep(c('<=1', "<=2", '<=3'), each = min(5,length(coefs)))
+  
+  out <- rbind.data.frame(cbind(coefs_grid[,-3],  cum_probs), cbind(coefs_grid,  exact_probs)) %>% arrange(., level)
+  levels_order <- c('1', '<=1', '2', "<=2", '3', '<=3')
+  out$founders <- factor(out$founders, levels = levels_order)
+  
+  return(out)
+}
+
+
 ###################################################################################################
 ###################################################################################################
 # Set seed
@@ -87,18 +120,6 @@ baseline.level <- c("HSX:MTF", "haplotype", "B" , "whole.genome" , "<21")
 df <- SetBaseline(df, baseline.covar, baseline.level)
 
 
-###################################################################################################
-# Visual inspection and raw summary statistics
-# Stratified by route of exposure
-
-df_nosingles$minimum.number.of.founders_ <- as.factor(df_nosingles$minimum.number.of.founders_)
-# Plot
-df_num.split <- split.data.frame(df_nosingles,df_nosingles$reported.exposure_)
-plt_list <- mapply(PlotNumSeqs, data = df_num.split, plt_name = names(df_num.split), SIMPLIFY = F)
-
-jpeg(filename = './results/nof_plot.jpeg', width = 3000, height = 4000, res = 380 ,units = "px", pointsize = 12)
-cowplot::plot_grid(plotlist = plt_list, ncol = 3, align = 'hv', axis = 'b')
-dev.off()
 
 ###################################################################################################
 # Summary Stats - first removing all single founder infections
@@ -154,6 +175,42 @@ trunc_nb2_summary <- trunc_nb2_reg_stratified$fe %>%
 out <- cbind.data.frame(quant_summary, poisson_summary)
 write.csv(out, '../results/numberfounders_summary.csv')
 
+
+
+df_pois <- df %>% filter(riskgroup_!= 'MTC') %>%  droplevels()
+test_pois <- glmmTMB(minimum.number.of.founders_ ~  reported.exposure_ + grouped.method_ + sampling.delay_ + sequencing.gene_+ (1|publication_), 
+                     data = df_pois ,
+                     family = truncated_poisson(link = "log"))
+#truncated_nbinom2(link = "log") truncated_poisson(link = "log")
+test_probs <- CalcFounderProbs(test_pois)
+
+
+ggplot()+
+  geom_bar(data = test_probs[which(!test_probs$founders %in% c('<=1', "<=2")),], 
+           aes(x = founders,
+               y = ifelse(grepl('[<=]', test_probs[which(!test_probs$founders %in% c('<=1', "<=2")),]$founders), 1-probability, probability),
+               fill = level,
+               color = level), 
+           position = position_dodge(width = 0.9),
+           stat = 'identity') +
+  theme_bw() + 
+  scale_fill_npg(name = 'Transmission') + 
+  scale_colour_npg(guide = NULL)+
+  scale_x_discrete(labels = c('1', '2', '3' , '>3'), name = 'Number of Founders') +
+  scale_y_continuous(expand = c(0,0), limits = c(0,0.5), name = 'Probability')
+
+###################################################################################################
+# Visual inspection and raw summary statistics
+# Stratified by route of exposure
+
+df_nosingles$minimum.number.of.founders_ <- as.factor(df_nosingles$minimum.number.of.founders_)
+# Plot
+df_num.split <- split.data.frame(df_nosingles,df_nosingles$reported.exposure_)
+plt_list <- mapply(PlotNumSeqs, data = df_num.split, plt_name = names(df_num.split), SIMPLIFY = F)
+
+jpeg(filename = './results/nof_plot.jpeg', width = 3000, height = 4000, res = 380 ,units = "px", pointsize = 12)
+cowplot::plot_grid(plotlist = plt_list, ncol = 3, align = 'hv', axis = 'b')
+dev.off()
 
 ###################################################################################################
 ###################################################################################################
