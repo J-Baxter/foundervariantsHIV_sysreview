@@ -212,11 +212,12 @@ p1.alignment <- ggplot(df, aes(alignment.length_))+
   ylab('Frequency')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity") 
 
+
 ###################################################################################################
 # Combine basic covariate plots into figure (with labels and axis)
-grid1 <- cowplot::plot_grid( p1.6+theme(legend.position= c(0.85,0.7)),
-                             p1.exposure + theme(legend.position= c(0.85,0.87)),
-                             nrow = 2 ,align = "hv", axis = "bt" , labels = "AUTO", rel_heights = c(2,1))
+grid1 <- cowplot::plot_grid( p1.6+theme(legend.position= c(0.85,0.76)),
+                             p1.exposure + theme(legend.position= c(0.85,0.90)),
+                             nrow = 1 ,align = "hv", axis = "bt" , labels = "A")
 
 grid2 <- cowplot::plot_grid(p1.method + theme(legend.position="none"),
                             p1.subtype + theme(legend.position="none"), 
@@ -224,14 +225,11 @@ grid2 <- cowplot::plot_grid(p1.method + theme(legend.position="none"),
                             p1.numseq + theme(legend.position="none"),
                             p1.sg + theme(legend.position="none"),
                             p1.alignment + theme(legend.position="none"),
-                            ncol = 3 , nrow = 2,align = "hv", axis = "bt" , labels = c("C", "D" , "E" , "F" , "G" , "H")) 
+                            ncol = 3 , nrow = 2,align = "hv", axis = "bt" , labels = "B") 
 
 cowplot::plot_grid(grid1, grid2, nrow = 2)
 
 legend <- get_legend(p1.method )
-# Print to file
-jpeg("./results/panel1a.jpeg" ,width = 6000, height = 4000, res = 380 ,units = "px", pointsize = 12)
-
 prow <- cowplot::plot_grid(p1.method + theme(legend.position="none"),
                            p1.subtype + theme(legend.position="none"), 
                            p1.seropos + theme(legend.position="none"),
@@ -242,6 +240,12 @@ prow <- cowplot::plot_grid(p1.method + theme(legend.position="none"),
                            labels = "AUTO", rel_widths =c(1, 1))
 
 cowplot::plot_grid(prow, legend, ncol = 2, rel_widths  = c(1,0.1))
+
+# Print to file
+jpeg("./results/panel1.jpeg" ,width = 4000, height = 5000, res = 380 ,units = "px", pointsize = 12)
+
+cowplot::plot_grid(grid1, grid2, nrow = 2, scale = 0.95)
+
 dev.off()
 
 library(gridExtra)

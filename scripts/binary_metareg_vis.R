@@ -25,9 +25,9 @@ PlotMetaReg <- function(data, var){
   plt <- ggplot(data.subset) +
     geom_point(aes(x= exp(est), 
                    y = fct_reorder(level, order ),
-                   col =  ifelse(exp(est)>1 & exp(ci.lb)>1, "A", ifelse(exp(est)<1 & exp(ci.ub)<1, "B",  'C'))),
-                   shape = 4, 
-                   size = 4) +
+                   col =  ifelse(exp(est)>1 & exp(ci.lb)>1, "A", ifelse(exp(est)<1 & exp(ci.ub)<1, "B",  'C')),
+                   size = tabs),
+                   shape = 18) +
     theme_bw() + 
     geom_linerange(aes(y = level, 
                        xmin= exp(ci.lb), 
@@ -39,6 +39,7 @@ PlotMetaReg <- function(data, var){
                        #trans = 'log10'
                        )+
     scale_colour_manual(values = setNames(c("#E64B35FF", "#4DBBD5FF", '#000000'), c('A',"B","C"))) +
+    scale_size(range = c(2.5,7.5)) + 
     geom_vline(xintercept = 1, linetype = 'dashed')+
     theme(
       axis.line.y = element_blank(),
@@ -90,14 +91,30 @@ OR2Percent <- function(log_odds_ratio){
 
 ###################################################################################################
 # Set directory and import results
-setwd("../results")
-
 fe <- read.csv('./results/multimetareg_fe.csv')
 int <- read.csv('./results/multimetareg_int.csv')
 re <- read.csv('./results/multimetareg_re.csv')
 emm <- read.csv('./results/multimetareg_emm.csv')
 pred <-  read.csv('./results/multimetareg_preds.csv')
 
+
+# Import data
+df <- read.csv("./data/data_master_11121.csv", na.strings = "NA") %>% 
+  formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
+  filter(reported.exposure_ != 'unknown.exposure') %>%
+  droplevels()
+
+baseline.covar <- c("reported.exposure_", "grouped.method_", "grouped.subtype_","sequencing.gene_", "sampling.delay_",'alignment.bin_')
+baseline.level <- c("HSX:MTF", "haplotype", "B" , "whole.genome" , "<21", 'NFLG')
+
+df <- SetBaseline(df, baseline.covar, baseline.level)
+
+tabs <- list(table(df$reported.exposure_) %>% as.integer(),
+             table(df$grouped.method_) %>% as.integer(),
+             table(df$sequencing.gene_) %>% as.integer(),
+             table(df$sampling.delay_) %>% as.integer()) %>% unlist() 
+
+fe <- cbind.data.frame(fe, tabs)
 ###################################################################################################
 # Plot Fixed Effects and CIs from selected model (output to jpeg)
 plt.list <- lapply(c('reported.exposure','grouped.method', 'sequencing.gene', 'sampling.delay'), PlotMetaReg, data = fe) #selected.fe 
@@ -137,8 +154,19 @@ dev.off()
 
 ###################################################################################################
 # Estimates of frequency, stratified by route of transmission
+level_order <- c("PWID",
+                 "MTC:IntraP",
+                 "MTC:notiming",
+                 "MTC:PostP",
+                 "MTC:PreP",
+                 'MSM',
+                 'HSX:nodirection',
+                 'HSX:FTM',
+                 'HSX:MTF')
 
 pred$covariate_level <- factor(pred$covariate_level, levels = level_order) 
+pred$grp <- c('HSX','HSX','HSX','MSM', 'MTC', 'MTC', 'MTC', 'MTC', 'PWID') 
+
 plt2 <- ggplot() +
   geom_point(aes(x= predicted, 
                  y = covariate_level),
@@ -151,16 +179,38 @@ plt2 <- ggplot() +
   scale_x_continuous(
     expand = c(0,0), 
     name = "Probability of Multiple Founders",
-    labels = scales::percent
+    #labels = scales::percent,
+    #sec.axis = dup_axis(breaks = 0)
   )+
+  
+  facet_grid(rows = vars(pred$grp), 
+             drop = T, 
+             scales = 'free_y',
+             space = 'free_y',
+             switch = 'y'
+            ) +
+  #geom_segment(aes(x= 0.5, y = 0.5, xend = 0.5, yend = 1), inherit.aes = F) +
+
+
+  coord_cartesian(xlim = c(0,0.6), clip = 'off') +
   theme(
     axis.line.y = element_blank(),
     axis.ticks.y = element_blank(),
+    axis.title.x.top = element_blank(),
+    axis.ticks.x.top = element_blank(),
+    axis.text.x.top = element_blank(),
     legend.position = 'none',
-    panel.grid.minor.y = element_blank(),
-    panel.grid.major.y = element_blank(),
-    axis.title.y = element_blank()) +
-  coord_cartesian(xlim = c(0,0.6))+
+    #panel.grid.minor.y = element_blank(),
+    #panel.grid.major.y = element_blank(),
+    strip.background =  element_blank(),
+    strip.placement = 'outside',
+    
+    strip.text = element_text(size = 11, face = 'bold'),
+    panel.spacing = unit(0, units = 'cm'),
+    axis.title.y = element_blank()) 
+
++
+  coord_cartesian(xlim = c(0,0.6)) +
   geom_rect(aes(ymin = Inf,
                 ymax =  6.5,
                 xmin = -Inf, 
@@ -363,7 +413,7 @@ cowplot::plot_grid(fe.plt, plt2+theme(axis.text.y = element_blank()),ncol = 2, a
 dev.off()
 ###################################################################################################
 # S2-4 # to revisit
-sa234_fe <- read.csv('./results/multimetareg_s2-4_fe.csv', stringsAsFactors = F)%>%filter(grepl('reported.exposure',covariate))
+sa234_fe <- read.csv('./results/multimetareg_s2-4_fe.csv', stringsAsFactors = F) #%>%filter(grepl('reported.exposure',covariate))
 level_order <- c("PWID",
                  "MTC:IntraP",
                  "MTC:notiming",
