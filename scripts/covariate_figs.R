@@ -64,6 +64,12 @@ df <- read.csv("./data/data_master_11121.csv", na.strings = "NA") %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   droplevels()
 
+# Set reference levels for meta regression
+# HSX:MTF, haplotype (highlighter), unknown seropositivity, B, whole genome
+baseline.covar <- c("reported.exposure_", "grouped.method_", "grouped.subtype_","sequencing.gene_", "sampling.delay_",'alignment.bin_')
+baseline.level <- c("HSX:MTF", "haplotype", "B" , "whole.genome" , "<21", 'NFLG')
+
+df <- SetBaseline(df, baseline.covar, baseline.level)
 
 ###################################################################################################
 ###################################################################################################
@@ -248,6 +254,13 @@ cowplot::plot_grid(grid1, grid2, nrow = 2, scale = 0.95)
 
 dev.off()
 
+#EPS
+setEPS()
+postscript("./results/figure2.eps", width = 10, height = 16)
+cowplot::plot_grid(grid1, grid2, nrow = 2, scale = 0.95)
+dev.off()
+
+
 library(gridExtra)
 grid.arrange(p1.exposure + theme(legend.position= c(0.85,0.87)), 
              p1.6+theme(legend.position= c(0.85,0.7)),
@@ -273,8 +286,7 @@ p2.1 <- ggplot(region_exp,aes(x = reported.exposure_,
                               color = (multiplefounders/subjects))) +
   geom_point() + 
   
-  theme_minimal(base_size = 10,
-                base_family = 'sans') +
+  theme_minimal(base_size = 10) +
   
   scale_color_distiller(palette = 'RdBu') +
   
@@ -300,8 +312,7 @@ p2.2 <- ggplot(df, aes(year_))+
   scale_y_continuous(limits = c(0,500), 
                      expand = c(0,0)) +
   scale_x_continuous(expand = c(0,0)) +
-  theme_classic(base_size = 10,
-                base_family = 'sans')+
+  theme_classic(base_size = 10)+
   theme(axis.text.x=element_text(angle=45, hjust=1))+
   
   labs(fill = 'Risk Group', 
@@ -319,9 +330,8 @@ p2.3 <- ggplot(df, aes(year_))+
   scale_y_continuous(limits = c(0,500), 
                      expand = c(0,0)) +
   scale_x_continuous(expand = c(0,0)) +
-  theme_classic(base_size = 10,
-                base_family = 'sans')+
-  theme(axis.text.x=element_text(angle=45, hjust=1), size = 10)+
+  theme_classic(base_size = 10)+
+  theme(axis.text.x=element_text(angle=45, hjust=1))+
   
   labs(fill = 'Method', 
        x = 'Year of Publication', 
@@ -335,6 +345,11 @@ jpeg("./results/subgroup_transmission.jpeg" ,width = 6000, height = 4000, res = 
 grid3 
 dev.off()
 
+#EPS
+setEPS()
+postscript("./results/figureS3.eps", width = 16, height = 10)
+grid3
+dev.off()
 
 ###################################################################################################
 ###################################################################################################

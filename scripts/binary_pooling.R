@@ -314,7 +314,7 @@ heterogeneity <- rbind.data.frame(twostep_binorm.het,
 # SA3. Exclusion of studies with 0 multiple founder variants
 # SA4. Exclusion of all studies that do not use SGA
 # SA5. Resampling of participants for which we have multiple measurments (takes pre-formatted DF)
-
+# SA6. Reculated estimate using 'gold standard' covariates only: NFLG, haplotype, short delay
 
 # SA1. Influence of Individual Studies (LOOCV)
 df_loocv <- LOOCV.dat(df)[[1]]
@@ -409,6 +409,18 @@ resampling_df<- read.csv("./data/data_master_11121.csv", na.strings = "NA") %>%
 
 boot_participant <- BootParticipant(resampling_df , 1000)
 
+# SA6. Gold standard covar:
+df_gs <- read.csv("./data/data_master_11121.csv", na.strings = "NA") %>%
+  formatDF(., filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
+  filter(reported.exposure_ != 'unknown.exposure', grouped.method_ == 'haplotype', sequencing.gene_ == 'whole.genome') %>%
+  droplevels()
+df_gs_props <- CalcProps(df_gs)  
+
+sa6_onestep <- CalcOnestepBiRand(df_gs_props) 
+sa6_onestep.sum <- summary(sa6_onestep)
+sa6_onestep.sum
+
+sa6_onestep.est <- CalcEstimates(sa6_onestep)
 
 ###################################################################################################
 ###################################################################################################
@@ -464,6 +476,10 @@ jpeg(filename = './results/funnel_nozeros.jpeg', res = 350, width=3000, height=3
 
 plt_funnel 
 
+dev.off()
+
+ggsave("figure_S6.pdf", width = 10, height = 10, units= 'in')
+plt_funnel
 dev.off()
 ###################################################################################################
 ###################################################################################################

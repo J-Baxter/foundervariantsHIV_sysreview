@@ -179,7 +179,12 @@ cowplot::plot_grid(senseplot,
                    boot_plt , ncol = 2,  rel_widths  = c(1,1) ,labels = "AUTO", align = 'h', axis = 'b', greedy = F)
 dev.off()
 
-jpeg("./results/boot_sensitivity.jpeg" ,width = 5000, height = 2500, res = 380 ,units = "px", pointsize = 12)
+ggsave("./results/figures4.pdf", width = 16, height = 10, units= 'in')
+cowplot::plot_grid(senseplot, 
+                   boot_plt , ncol = 2,  rel_widths  = c(1,1) ,labels = "AUTO", align = 'h', axis = 'b', greedy = F)
+dev.off()
+
+jpeg("./results/boot_sensitivity.jpeg", width = 10, height = 16, units= 'in')
 cowplot::plot_grid(boot_plt ,sa5_plt,  ncol = 2,  rel_widths  = c(1,1) ,labels = "AUTO", align = 'h', axis = 'b', greedy = F)
 dev.off()
 ###################################################################################################
@@ -239,7 +244,9 @@ plt
 
 dev.off()
 
-
+ggsave("./results/figure_S5.pdf", width = 10, height = 10, units= 'in')
+plt
+dev.off()
 
 ###################################################################################################
 ###################################################################################################

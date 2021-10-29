@@ -178,11 +178,31 @@ write.csv(out, '../results/numberfounders_summary.csv')
 
 
 df_pois <- df %>% filter(riskgroup_!= 'MTC') %>%  droplevels()
-test_pois <- glmmTMB(minimum.number.of.founders_ ~  reported.exposure_ + grouped.method_ + sampling.delay_ + sequencing.gene_+ (1|publication_), 
-                     data = df_pois ,
+test_pois <- glmmTMB(minimum.number.of.founders_ ~  reported.exposure_ + grouped.method_ + sampling.delay_ + sequencing.gene_ + (1|publication_), 
+                     data = df_pois[which(df_pois$minimum.number.of.founders_<6),],
                      family = truncated_poisson(link = "log"))
+
+overdisp <- check_overdispersion(test_pois)
+
+test_nb <- glmmTMB(minimum.number.of.founders_ ~  reported.exposure_ + grouped.method_ + sampling.delay_ + sequencing.gene_ + (1|publication_) , 
+                   dispformula = ~ 1,
+                     data = df_pois[which(df_pois$minimum.number.of.founders_<6),] ,
+                     family = truncated_nbinom2(link = "log"))
+
+
+anova(test_pois,test_nb)
+
+output <- data.frame(resid = resid(test_pois), fitted = fitted(test_pois))
+
+cowplot::plot_grid(ggplot(output, aes(x = fitted, y = resid)) +
+  geom_jitter(position = position_jitter(width = 0.25), alpha = 0.5) +
+  stat_smooth(method = "loess") + theme_bw(), 
+  ggplot(output, aes(x = fitted, y = resid)) +
+    geom_jitter(position = position_jitter(width = 0.25), alpha = 0.5) +
+    stat_quantile(method = 'rq')+ theme_bw() , ncol = 2)
+
 #truncated_nbinom2(link = "log") truncated_poisson(link = "log")
-test_probs <- CalcFounderProbs(test_pois)
+test_probs <- CalcFounderProbs(test_nb)
 
 
 ggplot()+
@@ -197,7 +217,7 @@ ggplot()+
   scale_fill_npg(name = 'Transmission') + 
   scale_colour_npg(guide = NULL)+
   scale_x_discrete(labels = c('1', '2', '3' , '>3'), name = 'Number of Founders') +
-  scale_y_continuous(expand = c(0,0), limits = c(0,0.5), name = 'Probability')
+  scale_y_continuous(expand = c(0,0), limits = c(0,1), name = 'Probability')
 
 ###################################################################################################
 # Visual inspection and raw summary statistics

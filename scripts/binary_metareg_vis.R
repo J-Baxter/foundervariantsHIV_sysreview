@@ -144,7 +144,7 @@ plt_grid1 <- cowplot::plot_grid(plt.list[[1]] + scale_y_discrete(labels = str_wr
                                                                           ">21" = '>21 Days',
                                                                           "unknown" = 'Unknown',
                                                                           "<21" = '<21 Days'), width = 13)),
-                                align = 'hv', axis = 'b' , labels = "AUTO", ncol = 4,rel_widths = c(1,1), label_size = 12, vjust = 1.3)
+                                align = 'hv', axis = 'b' , labels = "AUTO", ncol = 2,rel_widths = c(1,1), label_size = 12, vjust = 1.3)
 
 jpeg(filename = './results/metareg_ORplot2.jpeg', width = 4500, height = 1500, res = 380 ,units = "px", pointsize = 10)
 
@@ -152,6 +152,9 @@ plt_grid1
 
 dev.off()
 
+ggsave("./results/metareg_ORplots.pdf", width = 10, height = 10, units= 'in')
+plt_grid1 
+dev.off()
 ###################################################################################################
 # Estimates of frequency, stratified by route of transmission
 level_order <- c("PWID",
@@ -183,16 +186,9 @@ plt2 <- ggplot() +
     #sec.axis = dup_axis(breaks = 0)
   )+
   
-  facet_grid(rows = vars(pred$grp), 
-             drop = T, 
-             scales = 'free_y',
-             space = 'free_y',
-             switch = 'y'
-            ) +
   #geom_segment(aes(x= 0.5, y = 0.5, xend = 0.5, yend = 1), inherit.aes = F) +
 
-
-  coord_cartesian(xlim = c(0,0.6), clip = 'off') +
+  coord_cartesian(xlim = c(0,0.6)) +
   theme(
     axis.line.y = element_blank(),
     axis.ticks.y = element_blank(),
@@ -200,17 +196,8 @@ plt2 <- ggplot() +
     axis.ticks.x.top = element_blank(),
     axis.text.x.top = element_blank(),
     legend.position = 'none',
-    #panel.grid.minor.y = element_blank(),
-    #panel.grid.major.y = element_blank(),
-    strip.background =  element_blank(),
-    strip.placement = 'outside',
-    
-    strip.text = element_text(size = 11, face = 'bold'),
-    panel.spacing = unit(0, units = 'cm'),
-    axis.title.y = element_blank()) 
-
-+
-  coord_cartesian(xlim = c(0,0.6)) +
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.y = element_blank()) +
   geom_rect(aes(ymin = Inf,
                 ymax =  6.5,
                 xmin = -Inf, 
@@ -262,7 +249,15 @@ plt_grid2
 
 dev.off()
 
+#EPS
+ggsave("filename.pdf", device=cairo_ps,width = 10, height = 16, units= 'in')
+plt_grid2
+dev.off()
 
+setEPS()
+postscript("./results/figure3.eps", width = 10, height = 16)
+plt_grid2
+dev.off()
 
 jpeg(filename = './results/metareg_predict.jpeg', width = 2000, height = 2000, res = 380 ,units = "px", pointsize = 12)
 
@@ -635,6 +630,10 @@ cowplot::plot_grid(sa1_5left, plt_sa234,ncol = 2, align = 'h', axis = 't',labels
 
 dev.off()
 
+
+ggsave("test.pdf", width = 12, height = 16, units= 'in')
+cowplot::plot_grid(sa1_5left, plt_sa234,ncol = 2, align = 'h', axis = 't',labels = c('','D'))
+dev.off()
 ###################################################################################################
 # SA7 Plot
 sa7_fe <- read.csv('./results/multimetareg_s7_fe.csv', stringsAsFactors = F)
