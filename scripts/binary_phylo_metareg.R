@@ -36,8 +36,13 @@ set.seed(4472)
 # Note that this filters the covariates specified and removes levels where n<5
 # Also removes unknown exposures
 # Role of transmitter in phylogenetic analysis (method = phylo only)
+if (!dir.exists('data')){
+  Retrieve('data.zip')
+}else{
+  Sys.sleep(0.2)
+}
 
-df_phylo <- read.csv("./data/data_master_11121.csv", na.strings = "NA") %>%
+df_phylo <- read.csv("./data/meta_analysis_data.csv", na.strings = "NA") %>%
   filter(., grouped.method == 'phylogenetic:R' |grouped.method == 'phylogenetic:S&R') %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%

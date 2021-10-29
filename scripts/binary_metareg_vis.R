@@ -99,7 +99,13 @@ pred <-  read.csv('./results/multimetareg_preds.csv')
 
 
 # Import data
-df <- read.csv("./data/data_master_11121.csv", na.strings = "NA") %>% 
+if (!dir.exists('data')){
+  Retrieve('data.zip')
+}else{
+  Sys.sleep(0.2)
+}
+
+df <- read.csv("./data/meta_analysis_data.csv", na.strings = "NA") %>% 
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   droplevels()
