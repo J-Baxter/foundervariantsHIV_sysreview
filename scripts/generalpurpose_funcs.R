@@ -6,17 +6,27 @@
 ###################################################################################################
 
 # unzip file or directory containing data csv
-Retrieve <- function(name){
-  if(file.exists(name)){
-    zipfile <- name
-    newname <- gsub('.zip|.gz', '', zipfile)
+Retrieve <- function(zipfile){
+  if(file.exists(zipfile) & grepl('zip', zipfile)){
+    newname <- gsub('.zip', '', zipfile)
+    
     if (!dir.exists(newname)){
       dir.create(newname)
-    }else{
-      newname <- paste0(newname, '_01')
     }
-    #outdir <- dir.create(newname)
-    unzip(zipfile, exdir=dir.create(newname))
+    else{
+      stop('data directory already exists')
+    }
+    
+    
+    unzip(zipfile, exdir= newname)
+    filepath <- file.path(newname)
+    filelist <- list.files(path = newname, recursive = T)
+    file.copy(paste0('data/',filelist), filepath)
+    dirlist <- list.dirs(path = filepath, recursive = T)
+    unlink(dirlist[-1], recursive = T)
+  }
+  else{
+    stop('not a .zip file')
   }
 }
 
