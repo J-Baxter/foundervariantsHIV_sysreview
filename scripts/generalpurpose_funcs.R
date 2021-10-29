@@ -5,6 +5,22 @@
 ###################################################################################################
 ###################################################################################################
 
+# unzip file or directory containing data csv
+Retrieve <- function(name){
+  if(file.exists(name)){
+    zipfile <- name
+    newname <- gsub('.zip|.gz', '', zipfile)
+    if (!dir.exists(newname)){
+      dir.create(newname)
+    }else{
+      newname <- paste0(newname, '_01')
+    }
+    #outdir <- dir.create(newname)
+    unzip(zipfile, exdir=dir.create(newname))
+  }
+}
+
+
 # Formats data spreadsheet for analysis. Removes duplicates and NAs.
 # noreps removes repeated measurements (reason for false would be to conduct sensitivity analyses)
 # filter removes factors containing less than 5 individuals from specified df
