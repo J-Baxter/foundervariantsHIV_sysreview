@@ -258,7 +258,7 @@ if (!dir.exists('data')){
 
 df <- read.csv("./data/meta_analysis_data.csv",
                na.strings = "NA",
-               colClasses=c("multiple.founders"="factor")) %>%
+               stringsAsFactors = T) %>%
   formatDF(., filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   droplevels()
@@ -412,7 +412,7 @@ SA4_results <- rbind.data.frame(twostep_binorm.sgaonly.out,
 # SA5. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
 resampling_df<- read.csv("./data/meta_analysis_data.csv",
                          na.strings = "NA",
-                         colClasses=c("multiple.founders"="factor")) %>%
+                         stringsAsFactors = T) %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   droplevels()
@@ -422,7 +422,7 @@ boot_participant <- BootParticipant(resampling_df , 1000)
 # SA6. Gold standard covar:
 df_gs <-read.csv("./data/meta_analysis_data.csv",
                  na.strings = "NA",
-                 colClasses=c("multiple.founders"="factor")) %>%
+                 stringsAsFactors = T) %>%
   formatDF(., filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure', grouped.method_ == 'haplotype', sequencing.gene_ == 'whole.genome') %>%
   droplevels()

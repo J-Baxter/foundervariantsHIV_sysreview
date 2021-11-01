@@ -107,7 +107,7 @@ if (!dir.exists('data')){
 
 df <- read.csv("./data/meta_analysis_data.csv",
                na.strings = "NA",
-               colClasses=c("multiple.founders"="factor")) %>% 
+               stringsAsFactors = T) %>% 
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   droplevels()

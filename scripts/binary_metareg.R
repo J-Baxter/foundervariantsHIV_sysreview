@@ -257,7 +257,7 @@ if (!dir.exists('data')){
 
 df <- read.csv("./data/meta_analysis_data.csv",
                na.strings = "NA",
-               colClasses=c("multiple.founders"="factor")) %>%
+               stringsAsFactors = T) %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   droplevels()
@@ -497,7 +497,7 @@ model_selected.sgaonly.out <- list(CheckModels(model_selected.sgaonly),
 # SA5. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
 resampling_df <- read.csv("./data/meta_analysis_data.csv",
                           na.strings = "NA",
-                          colClasses=c("multiple.founders"="factor")) %>%
+                          stringsAsFactors = T) %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay'), noreps = FALSE) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   SetBaseline(baseline.covar, baseline.level) %>%
@@ -516,7 +516,7 @@ sa7_dflist <- list()
 
 sa7_dflist$sa7_unknown.sing <- read.csv("./data/meta_analysis_data.csv",
                                         na.strings = "NA",
-                                        colClasses=c("multiple.founders"="factor")) %>%
+                                        stringsAsFactors = T) %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   SetBaseline(baseline.covar, baseline.level) %>%
@@ -524,7 +524,7 @@ sa7_dflist$sa7_unknown.sing <- read.csv("./data/meta_analysis_data.csv",
 
 sa7_dflist$sa7_unknown.rep <- read.csv("./data/meta_analysis_data.csv",
                                        na.strings = "NA",
-                                       colClasses=c("multiple.founders"="factor")) %>%
+                                       stringsAsFactors = T) %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay'), noreps = FALSE) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   SetBaseline(baseline.covar, baseline.level) %>%
@@ -532,7 +532,7 @@ sa7_dflist$sa7_unknown.rep <- read.csv("./data/meta_analysis_data.csv",
 
 sa7_dflist$sa7_nounknown.sing <- read.csv("./data/meta_analysis_data.csv",
                                           na.strings = "NA",
-                                          colClasses=c("multiple.founders"="factor")) %>%
+                                          stringsAsFactors = T) %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   filter(sampling.delay_ != 'unknown') %>%
@@ -541,7 +541,7 @@ sa7_dflist$sa7_nounknown.sing <- read.csv("./data/meta_analysis_data.csv",
 
 sa7_dflist$sa7_nounknown.rep <- read.csv("./data/meta_analysis_data.csv",
                                          na.strings = "NA",
-                                         colClasses=c("multiple.founders"="factor")) %>%
+                                         stringsAsFactors = T) %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay'), noreps = FALSE) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   filter(sampling.delay_ != 'unknown') %>%
