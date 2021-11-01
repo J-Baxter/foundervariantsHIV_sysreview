@@ -42,7 +42,9 @@ if (!dir.exists('data')){
   Sys.sleep(0.2)
 }
 
-df_phylo <- read.csv("./data/meta_analysis_data.csv", na.strings = "NA") %>%
+df_phylo <- read.csv("./data/meta_analysis_data.csv",
+                     na.strings = "NA",
+                     colClasses=c("multiple.founders"="factor")) %>%
   filter(., grouped.method == 'phylogenetic:R' |grouped.method == 'phylogenetic:S&R') %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%

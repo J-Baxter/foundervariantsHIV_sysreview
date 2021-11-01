@@ -194,7 +194,9 @@ if (!dir.exists('data')){
   Sys.sleep(0.2)
 }
 
-df <- read.csv("./data/meta_analysis_data.csv", na.strings = "NA") %>% 
+df <- read.csv("./data/meta_analysis_data.csv",
+               na.strings = "NA",
+               colClasses=c("multiple.founders"="factor")) %>% 
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   droplevels()
@@ -325,7 +327,9 @@ unipooled_models.sgaonly.out <- list(CheckModels(unipooled_models.sgaonly),
 
 
 # SA5. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
-resampling_df <- read.csv("./data/meta_analysis_data.csv", na.strings = "NA") %>%
+resampling_df <- read.csv("./data/meta_analysis_data.csv",
+                          na.strings = "NA",
+                          colClasses=c("multiple.founders"="factor")) %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay'), noreps = FALSE) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   SetBaseline(baseline.covar, baseline.level) %>%
@@ -340,7 +344,9 @@ unipooled_models.boot_participant <- BootMetaRegUV(resampling_df, unipooled_form
 sa7_dflist <- list()
 
 sa7_dflist$sing <- df
-sa7_dflist$rep <- read.csv("./data/meta_analysis_data.csv", na.strings = "NA") %>%
+sa7_dflist$rep <- read.csv("./data/meta_analysis_data.csv",
+                           na.strings = "NA",
+                           colClasses=c("multiple.founders"="factor")) %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay'), noreps = FALSE) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   SetBaseline(baseline.covar, baseline.level) %>%
