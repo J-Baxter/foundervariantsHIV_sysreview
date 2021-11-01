@@ -67,7 +67,7 @@ if (!dir.exists('data')){
 
 df <- read.csv("./data/meta_analysis_data.csv",
                na.strings = "NA",
-               colClasses=c("multiple.founders"="factor")) %>%
+               stringsAsFactors = T) %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene','sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   droplevels()
@@ -81,23 +81,56 @@ df <- SetBaseline(df, baseline.covar, baseline.level)
 
 ###################################################################################################
 ###################################################################################################
-# Basic plots for panel 1 (four bar plots to panel displaying frequencies of grouped method, 
-# seropositivity, subtype and number of sequences)
+# Basic plots for figure 2 A-H (NB figure 1 is the PRISMA flowchart)
 
 # Set colour palettes 
 mycols_founder <- RColorBrewer::brewer.pal(name = 'RdBu', n = 8)[c(2,7)] #c("#E64B35FF", "#4DBBD5FF")
-
 nb.cols <- 12
 mycols_method <- colorRampPalette(brewer.pal(10, "RdBu"))(nb.cols)
-
 
 # Set Labels
 labs <- c('Multiple','Single')
 
+###################################################################################################
+# Fig 2A: Detailed barplot displaying route of transmission (with direction subcategories)
+colnames <- c('reported.exposure' , 'sub.exposure' , 'frequency')
+exposures_df <- stacked_categories(df$reported.exposure_, colnames)
+exposures_df$sub.exposure <- factor(exposures_df$sub.exposure, levels = c('MTF', 'FTM', 'nodirection',
+                                                                          'MSM',
+                                                                          'PreP', 'IntraP', 'PostP', 'notiming',
+                                                                          'PWID'))
+
+fig2_a <- ggplot(exposures_df, aes(x = reported.exposure , y = frequency))+
+  geom_bar(stat = 'identity' , aes(fill = sub.exposure), position = 'stack')+
+  scale_fill_manual(values= mycols_method ,labels = c('HSX: MTF', 'HSX: FTM', 'HSX: undisclosed',
+                                                      'MSM',
+                                                      'MTC: Pre-Partum', 'MTC: Intrapartum', 'MTC: Post-Partum', 'MTC: undisclosed',
+                                                      'PWID'))+
+  scale_y_continuous(limits = c(0,1000), expand = c(0,0)) +
+  theme_classic()+
+  xlab('Risk Group')+
+  theme( axis.text.x=element_text(angle=45, hjust=1))+
+  ylab('Frequency') + labs(fill = "Reported Exposure", colour = "Reported Exposure")
+
 
 ###################################################################################################
-# 1.1 Method
-p1.method <- ggplot(df, aes(grouped.method_))+
+# Fig 2B: Route of transmission (riskgroup)
+fig2_b <- ggplot(df, aes(riskgroup_))+
+  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), colour = forcats::fct_rev(factor(multiple.founders_))))+
+  scale_color_manual(values = mycols_founder, labels = labs)+
+  scale_fill_manual(values = mycols_founder, labels = labs)+
+  scale_y_continuous(limits = c(0,1000), expand = c(0,0)) +
+  scale_x_discrete(labels = LabelX(df$riskgroup_)) +
+  theme_classic()+
+  xlab('Risk Group')+
+  theme( axis.text.x=element_text(angle=45, hjust=1))+
+  ylab('Frequency')+
+  labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity") 
+
+
+###################################################################################################
+# Fig 2C: Method of quantification
+fig2_c <- ggplot(df, aes(grouped.method_))+
   geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_))))+
   scale_fill_manual(values = mycols_founder, labels = labs)+
   scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
@@ -116,8 +149,21 @@ p1.method <- ggplot(df, aes(grouped.method_))+
 
 
 ###################################################################################################
-# 1.2 Sampling Delay (inferred from feibig/seropositivty/timing of sampling relative to infection)
-p1.seropos <- ggplot(df, aes(sampling.delay_))+ 
+# Fig 2D: Subtype
+fig2_d <- ggplot(df, aes(grouped.subtype_))+
+  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_))))+
+  scale_fill_manual(values = mycols_founder, labels = labs)+
+  scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
+  theme_classic()+
+  xlab('Subtype')+
+  theme( axis.text.x=element_text(angle=45, hjust=1))+
+  ylab('Frequency')+
+  labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
+
+
+###################################################################################################
+# Fig 2E: Sampling Delay (inferred from feibig/seropositivty/timing of sampling relative to infection)
+fig2_e <- ggplot(df, aes(sampling.delay_))+ 
   geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_))))+
   scale_fill_manual(values = mycols_founder, labels = labs)+
   scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
@@ -130,23 +176,10 @@ p1.seropos <- ggplot(df, aes(sampling.delay_))+
 
 
 ###################################################################################################
-# 1.3 Subtype
-p1.subtype <- ggplot(df, aes(grouped.subtype_))+
-  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_))))+
-  scale_fill_manual(values = mycols_founder, labels = labs)+
-  scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
-  theme_classic()+
-  xlab('Subtype')+
-  theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Frequency')+
-  labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
-
-
-###################################################################################################
-# 1.4 Number of consensus sequences analysed
+# Fig 2F: Number of consensus sequences analysed
 numseqs_df <- GetNumSeqs(df)
 
-p1.numseq <- ggplot(numseqs_df , aes(sequencing.number_))+
+fig2_f <- ggplot(numseqs_df , aes(sequencing.number_))+
   geom_histogram(binwidth=5, (aes(fill = forcats::fct_rev(factor(multiple.founders_)))))+
   scale_fill_manual(values = mycols_founder, labels = labs)+
   scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
@@ -157,47 +190,11 @@ p1.numseq <- ggplot(numseqs_df , aes(sequencing.number_))+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
 
-###################################################################################################
-# 1.5 Route of transmission (riskgroup)
-
-p1.exposure <- ggplot(df, aes(riskgroup_))+
-  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), colour = forcats::fct_rev(factor(multiple.founders_))))+
-  scale_color_manual(values = mycols_founder, labels = labs)+
-  scale_fill_manual(values = mycols_founder, labels = labs)+
-  scale_y_continuous(limits = c(0,1000), expand = c(0,0)) +
-  scale_x_discrete(labels = LabelX(df$riskgroup_)) +
-  theme_classic()+
-  xlab('Risk Group')+
-  theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Frequency')+
-  labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity") 
-
 
 ###################################################################################################
-# 1.6 Detailed barplot displaying route of transmission (with direction subcategories)
-colnames <- c('reported.exposure' , 'sub.exposure' , 'frequency')
-exposures_df <- stacked_categories(df$reported.exposure_, colnames)
-exposures_df$sub.exposure <- factor(exposures_df$sub.exposure, levels = c('MTF', 'FTM', 'nodirection',
-                                                                          'MSM',
-                                                                          'PreP', 'IntraP', 'PostP', 'notiming',
-                                                                          'PWID'))
+# Fig 2G: Genomic region analysed
 
-p1.6 <- ggplot(exposures_df, aes(x = reported.exposure , y = frequency))+
-  geom_bar(stat = 'identity' , aes(fill = sub.exposure), position = 'stack')+
-  scale_fill_manual(values= mycols_method ,labels = c('HSX: MTF', 'HSX: FTM', 'HSX: undisclosed',
-                                                      'MSM',
-                                                      'MTC: Pre-Partum', 'MTC: Intrapartum', 'MTC: Post-Partum', 'MTC: undisclosed',
-                                                      'PWID'))+
-  scale_y_continuous(limits = c(0,1000), expand = c(0,0)) +
-  theme_classic()+
-  xlab('Risk Group')+
-  theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Frequency') + labs(fill = "Reported Exposure", colour = "Reported Exposure")
-
-###################################################################################################
-# 1.7 Sequencing Gene
-
-p1.sg <- ggplot(df, aes(sequencing.gene_))+
+fig2_g <- ggplot(df, aes(sequencing.gene_))+
   geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_))))+
   scale_fill_manual(values = mycols_founder, labels = labs)+
   scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
@@ -206,17 +203,16 @@ p1.sg <- ggplot(df, aes(sequencing.gene_))+
                               'pol'='Pol',
                               'whole.genome' = 'NFLG')) +
   theme_classic()+
-  xlab('Gene Analysed')+
+  xlab('Genomic Region Analysed')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
   ylab('Frequency')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
 
-
 ###################################################################################################
-# 1.8 Alignment Length
+# Fig 2H =  Alignment Length
 
-p1.alignment <- ggplot(df, aes(alignment.length_))+
+fig2_h <- ggplot(df, aes(alignment.length_))+
   geom_histogram(aes(fill = forcats::fct_rev(factor(multiple.founders_))))+
   scale_fill_manual(values = mycols_founder, labels = labs)+
   scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
@@ -229,20 +225,35 @@ p1.alignment <- ggplot(df, aes(alignment.length_))+
 
 ###################################################################################################
 # Combine basic covariate plots into figure (with labels and axis)
-grid1 <- cowplot::plot_grid( p1.6+theme(legend.position= c(0.85,0.76)),
-                             p1.exposure + theme(legend.position= c(0.85,0.90)),
-                             nrow = 1 ,align = "hv", axis = "bt" , labels = "A")
+fig2_top <- cowplot::plot_grid(fig2_a + theme(legend.position= c(0.85,0.76)),
+                               fig2_b + theme(legend.position= c(0.85,0.90)),
+                               nrow = 1,
+                               align = "hv",
+                               axis = "bt" ,
+                               labels = "AUTO")
 
-grid2 <- cowplot::plot_grid(p1.method + theme(legend.position="none"),
-                            p1.subtype + theme(legend.position="none"), 
-                            p1.seropos + theme(legend.position="none"),
-                            p1.numseq + theme(legend.position="none"),
-                            p1.sg + theme(legend.position="none"),
-                            p1.alignment + theme(legend.position="none"),
-                            ncol = 3 , nrow = 2,align = "hv", axis = "bt" , labels = "B") 
+fig2_bottom <- cowplot::plot_grid(fig2_c + theme(legend.position="none"),
+                                  fig2_d + theme(legend.position="none"), 
+                                  fig2_e + theme(legend.position="none"),
+                                  fig2_f + theme(legend.position="none"),
+                                  fig2_g + theme(legend.position="none"),
+                                  fig2_h+ theme(legend.position="none"),
+                                  ncol = 3, 
+                                  nrow = 2,
+                                  align = "hv", 
+                                  axis = "bt",
+                                  labels = c('C', 'D', 'E', 'F', 'G', 'H')) 
 
-cowplot::plot_grid(grid1, grid2, nrow = 2)
+fig_2 <- cowplot::plot_grid(fig2_top, fig2_bottom, nrow = 2)
 
+# Print to file
+setEPS()
+postscript("./results/figure2.eps", width = 10, height = 16)
+fig_2
+dev.off()
+
+###################################################################################################
+# Presentation plots
 legend <- get_legend(p1.method )
 prow <- cowplot::plot_grid(p1.method + theme(legend.position="none"),
                            p1.subtype + theme(legend.position="none"), 
@@ -255,18 +266,7 @@ prow <- cowplot::plot_grid(p1.method + theme(legend.position="none"),
 
 cowplot::plot_grid(prow, legend, ncol = 2, rel_widths  = c(1,0.1))
 
-# Print to file
-jpeg("./results/panel1.jpeg" ,width = 4000, height = 5000, res = 380 ,units = "px", pointsize = 12)
 
-cowplot::plot_grid(grid1, grid2, nrow = 2, scale = 0.95)
-
-dev.off()
-
-#EPS
-setEPS()
-postscript("./results/figure2.eps", width = 10, height = 16)
-cowplot::plot_grid(grid1, grid2, nrow = 2, scale = 0.95)
-dev.off()
 
 
 library(gridExtra)
