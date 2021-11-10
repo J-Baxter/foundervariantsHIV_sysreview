@@ -109,8 +109,9 @@ fig2_a <- ggplot(exposures_df, aes(x = reported.exposure , y = frequency))+
   scale_y_continuous(limits = c(0,1000), expand = c(0,0)) +
   theme_classic()+
   xlab('Risk Group')+
-  theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Frequency') + labs(fill = "Reported Exposure", colour = "Reported Exposure")
+  theme(axis.text.x=element_text(angle=45, hjust=1))+
+  ylab('Frequency of Individuals') +
+  labs(fill = "Reported Exposure", colour = "Reported Exposure")
 
 
 ###################################################################################################
@@ -124,7 +125,7 @@ fig2_b <- ggplot(df, aes(riskgroup_))+
   theme_classic()+
   xlab('Risk Group')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Frequency')+
+  ylab('Frequency of Individuals')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity") 
 
 
@@ -144,7 +145,7 @@ fig2_c <- ggplot(df, aes(grouped.method_))+
   theme_classic()+
   xlab('Method of Quantification')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Frequency')+
+  ylab('Frequency of Individuals')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
 
@@ -157,7 +158,7 @@ fig2_d <- ggplot(df, aes(grouped.subtype_))+
   theme_classic()+
   xlab('Subtype')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Frequency')+
+  ylab('Frequency of Individuals')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
 
@@ -171,7 +172,7 @@ fig2_e <- ggplot(df, aes(sampling.delay_))+
   theme_classic()+
   xlab('Sampling Delay')+
   theme(axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Frequency')+
+  ylab('Frequency of Individuals')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
 
@@ -180,13 +181,14 @@ fig2_e <- ggplot(df, aes(sampling.delay_))+
 numseqs_df <- GetNumSeqs(df)
 
 fig2_f <- ggplot(numseqs_df , aes(sequencing.number_))+
-  geom_histogram(binwidth=5, (aes(fill = forcats::fct_rev(factor(multiple.founders_)))))+
+  geom_histogram((aes(fill = forcats::fct_rev(factor(multiple.founders_)))), binwidth = 3)+
   scale_fill_manual(values = mycols_founder, labels = labs)+
   scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
+  scale_x_continuous(limits = c(0,90), expand = c(0,0))+
   theme_classic()+
   xlab('Number of Consensus Sequences')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Frequency') +
+  ylab('Frequency of Individuals')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
 
@@ -205,7 +207,7 @@ fig2_g <- ggplot(df, aes(sequencing.gene_))+
   theme_classic()+
   xlab('Genomic Region Analysed')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Frequency')+
+  ylab('Frequency of Individuals')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
 
@@ -213,31 +215,32 @@ fig2_g <- ggplot(df, aes(sequencing.gene_))+
 # Fig 2H =  Alignment Length
 
 fig2_h <- ggplot(df, aes(alignment.length_))+
-  geom_histogram(aes(fill = forcats::fct_rev(factor(multiple.founders_))))+
+  geom_histogram(aes(fill = forcats::fct_rev(factor(multiple.founders_))), binwidth = 100)+
   scale_fill_manual(values = mycols_founder, labels = labs)+
   scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
+  scale_x_continuous(limits = c(0,9500), expand = c(0,0)) +
   theme_classic()+
   xlab('Alignment Length')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Frequency')+
+  ylab('Frequency of Individuals')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity") 
 
 
 ###################################################################################################
 # Combine basic covariate plots into figure (with labels and axis)
-fig2_top <- cowplot::plot_grid(fig2_a + theme(legend.position= c(0.85,0.76)),
-                               fig2_b + theme(legend.position= c(0.85,0.90)),
+fig2_top <- cowplot::plot_grid(fig2_a + theme(legend.position= c(0.85,0.835)),
+                               fig2_b + theme(legend.position= c(0.85,0.95)),
                                nrow = 1,
                                align = "hv",
                                axis = "bt" ,
                                labels = "AUTO")
 
 fig2_bottom <- cowplot::plot_grid(fig2_c + theme(legend.position="none"),
-                                  fig2_d + theme(legend.position="none"), 
-                                  fig2_e + theme(legend.position="none"),
-                                  fig2_f + theme(legend.position="none"),
+                                  fig2_d + theme(legend.position="none", axis.title.x = element_text(margin = margin(t = 13))), 
+                                  fig2_e + theme(legend.position="none", axis.title.x = element_text(margin = margin(t = 20))),
+                                  fig2_f + theme(legend.position="none", axis.title.x = element_text(margin = margin(t = 12))),
                                   fig2_g + theme(legend.position="none"),
-                                  fig2_h+ theme(legend.position="none"),
+                                  fig2_h + theme(legend.position="none", axis.title.x = element_text(margin = margin(t = 6))),
                                   ncol = 3, 
                                   nrow = 2,
                                   align = "hv", 
