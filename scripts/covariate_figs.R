@@ -27,7 +27,9 @@ stacked_categories <- function(x, catnames){
   
   freq <- split_df %>%
     group_by(split_df[,1] , split_df[,2]) %>%
-    summarise(frequency = n())
+    summarise(frequency = n()) 
+  
+  
   
   colnames(freq) <- catnames
   
@@ -100,41 +102,41 @@ exposures_df$sub.exposure <- factor(exposures_df$sub.exposure, levels = c('MTF',
                                                                           'PreP', 'IntraP', 'PostP', 'notiming',
                                                                           'PWID'))
 
-fig2_a <- ggplot(exposures_df, aes(x = reported.exposure , y = frequency))+
-  geom_bar(stat = 'identity' , aes(fill = sub.exposure), position = 'stack')+
+fig2_a <- ggplot(exposures_df, aes(x = reported.exposure, y = frequency))+
+  geom_bar(stat = 'identity' , aes(fill = sub.exposure, position = 'stack'))+
   scale_fill_manual(values= mycols_method ,labels = c('HSX: MTF', 'HSX: FTM', 'HSX: undisclosed',
                                                       'MSM',
                                                       'MTC: Pre-Partum', 'MTC: Intrapartum', 'MTC: Post-Partum', 'MTC: undisclosed',
                                                       'PWID'))+
   scale_y_continuous(limits = c(0,1000), expand = c(0,0)) +
-  theme_classic()+
-  xlab('Risk Group')+
+  theme_classic() +
+  xlab('Risk Group') +
   theme(axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Frequency of Individuals') +
+  ylab('Number of Participants') +
   labs(fill = "Reported Exposure", colour = "Reported Exposure")
 
 
 ###################################################################################################
 # Fig 2B: Route of transmission (riskgroup)
-fig2_b <- ggplot(df, aes(riskgroup_))+
-  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), colour = forcats::fct_rev(factor(multiple.founders_))))+
+fig2_b <- ggplot(df, aes(x = riskgroup_))+
+  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), y = (..count..)/sum(..count..), colour = forcats::fct_rev(factor(multiple.founders_))))+
   scale_color_manual(values = mycols_founder, labels = labs)+
   scale_fill_manual(values = mycols_founder, labels = labs)+
-  scale_y_continuous(limits = c(0,1000), expand = c(0,0)) +
+  scale_y_continuous(limits = c(0,1), expand = c(0,0)) +
   scale_x_discrete(labels = LabelX(df$riskgroup_)) +
   theme_classic()+
   xlab('Risk Group')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Frequency of Individuals')+
+  ylab('Proportion of Participants')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity") 
 
 
 ###################################################################################################
 # Fig 2C: Method of quantification
-fig2_c <- ggplot(df, aes(grouped.method_))+
-  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_))))+
+fig2_c <- ggplot(df, aes(x = grouped.method_))+
+  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), y = (..count..)/sum(..count..)))+
   scale_fill_manual(values = mycols_founder, labels = labs)+
-  scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
+  scale_y_continuous(limits = c(0,1), expand = c(0,0)) +
   scale_x_discrete(labels = c('distance' = 'Distance',
                               'haplotype' = 'Haplotype',
                               'model' = 'Model', 
@@ -145,34 +147,34 @@ fig2_c <- ggplot(df, aes(grouped.method_))+
   theme_classic()+
   xlab('Method of Quantification')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Frequency of Individuals')+
+  ylab('Proportion of Participants')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
 
 ###################################################################################################
 # Fig 2D: Subtype
-fig2_d <- ggplot(df, aes(grouped.subtype_))+
-  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_))))+
+fig2_d <- ggplot(df, aes(x = grouped.subtype_))+
+  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), y = (..count..)/sum(..count..)))+
   scale_fill_manual(values = mycols_founder, labels = labs)+
-  scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
+  scale_y_continuous(limits = c(0,1), expand = c(0,0)) +
   theme_classic()+
   xlab('Subtype')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Frequency of Individuals')+
+  ylab('Proportion of Participants')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
 
 ###################################################################################################
 # Fig 2E: Sampling Delay (inferred from feibig/seropositivty/timing of sampling relative to infection)
-fig2_e <- ggplot(df, aes(sampling.delay_))+ 
-  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_))))+
+fig2_e <- ggplot(df, aes(x = sampling.delay_))+ 
+  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), y = (..count..)/sum(..count..)))+
   scale_fill_manual(values = mycols_founder, labels = labs)+
-  scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
+  scale_y_continuous(limits = c(0,1), expand = c(0,0)) +
   scale_x_discrete(labels = c('<21' = '<21 Days', '>21' = '>21 Days', 'Unknown' = 'Unknown') %>% str_to_title()) +
   theme_classic()+
   xlab('Sampling Delay')+
   theme(axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Frequency of Individuals')+
+  ylab('Proportion of Participants')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
 
@@ -181,14 +183,14 @@ fig2_e <- ggplot(df, aes(sampling.delay_))+
 numseqs_df <- GetNumSeqs(df)
 
 fig2_f <- ggplot(numseqs_df , aes(sequencing.number_))+
-  geom_histogram((aes(fill = forcats::fct_rev(factor(multiple.founders_)))), binwidth = 3)+
+  geom_histogram(aes(fill = forcats::fct_rev(factor(multiple.founders_)), y = (..count..)/sum(..count..)), binwidth = 3)+
   scale_fill_manual(values = mycols_founder, labels = labs)+
-  scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
+  scale_y_continuous(limits = c(0,1), expand = c(0,0)) +
   scale_x_continuous(limits = c(0,90), expand = c(0,0))+
   theme_classic()+
   xlab('Number of Consensus Sequences')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Frequency of Individuals')+
+  ylab('Proportion of Participants')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
 
@@ -196,10 +198,10 @@ fig2_f <- ggplot(numseqs_df , aes(sequencing.number_))+
 ###################################################################################################
 # Fig 2G: Genomic region analysed
 
-fig2_g <- ggplot(df, aes(sequencing.gene_))+
-  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_))))+
+fig2_g <- ggplot(df, aes(x = sequencing.gene_))+
+  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), y = (..count..)/sum(..count..)))+
   scale_fill_manual(values = mycols_founder, labels = labs)+
-  scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
+  scale_y_continuous(limits = c(0,1), expand = c(0,0)) +
   scale_x_discrete(labels = c('env' = 'Env',
                               'gag'= 'Gag',
                               'pol'='Pol',
@@ -207,7 +209,7 @@ fig2_g <- ggplot(df, aes(sequencing.gene_))+
   theme_classic()+
   xlab('Genomic Region Analysed')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Frequency of Individuals')+
+  ylab('Proportion of Participants')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity")
 
 
@@ -215,14 +217,14 @@ fig2_g <- ggplot(df, aes(sequencing.gene_))+
 # Fig 2H =  Alignment Length
 
 fig2_h <- ggplot(df, aes(alignment.length_))+
-  geom_histogram(aes(fill = forcats::fct_rev(factor(multiple.founders_))), binwidth = 100)+
+  geom_histogram(aes(fill = forcats::fct_rev(factor(multiple.founders_)), y = (..count..)/sum(..count..)), binwidth = 100)+
   scale_fill_manual(values = mycols_founder, labels = labs)+
-  scale_y_continuous(limits = c(0,1350), expand = c(0,0)) +
+  scale_y_continuous(limits = c(0,1), expand = c(0,0)) +
   scale_x_continuous(limits = c(0,9500), expand = c(0,0)) +
   theme_classic()+
   xlab('Alignment Length')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Frequency of Individuals') +
+  ylab('Proportion of Participants') +
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity") 
 
 
