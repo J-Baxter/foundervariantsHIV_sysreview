@@ -386,7 +386,7 @@ dev.off()
 
 ###################################################################################################
 ###################################################################################################
-# Delay vs Method
+# Delay vs Method ~ deprecated
 delay_method <- df %>%
   group_by(sampling.delay_, grouped.method_) %>%
   summarise(subjects = n(), multiplefounders = sum(multiple.founders_)) %>%
