@@ -222,7 +222,7 @@ fig2_h <- ggplot(df, aes(alignment.length_))+
   theme_classic()+
   xlab('Alignment Length')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
-  ylab('Frequency of Individuals')+
+  ylab('Frequency of Individuals') +
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity") 
 
 
@@ -283,8 +283,9 @@ grid.arrange(p1.exposure + theme(legend.position= c(0.85,0.87)),
              p1.alignment + theme(legend.position="none"), ncol = 3, layout_matrix = cbind(c(2,2,1), c(3,4,5), c(6,7,8)))
 ###################################################################################################
 ###################################################################################################
-# Geographic and Timewise structere of transmission
+# Panel S4: Geographic and Timewise structere of transmission
 
+# Deprecated #
 region_exp <- df %>%
   group_by(reported.exposure_, grouped.subtype_) %>%
   summarise(subjects = n(), multiplefounders = sum(multiple.founders_)) %>%
@@ -313,8 +314,10 @@ p2.1 <- ggplot(region_exp,aes(x = reported.exposure_,
        color = 'Frequency of Founder Variant Multiplicity', 
        x = 'Reported Exposure', 
        y = 'Virus Subtype')
+###################################################################################################
 
-p2.2 <- ggplot(df, aes(year_))+
+# Year of Publication ~ Frequency of Individuals, stacked by risk group
+figureS4_a <- ggplot(df, aes(year_))+
   geom_histogram(aes(fill = riskgroup_, 
                      colour = riskgroup_), 
                  bins = 8) +
@@ -328,11 +331,12 @@ p2.2 <- ggplot(df, aes(year_))+
   
   labs(fill = 'Risk Group', 
        x = 'Year of Publication', 
-       y = 'Frequency')+
+       y = 'Frequency of Individuals')+
   guides(color = FALSE)+
-  theme(legend.position = 'bottom') 
+  theme(legend.position = 'bottom')
 
-p2.3 <- ggplot(df, aes(year_))+
+# Year of Publication ~ Frequency of Individuals, stacked by method of enumeration
+figureS4_b <- ggplot(df, aes(year_))+
   geom_histogram(aes(fill = grouped.method_, 
                      colour = grouped.method_), 
                  bins = 8) +
@@ -346,20 +350,38 @@ p2.3 <- ggplot(df, aes(year_))+
   
   labs(fill = 'Method', 
        x = 'Year of Publication', 
-       y = 'Frequency')+
+       y = 'Frequency of Individuals')+
   guides(color = FALSE)+
   theme(legend.position = 'bottom') 
 
-grid3 <- cowplot::plot_grid( p2.2,p2.3, ncol = 2, labels = 'AUTO', align = 'hv')
+# Year of Publication ~ Frequency of Individuals, stacked by sequencing technology
+figureS4_c <- ggplot(df, aes(year_))+
+  geom_histogram(aes(fill = sequencing.method_, 
+                     colour = sequencing.method_), 
+                 bins = 8) +
+  scale_color_manual(values = mycols_method[c(2,4,6,8,10,12,14)]) +
+  scale_fill_manual(values = mycols_method[c(2,4,6,8,10,12,14)]) +
+  scale_y_continuous(limits = c(0,500), 
+                     expand = c(0,0)) +
+  scale_x_continuous(expand = c(0,0)) +
+  theme_classic(base_size = 10)+
+  theme(axis.text.x=element_text(angle=45, hjust=1))+
+  
+  labs(fill = 'Sequencing Technology', 
+       x = 'Year of Publication', 
+       y = 'Frequency of Individuals')+
+  guides(color = FALSE)+
+  theme(legend.position = 'bottom') 
 
-jpeg("./results/subgroup_transmission.jpeg" ,width = 6000, height = 4000, res = 380 ,units = "px", pointsize = 12)
-grid3 
-dev.off()
+figureS4 <- cowplot::plot_grid(figureS4_a, 
+                               figureS4_b + theme(axis.title.y = element_blank()), 
+                               figureS4_c + theme(axis.title.y = element_blank()), 
+                               ncol = 3, labels = 'AUTO', align = 'hv')
 
-#EPS
+# Print to file
 setEPS()
-postscript("./results/figureS3.eps", width = 16, height = 10)
-grid3
+postscript("./results/figureS4.eps", width = 16, height = 8)
+figureS4
 dev.off()
 
 ###################################################################################################
