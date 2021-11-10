@@ -76,8 +76,8 @@ df <- read.csv("./data/meta_analysis_data.csv",
 
 # Set reference levels for meta regression
 # HSX:MTF, haplotype (highlighter), unknown seropositivity, B, whole genome
-baseline.covar <- c("reported.exposure_", "grouped.method_", "grouped.subtype_","sequencing.gene_", "sampling.delay_",'alignment.bin_')
-baseline.level <- c("HSX:MTF", "haplotype", "B" , "whole.genome" , "<21", 'NFLG')
+baseline.covar <- c("reported.exposure_", "grouped.method_", "grouped.subtype_","sequencing.gene_", "sampling.delay_",'alignment.bin_', 'sequencing.method_')
+baseline.level <- c("HSX:MTF", "haplotype", "B" , "whole.genome" , "<21", 'NFLG', 'sanger_SGA')
 
 df <- SetBaseline(df, baseline.covar, baseline.level)
 
@@ -333,7 +333,7 @@ figureS4_a <- ggplot(df, aes(year_))+
   
   labs(fill = 'Risk Group', 
        x = 'Year of Publication', 
-       y = 'Frequency of Individuals')+
+       y = 'Proportion of Participants')+
   guides(color = FALSE)+
   theme(legend.position = 'bottom')
 
@@ -352,27 +352,44 @@ figureS4_b <- ggplot(df, aes(year_))+
   
   labs(fill = 'Method', 
        x = 'Year of Publication', 
-       y = 'Frequency of Individuals')+
+       y = 'Proportion of Participants')+
   guides(color = FALSE)+
   theme(legend.position = 'bottom') 
 
 # Year of Publication ~ Frequency of Individuals, stacked by sequencing technology
+df$sequencing.method_<- factor(df$sequencing.method_, levels = c('sanger_SGA', 
+                                                                 '2G:illumina_miseq', 
+                                                                 '2G:iontorrent',
+                                                                 '2G:roche_454',
+                                                                 '3G:PacBio_hifi',
+                                                                 'sanger', 
+                                                                 'sanger_precSGA',
+                                                                 'unknown'))
+
+
 figureS4_c <- ggplot(df, aes(year_))+
   geom_histogram(aes(fill = sequencing.method_, 
                      colour = sequencing.method_), 
                  bins = 8) +
-  scale_color_manual(values = mycols_method[c(2,4,6,8,10,12,14)]) +
-  scale_fill_manual(values = mycols_method[c(2,4,6,8,10,12,14)]) +
+  scale_color_manual(values = mycols_method[c(2,4,6,8,10,12,1,11)]) +
+  scale_fill_manual(values = mycols_method[c(2,4,6,8,10,12,1,11)],
+                    labels = c('Sanger with SGA', 
+                               'Illumina MiSeq', 
+                               'ONT IonTorrent',
+                               'Roche 454',
+                               'PacBio HiFi',
+                               'Sanger Only', 
+                               'Sanger with SGA Precursor',
+                               'Unknown')) +
   scale_y_continuous(limits = c(0,500), 
                      expand = c(0,0)) +
   scale_x_continuous(expand = c(0,0)) +
   theme_classic(base_size = 10)+
   theme(axis.text.x=element_text(angle=45, hjust=1))+
-  
   labs(fill = 'Sequencing Technology', 
        x = 'Year of Publication', 
-       y = 'Frequency of Individuals')+
-  guides(color = FALSE)+
+       y = 'Proportion of Participants')+
+  guides(color = FALSE, fill = guide_legend(nrow = 3, byrow= TRUE))+
   theme(legend.position = 'bottom') 
 
 figureS4 <- cowplot::plot_grid(figureS4_a, 
@@ -382,7 +399,7 @@ figureS4 <- cowplot::plot_grid(figureS4_a,
 
 # Print to file
 setEPS()
-postscript("./results/figureS4.eps", width = 16, height = 8)
+postscript("./results/figureS4.eps", width = 18, height = 8)
 figureS4
 dev.off()
 
