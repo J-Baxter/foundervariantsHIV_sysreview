@@ -434,6 +434,34 @@ sa6_onestep.sum
 
 sa6_onestep.est <- CalcEstimates(sa6_onestep)
 
+
+###################################################################################################
+# SA7. Exclusion of participants outwith the IQR of the number of genomes analysed (less than n = 10) 
+# By request of reviewers
+df.knowngenomes <- df[which(df$sequencing.number_ != 'unknown' | !is.na(df$sequencing.number_)),] 
+df.knowngenomes$sequencing.number_ <- as.integer(df.knowngenomes$sequencing.number_)
+
+df.noextremegenomes <- df.knowngenomes [which(df.knowngenomes$sequencing.number_ >= quantile(df.knowngenomes$sequencing.number_,0.25) &
+                                         df.knowngenomes$sequencing.number_ <= quantile(df.knowngenomes$sequencing.number_,0.75)),] 
+
+summary(df.noextremegenomes$sequencing.number_)
+
+df_props.noextremegenomes <- CalcProps(df.noextremegenomes)
+
+twostep_binorm.noextremegenomes <- CalcTwostepBiNorm(df_props.noextremegenomes)[[2]]
+twostep_binorm.noextremegenomes.out <- list(CalcEstimates(twostep_binorm.noextremegenomes, analysis = "no_extreme"),
+                                         CalcHet(twostep_binorm.noextremegenomes)) %>%
+  cbind.data.frame(.)
+
+onestep_bi_rand.noextremegenomes <- CalcOnestepBiRand(df_props.noextremegenomes)
+onestep_bi_rand.noextremegenomes.out <- list(CalcEstimates(onestep_bi_rand.noextremegenomes, analysis = "no_extreme"),
+                                          CalcHet(onestep_bi_rand.noextremegenomes)) %>%
+  cbind.data.frame(.)
+
+
+SA7_results <-  rbind.data.frame(twostep_binorm.noextremegenomes.out,
+                                 onestep_bi_rand.noextremegenomes.out)
+
 ###################################################################################################
 ###################################################################################################
 # Outputs
@@ -444,9 +472,10 @@ originals <- cbind.data.frame(estimates, heterogeneity)
 pooled_est <- rbind.data.frame(originals,
                                SA2_results,
                                SA3_results,
-                               SA4_results) %>% .[,-c(6,11)]
+                               SA4_results,
+                               SA7_results ) %>% .[,-c(6,11)]
 
-write.csv(pooled_est , file = './results/pooling_estsa2sa3sa4.csv', row.names = F)
+write.csv(pooled_est , file = './results/pooling_estsa2sa3sa4sa7.csv', row.names = F)
 
 
 # CSV study influence
