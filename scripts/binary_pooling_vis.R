@@ -66,32 +66,10 @@ og_models <- cbind("model" = pooled_models[1:2,1], pooled_models[1:2,3:8] %>% ro
 
 ###################################################################################################
 ###################################################################################################
-# Panel: Table of estimate and tau for pooling
-
-og_models_formatted <- cbind.data.frame("Estimate" = paste0(og_models$estimate, ' ' ,
-                                                               '[' , og_models$estimate.lb ,' - ',
-                                                               og_models$estimate.ub, ']'),
-                                        og_models[,5:7],
-                                        row.names = rev(models) ) 
-og_models_formatted[is.na(og_models_formatted )] <- "-"
-
-# Not hapy with formatting
-tbl <- kbl(og_models_formatted , 
-          booktabs = T,
-           col.names = c('Estimate', '$$\\hat{\\tau}^2$$', "$$\\text{Q}$$", "$$\\text{I}^2$$"),
-           escape = FALSE,
-           align = 'c', 
-           ) %>%
-  add_header_above(c(" " = 1, "Probability of Multiple Founders" = 1, "Heterogeneity" = 3), bold = T, line = T) %>%
- kable_classic(full_width = F, html_font = 'arial')
-
-
-###################################################################################################
-###################################################################################################
 # Panel: Sensitivity analyses (exclusion criteria and resampling)
 
 # Exclusion critera dot and whisker plot
-senseplot <- ggplot(pooled_models,
+figureS5_a <- ggplot(pooled_models,
                     aes(x= forcats::fct_rev(model), y = estimate, color = analysis)) +
   
   geom_point( shape = 4, 
@@ -123,15 +101,15 @@ senseplot <- ggplot(pooled_models,
     sga_only = 'Only SGA sequences')) + 
   
   theme(legend.position = c(0.8,0.86),
-        axis.text = element_text(size = 9.5,  family = "sans"),
-        legend.text = element_text(size = 9.5,  family = "sans"),
-        axis.title = element_text(size = 11,  family = "sans"),
+        axis.text = element_text(size = 9.5),
+        legend.text = element_text(size = 9.5),
+        axis.title = element_text(size = 11),
         legend.background = element_blank()#,
         #plot.margin = unit(c(2,4,2,1), "lines")
   )
 
 
-boot_plt <- ggplot(resampled_models) + 
+figureS5_b  <- ggplot(resampled_models) + 
   geom_histogram(aes(x = estimate,
                  color=analysis, 
                  fill=analysis),
@@ -166,27 +144,24 @@ boot_plt <- ggplot(resampled_models) +
     onestep_bi_rand = "One-Step GLMM",
     twostep_binorm = "Two-Step Binomial Normal"))+
   
-  theme(axis.text = element_text(size = 9.5,  family = "sans"),
-        legend.text = element_text(size = 9.5,  family = "sans"),
-        axis.title = element_text(size = 11,  family = "sans"),
+  theme(axis.text = element_text(size = 9.5),
+        legend.text = element_text(size = 9.5),
+        axis.title = element_text(size = 11),
         legend.position = c(0.82,0.9),
         legend.background = element_blank())
 
 
+figureS5 <- cowplot::plot_grid(figureS5_a, 
+                               figureS5_b , 
+                               ncol = 2,  rel_widths  = c(1,1) ,labels = "AUTO", align = 'h', axis = 'b', greedy = F)
 
-jpeg("./results/pooling_sa.jpeg" ,width = 5000, height = 2500, res = 380 ,units = "px", pointsize = 12)
-cowplot::plot_grid(senseplot, 
-                   boot_plt , ncol = 2,  rel_widths  = c(1,1) ,labels = "AUTO", align = 'h', axis = 'b', greedy = F)
+
+# Save to file (ggsave rather than setEPS() to presever transparencies)
+ggsave("./results/figureS5.eps", device=cairo_ps,width = 16, height = 10, units= 'in')
+figureS5
 dev.off()
 
-ggsave("./results/figures4.pdf", width = 16, height = 10, units= 'in')
-cowplot::plot_grid(senseplot, 
-                   boot_plt , ncol = 2,  rel_widths  = c(1,1) ,labels = "AUTO", align = 'h', axis = 'b', greedy = F)
-dev.off()
 
-jpeg("./results/boot_sensitivity.jpeg", width = 10, height = 16, units= 'in')
-cowplot::plot_grid(boot_plt ,sa5_plt,  ncol = 2,  rel_widths  = c(1,1) ,labels = "AUTO", align = 'h', axis = 'b', greedy = F)
-dev.off()
 ###################################################################################################
 # Panel: Sensitivity analyses (Faceted Influence Plots)
 influence_df$trial <- gsub("_" , " ", influence_df$trial)
