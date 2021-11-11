@@ -343,7 +343,13 @@ figureS4_b <- ggplot(df, aes(year_))+
                      colour = grouped.method_), 
                  bins = 8) +
   scale_color_manual(values = mycols_method[c(2,4,6,8,10,12)]) +
-  scale_fill_manual(values = mycols_method[c(2,4,6,8,10,12)]) +
+  scale_fill_manual(values = mycols_method[c(2,4,6,8,10,12)],
+                    labels = c('Haplotype', 
+                               'Distance', 
+                               'Model',
+                               'Molecular',
+                               'Phylogenetic: Recipient Only',
+                               'Phylogenetic: Source & Recipient')) +
   scale_y_continuous(limits = c(0,500), 
                      expand = c(0,0)) +
   scale_x_continuous(expand = c(0,0)) +
