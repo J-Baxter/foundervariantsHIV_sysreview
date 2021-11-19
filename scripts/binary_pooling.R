@@ -436,12 +436,12 @@ sa6_onestep.est <- CalcEstimates(sa6_onestep)
 
 
 ###################################################################################################
-# SA7. Exclusion of participants outwith the IQR of the number of genomes analysed (less than n = 10) 
-# By request of reviewers
+# SA7a. Exclusion of participants outwith the IQR of the number of genomes analysed 
+# Additional sensitivity analysis following reviewers comments
 df.knowngenomes <- df[which(df$sequencing.number_ != 'unknown' | !is.na(df$sequencing.number_)),] 
 df.knowngenomes$sequencing.number_ <- as.integer(df.knowngenomes$sequencing.number_)
 
-df.noextremegenomes <- df.knowngenomes [which(df.knowngenomes$sequencing.number_ >= quantile(df.knowngenomes$sequencing.number_,0.25) &
+df.noextremegenomes <- df.knowngenomes[which(df.knowngenomes$sequencing.number_ >= quantile(df.knowngenomes$sequencing.number_,0.25) &
                                          df.knowngenomes$sequencing.number_ <= quantile(df.knowngenomes$sequencing.number_,0.75)),] 
 
 summary(df.noextremegenomes$sequencing.number_)
@@ -459,9 +459,48 @@ onestep_bi_rand.noextremegenomes.out <- list(CalcEstimates(onestep_bi_rand.noext
   cbind.data.frame(.)
 
 
-SA7_results <-  rbind.data.frame(twostep_binorm.noextremegenomes.out,
+SA7a_results <-  rbind.data.frame(twostep_binorm.noextremegenomes.out,
                                  onestep_bi_rand.noextremegenomes.out)
 
+# SA7b. Exclusion of participants with less than the 25% quartile of the number of genomes analysed
+df.nosmallgenomes <- df.knowngenomes[which(df.knowngenomes$sequencing.number_ > quantile(df.knowngenomes$sequencing.number_,0.25)),] 
+
+df_props.nosmallgenomes <- CalcProps(nosmallgenomes)
+
+twostep_binorm.nosmallgenomes <- CalcTwostepBiNorm(df_props.nosmallgenomes)[[2]]
+twostep_binorm.nosmallgenomes.out <- list(CalcEstimates(twostep_binorm.nosmallgenomes, analysis = "no_smallgenomes"),
+                                            CalcHet(twostep_binorm.nosmallgenomes)) %>%
+  cbind.data.frame(.)
+
+onestep_bi_rand.nosmallgenomes <- CalcOnestepBiRand(df_props.nosmallgenomes)
+onestep_bi_rand.nosmallgenomes.out <- list(CalcEstimates(onestep_bi_rand.nosmallgenomes, analysis = "no_smallgenomes"),
+                                             CalcHet(onestep_bi_rand.nosmallgenomes)) %>%
+  cbind.data.frame(.)
+
+
+SA7b_results <-  rbind.data.frame(twostep_binorm.nosmallgenomes.out,
+                                 onestep_bi_rand.nosmallgenomes.out)
+
+# SA7c. Exclusion of participants outwith greater than 75% quartile of the number of genomes analysed
+df.nolargegenomes <- df.knowngenomes[which(df.knowngenomes$sequencing.number_ < quantile(df.knowngenomes$sequencing.number_,0.75)),] 
+
+summary(df.nolargegenomes$sequencing.number_)
+
+df_props.nolargegenomes <- CalcProps(df.nolargegenomes)
+
+twostep_binorm.nolargegenomes <- CalcTwostepBiNorm(df_props.nolargegenomes)[[2]]
+twostep_binorm.nolargegenomes.out <- list(CalcEstimates(twostep_binorm.nolargegenomes, analysis = "no_largegenomes"),
+                                            CalcHet(twostep_binorm.nolargegenomes)) %>%
+  cbind.data.frame(.)
+
+onestep_bi_rand.nolargegenomes <- CalcOnestepBiRand(df_props.nolargegenomes)
+onestep_bi_rand.nolargegenomes.out <- list(CalcEstimates(onestep_bi_rand.nolargegenomes, analysis = "no_largegenomes"),
+                                             CalcHet(onestep_bi_rand.nolargegenomes)) %>%
+  cbind.data.frame(.)
+
+
+SA7c_results <-  rbind.data.frame(twostep_binorm.nolargegenomes.out,
+                                 onestep_bi_rand.nolargegenomes.out)
 ###################################################################################################
 ###################################################################################################
 # Outputs
@@ -473,7 +512,9 @@ pooled_est <- rbind.data.frame(originals,
                                SA2_results,
                                SA3_results,
                                SA4_results,
-                               SA7_results ) %>% .[,-c(6,11)]
+                               SA7a_results,
+                               SA7b_results,
+                               SA7c_results) %>% .[,-c(6,11)]
 
 write.csv(pooled_est , file = './results/pooling_estsa2sa3sa4sa7.csv', row.names = F)
 
