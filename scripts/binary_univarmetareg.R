@@ -15,22 +15,9 @@
 
 ###################################################################################################
 ###################################################################################################
+# RUN FROM HERE #
 # Dependencies
-library(tidyr)
-library(lme4)
-library(dplyr)
-library(mltools)
-library(ggplot2)
-library(influence.ME)
-library(kableExtra)
-library(parallel)
-library(performance)
-library(reshape2)
-library(cowplot)
-library(stringr)
-library(data.table)
-library(meta)
-library(emmeans)
+source('./scripts/install_packages.R')
 source('./scripts/generalpurpose_funcs.R')
 
 

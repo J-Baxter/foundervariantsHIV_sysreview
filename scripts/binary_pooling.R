@@ -18,18 +18,9 @@
 
 ###################################################################################################
 ###################################################################################################
+# RUN FROM HERE #
 # Dependencies
-library(tidyr)
-library(lme4)
-library(dplyr)
-library(mltools)
-library(data.table)
-library(metafor)
-library(aod)
-library(ggplot2)
-library(influence.ME)
-library(kableExtra)
-library(reshape2)
+source('./scripts/install_packages.R')
 source('./scripts/generalpurpose_funcs.R')
 
 

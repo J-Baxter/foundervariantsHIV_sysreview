@@ -7,23 +7,9 @@
 # One-step binomial GLMM allowing for clustering by study. uncorrelated random effects between studies
 ###################################################################################################
 ###################################################################################################
+# RUN FROM HERE #
 # Dependencies
-library(tidyr)
-library(lme4)
-library(dplyr)
-library(mltools)
-library(ggplot2)
-library(influence.ME)
-library(kableExtra)
-library(parallel)
-library(performance)
-library(reshape2)
-library(cowplot)
-library(stringr)
-library(data.table)
-library(insight)
-library(emmeans)
-library(ggsci)
+source('./scripts/install_packages.R')
 source('./scripts/generalpurpose_funcs.R')
 
 

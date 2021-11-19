@@ -3,14 +3,9 @@
 # Visualisation for meta-regression
 ###################################################################################################
 ###################################################################################################
+# RUN FROM HERE #
 # Dependencies
-library(ggplot2)
-library(ggsci)
-library(kableExtra)
-library(metafor)
-library(dplyr)
-library(magick)
-library(stringr)
+source('./scripts/install_packages.R')
 source('./scripts/generalpurpose_funcs.R')
 
 

@@ -7,15 +7,9 @@
 ###################################################################################################
 ###################################################################################################
 
+# RUN FROM HERE #
 # Dependencies
-library(ggplot2)
-library(ggsci)
-library(dplyr)
-library(forcats)
-library(tidyr)
-library(RColorBrewer)
-library(cowplot)
-library(stringr)
+source('./scripts/install_packages.R')
 source('./scripts/generalpurpose_funcs.R')
 
 
