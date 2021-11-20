@@ -58,10 +58,10 @@ DFInfluenceUV <- function(model,labs){
   }
 
 
-GetInfluence <- function(data, form){
+GetInfluence <- function(data, form, col){
   
-  df_loocv <- LOOCV.dat(df)[[1]]
-  publist_loocv <- LOOCV.dat(df)[[2]]
+  df_loocv <- LOOCV(df, col)[[1]]
+  publist_loocv <- LOOCV(df, col)[[2]]
   
   out <- mclapply(df_loocv, CalcRandMetaReg,
                   formula = form,
@@ -130,17 +130,19 @@ BootMetaRegUV <- function(data, formulas, replicates){
 
 
 # Create list of dataframes for leave-one-out cross validation
-LOOCV.dat <- function(data){
-  pubs <- unique(data$publication)
+LOOCV <- function(data, col){
+  vars <- unique(data[col]) %>% unlist()
   loo <- list()
-  loo.pubs <- list()
+  loo.vars <- list()
   
-  for (i in pubs){
-    loo[[i]] <- data[data$publication != i, ]
-    loo.pubs[[i]] <- pubs[pubs != i]
+  for (var in vars){
+    loo[[var]] <- data[data[col] != var, ]
+    loo.vars[[var]] <- vars[vars != var]
   }
-  out <- list(loo, loo.pubs)
-  stopifnot(length(loo) == length(loo.pubs))
+  
+  out <- list(loo, loo.vars)
+  stopifnot(length(loo) == length(loo.vars))
+  
   return(out)
 }
 
@@ -249,7 +251,7 @@ unipooled_models.marginals <- mapply(GetEMM, model = unipooled_models,
 # SA7. Compare down-sampled to full dataset
 
 # SA1. Influence of Individual Studies (LOOCV)
-unipooled_models.influence <- lapply(unipooled_forms, GetInfluence, data = df) %>% 
+unipooled_models.influence <- lapply(unipooled_forms, GetInfluence, data = df, col = 'publication_') %>% 
   do.call(rbind.data.frame,.)
 
 
