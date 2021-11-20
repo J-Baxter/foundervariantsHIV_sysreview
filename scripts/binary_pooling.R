@@ -182,12 +182,8 @@ DFInfluence <- function(model,labs){
 # Generate resampled datasets and calculate model estimates for psuedo-bootstrap 
 # sensitivity analysis of inclusion/exclusion criteria
 BootParticipant <- function(data, replicates){
-  require(parallel)
-  require(lme4)
-  require(metafor)
-  require(dplyr)
   
-  resampled <- lapply(1:replicates, function(x,y) {y %>% group_by(participant.id_) %>% slice_sample(n=1)},
+  resampled <- lapply(1:replicates, function(x,y) {y %>% group_by(participant.id_) %>% slice_n(n=1)},
                       y = data)
   
   resampled_props <- lapply(resampled , CalcProps)
