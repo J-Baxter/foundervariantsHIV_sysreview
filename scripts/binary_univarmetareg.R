@@ -372,6 +372,60 @@ sa7_emm <- mapply(GetEMM,
 sa7_emm$data <- gsub('\\..*', '\\1'  ,rownames(sa7_emm))
 
 
+# SA8a. Exclusion of participants outwith the IQR of the number of genomes analysed 
+# Additional sensitivity analysis following reviewers comments
+df.knowngenomes <- df[which(df$sequencing.number_ != 'unknown' | !is.na(df$sequencing.number_)),] 
+df.knowngenomes$sequencing.number_ <- as.integer(df.knowngenomes$sequencing.number_)
+
+df.noextremegenomes <- df.knowngenomes[which(df.knowngenomes$sequencing.number_ >= quantile(df.knowngenomes$sequencing.number_,0.25) &
+                                               df.knowngenomes$sequencing.number_ <= quantile(df.knowngenomes$sequencing.number_,0.75)),] 
+
+
+unipooled_models.noextremegenomes<- RunParallel(CalcRandMetaReg, unipooled_forms, df.noextremegenomes, opt = 'bobyqa')
+
+unipooled_models.noextremegenomes.out <- list(CheckModels(unipooled_models.noextremegenomes), 
+                                     RunParallel(GetCoefs, 
+                                                 unipooled_models.noextremegenomes, 
+                                                 paste0(unipooled_effectstruct.converged, '.noextremegenomes')),
+                                     mapply(GetEMM,
+                                            model = unipooled_models.noextremegenomes, 
+                                            byvar = as.list(unipooled_forms),
+                                            label = paste0(unipooled_effectstruct.converged, '.noextremegenomes'), SIMPLIFY = F) %>% 
+                                       do.call(rbind.data.frame,.)) 
+
+# SA8b. Exclusion of participants with less than the 25% quartile of the number of genomes analysed
+df.nosmallgenomes <- df.knowngenomes[which(df.knowngenomes$sequencing.number_ > quantile(df.knowngenomes$sequencing.number_,0.25)),] 
+
+unipooled_models.nosmallgenomes <- RunParallel(CalcRandMetaReg, unipooled_forms, df.nosmallgenomes, opt = 'bobyqa')
+
+unipooled_models.nosmallgenomes.out <- list(CheckModels(unipooled_models.nosmallgenomes), 
+                                              RunParallel(GetCoefs, 
+                                                          unipooled_models.nosmallgenomes, 
+                                                          paste0(unipooled_effectstruct.converged, '.nosmallgenomes')),
+                                              mapply(GetEMM,
+                                                     model = unipooled_models.nosmallgenomes, 
+                                                     byvar = as.list(unipooled_forms),
+                                                     label = paste0(unipooled_effectstruct.converged, '.nogenomes'), SIMPLIFY = F) %>% 
+                                                do.call(rbind.data.frame,.)) 
+
+# SA8c. Exclusion of participants outwith greater than 75% quartile of the number of genomes analysed
+df.nolargegenomes <- df.knowngenomes[which(df.knowngenomes$sequencing.number_ < quantile(df.knowngenomes$sequencing.number_,0.75)),] 
+
+summary(df.nolargegenomes$sequencing.number_)
+
+unipooled_models.nolargegenomes<- RunParallel(CalcRandMetaReg, unipooled_forms, df.nolargegenomes, opt = 'bobyqa')
+
+unipooled_models.nolargegenomes.out <- list(CheckModels(unipooled_models.nolargegenomes), 
+                                              RunParallel(GetCoefs, 
+                                                          unipooled_models.nolargegenomes, 
+                                                          paste0(unipooled_effectstruct.converged, '.nolargegenomes')),
+                                              mapply(GetEMM,
+                                                     model = unipooled_models.nolargegenomes, 
+                                                     byvar = as.list(unipooled_forms),
+                                                     label = paste0(unipooled_effectstruct.converged, '.nolargegenomes'), SIMPLIFY = F) %>% 
+                                                do.call(rbind.data.frame,.)) 
+
+###################################################################################################
 
 ###################################################################################################
 ###################################################################################################
@@ -393,17 +447,20 @@ write.csv(unipooled_models.marginals, './results/unimetareg_emm.csv')
 # LOOCV (beta coefficients only)
 write.csv(unipooled_models.influence, './results/unimetareg_sa1.csv')
 
-#SA2-4 coefficients
-sa2_4.coef <- list(ConcatSA(unipooled_models.nosmallsample.out[[2]]),
+#SA2-4,8 coefficients
+sa234_8.coef <- list(ConcatSA(unipooled_models.nosmallsample.out[[2]]),
                    ConcatSA(unipooled_models.nozeros.out[[2]]),
-                   ConcatSA(unipooled_models.sgaonly.out[[2]])) %>%
+                   ConcatSA(unipooled_models.sgaonly.out[[2]]),
+                   ConcatSA(unipooled_models.noextremegenomes.out[[2]]),
+                   ConcatSA(unipooled_models.nosmallgenomes.out[[2]]),
+                   ConcatSA(unipooled_models.nolargegenomes.out[[2]])) %>%
   ConcatSA() 
 
-sa2_4.coef.names <- c('unimetareg_sa2-4_int.csv', 'unimetareg_sa2-4_fe.csv', 'unimetareg_sa2-4_re.csv')  %>% paste0('./results/', .)
-mapply(write.csv, sa2_4.coef, file = sa2_4.coef.names, row.names = T)  
+sa2348.coef.names <- c('unimetareg_sa2348_int.csv', 'unimetareg_sa2348_fe.csv', 'unimetareg_sa2348_re.csv')  %>% paste0('./results/', .)
+mapply(write.csv, sa2348.coef, file = sa2348.coef.names, row.names = T)  
 
 
-#SA2-4 EMM
+#SA2-4,8 EMM
 sa2_4.emm <- rbind.data.frame(unipooled_models.nosmallsample.out[[3]],
                 unipooled_models.nozeros.out[[3]],
                 unipooled_models.sgaonly.out[[3]]) 
