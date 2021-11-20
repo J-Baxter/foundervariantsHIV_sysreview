@@ -461,7 +461,7 @@ SA7a_results <-  rbind.data.frame(twostep_binorm.noextremegenomes.out,
 # SA7b. Exclusion of participants with less than the 25% quartile of the number of genomes analysed
 df.nosmallgenomes <- df.knowngenomes[which(df.knowngenomes$sequencing.number_ > quantile(df.knowngenomes$sequencing.number_,0.25)),] 
 
-df_props.nosmallgenomes <- CalcProps(nosmallgenomes)
+df_props.nosmallgenomes <- CalcProps(df.nosmallgenomes)
 
 twostep_binorm.nosmallgenomes <- CalcTwostepBiNorm(df_props.nosmallgenomes)[[2]]
 twostep_binorm.nosmallgenomes.out <- list(CalcEstimates(twostep_binorm.nosmallgenomes, analysis = "no_smallgenomes"),
@@ -539,14 +539,6 @@ write.csv(rg_influence_df, file = './results/pooling_sa8.csv',row.names = F)
 # CSV resampling (pseudo bootstrapping)
 write.csv(boot_participant, file = './results/pooling_boot.csv',row.names = F)
 
-# Forest Plot 1-step BN
-jpeg("./results/testplot.jpeg" ,width = 5250, height = 6500, res = 380 ,units = "px", pointsize = 12)
-
-forest.rma(onestep_bi_rand)
-
-
-dev.off()
-
 
 # Funnel Plot
 funnel_data <- cbind.data.frame('se' = sqrt(onestep_bi_rand.nozeros$vi), 'b' =  onestep_bi_rand.nozeros$yi)
@@ -568,15 +560,13 @@ plt_funnel <- ggplot(funnel_data ) +
   theme(panel.background = element_rect(fill = 'gray94' )) +
   scale_color_npg()
 
-jpeg(filename = './results/funnel_nozeros.jpeg', res = 350, width=3000, height=3000 , units = 'px', pointsize = 10)
-
+# Print to file
+# may not work on linux depending on config
+setEPS()
+postscript("./results/funnel_nozeros.eps", width = 12, height = 12)
 plt_funnel 
-
 dev.off()
 
-ggsave("figure_S6.pdf", width = 10, height = 10, units= 'in')
-plt_funnel
-dev.off()
 ###################################################################################################
 ###################################################################################################
 # END #
