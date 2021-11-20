@@ -190,7 +190,7 @@ BootParticipant <- function(data, replicates){
   
   cl <- detectCores() %>%
     `-` (2) %>%
-    makeCluster()
+    makeCluster() 
   
   clusterEvalQ(cl, c(library(lme4), library(metafor), library(aod), library(dplyr),
                      set.seed(4472),'CalcOnestepBiRand', 'CalcTwostepBiNorm'))
