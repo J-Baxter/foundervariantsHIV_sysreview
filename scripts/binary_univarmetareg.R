@@ -23,35 +23,54 @@ source('./scripts/generalpurpose_funcs.R')
 
 # Extract estimates from LOOCV to create dataframe (input for influence plot)
 DFInfluenceUV <- function(model,labs){
-  
-  nfixed <- fixef(model[[1]]) %>% length()
-  #print(nfixed)
-  #print(which(lapply(model, function(x) fixef(x) %>% length()) %>% unlist() !=nfixed ))
-  names <- paste("Omitting" , labs %>% names(), sep = " ") %>% 
-    as.factor() %>%
-    rep(.,each = nfixed)
-  
-  beta = list()
+ 
   if (class(model[[1]]) =="glmerMod"){
+    nfixed <-  lapply(model, function(x) fixef(x) %>% length()) %>% 
+      unlist() %>%
+      unname()
+    
+    maxfixed <- max(nfixed)
+    paste(maxfixed, 'fixed effects in models') %>% 
+      print()
+    
+    select_vars <- which(nfixed == maxfixed)[1]
+    
+    namesfixed <- model[[select_vars]] %>% 
+      fixef() %>%
+      names()
+    
+    paste(namesfixed, 'is a fixed effect in model') %>% print()
+    
+    names <- paste("Omitting" , labs %>% names(), sep = " ") %>% 
+      as.factor() %>%
+      rep(., each = maxfixed)
+    
+    beta = list()
+    
     for (i in 1:length(model)){
       beta[[i]] <- summary(model[[i]])$coefficients %>% cbind.data.frame()
-      
-      if(nrow(beta[[i]]) != nfixed){
-        #print(beta[[i]])
-        fixed <- names(fixef(model[[1]]))
+
+      if(nrow(beta[[i]]) != maxfixed){
+        #Diagnose
+        paste('Model', i, 'has fewer than', maxfixed, 'effects') %>% print()
+        
+        paste('There are', maxfixed-nrow(beta[[i]]), 'missing fixed effects in model', i, ':') %>% print()
+        missing <- namesfixed[!namesfixed %in% rownames(beta[[i]])]
+        print(missing)
+        
         col <- ncol(beta[[i]])
-        missing <- fixed[which(!fixed %in% rownames(beta[[i]]))]
-        #print(fixed)
-        #print(missing)
-        #print(rownames(beta[[i]]))
         newrow <- cbind.data.frame(rep(NA, col) %>% rbind()) %>% `rownames<-` (missing)
         names(newrow) <- names(beta[[i]])
         beta[[i]] <- rbind.data.frame(beta[[i]], newrow)
-      }
-      }
-    }else{
+
+      }else{
+        beta[[i]] <- beta[[i]]}
+    }
+    }
+  else{
       stop('no valid model detected.')
-      }
+  }
+  
   influence_out <- cbind.data.frame('trial'= names, "estimate" = do.call(rbind.data.frame,beta))
   return(influence_out)
   
@@ -60,14 +79,14 @@ DFInfluenceUV <- function(model,labs){
 
 GetInfluence <- function(data, form, col){
   
-  df_loocv <- LOOCV(df, col)[[1]]
-  publist_loocv <- LOOCV(df, col)[[2]]
+  data_loocv <- LOOCV(data, col)[[1]]
+  pubs_loocv <- LOOCV(data, col)[[2]]
   
-  out <- mclapply(df_loocv, CalcRandMetaReg,
+  out <- mclapply(data_loocv, CalcRandMetaReg,
                   formula = form,
                   mc.cores = 4,
                   mc.set.seed = FALSE) %>%
-    DFInfluenceUV(., labs = publist_loocv)
+    DFInfluenceUV(., labs = pubs_loocv)
   
   out$var <- GetName(form, effects = 'fixed')
   
@@ -250,7 +269,7 @@ unipooled_models.marginals <- mapply(GetEMM, model = unipooled_models,
 # SA6. Inclusion of unknown sampling delay with repeated studies
 # SA7. Compare down-sampled to full dataset
 
-# SA1. Influence of Individual Studies (LOOCV)
+# SA1. Influence of Individual Studies (LOOCV) ##ERRoR##
 unipooled_models.influence <- lapply(unipooled_forms, GetInfluence, data = df, col = 'publication_') %>% 
   do.call(rbind.data.frame,.)
 
