@@ -135,17 +135,19 @@ CalcHet <- function(model , analysis = "original"){
 
 
 # Create list of dataframes for leave-one-out cross validation
-LOOCV.dat <- function(data){
-  pubs <- unique(data$publication)
+LOOCV <- function(data, col){
+  vars <- unique(data[col]) %>% unlist()
   loo <- list()
-  loo.pubs <- list()
+  loo.vars <- list()
   
-  for (i in pubs){
-    loo[[i]] <- data[data$publication != i, ]
-    loo.pubs[[i]] <- pubs[pubs != i]
+  for (var in vars){
+    loo[[var]] <- data[data[col] != var, ]
+    loo.vars[[var]] <- vars[vars != var]
   }
-  out <- list(loo, loo.pubs)
-  stopifnot(length(loo) == length(loo.pubs))
+  
+  out <- list(loo, loo.vars)
+  stopifnot(length(loo) == length(loo.vars))
+  
   return(out)
 }
 
@@ -314,11 +316,14 @@ heterogeneity <- rbind.data.frame(twostep_binorm.het,
 # SA4. Exclusion of all studies that do not use SGA
 # SA5. Resampling of participants for which we have multiple measurments (takes pre-formatted DF)
 # SA6. Reculated estimate using 'gold standard' covariates only: NFLG, haplotype, short delay
+# SA7. Testing with different thresholds of the number of genomes/sequences analysed per patient
+# SA8. Influence of indivdiual risk groups
+
 
 # SA1. Influence of Individual Studies (LOOCV)
-df_loocv <- LOOCV.dat(df)[[1]]
-publist_loocv <- LOOCV.dat(df)[[2]]
-dfp_loocv <- LOOCV.dat(df_props)[[1]]
+df_loocv <- LOOCV(df, 'publication_')[[1]]
+publist_loocv <- LOOCV(df, 'publication_')[[2]]
+dfp_loocv <- lapply(df_loocv, CalcProps)
 
 twostep_binorm.influence <- lapply(dfp_loocv, function(x) CalcTwostepBiNorm(data = x)[[2]]) %>%
   DFInfluence(., labs = publist_loocv) %>% {cbind.data.frame(.,'model' = 'twostep_binorm')}
@@ -492,6 +497,23 @@ onestep_bi_rand.nolargegenomes.out <- list(CalcEstimates(onestep_bi_rand.nolarge
 
 SA7c_results <-  rbind.data.frame(twostep_binorm.nolargegenomes.out,
                                  onestep_bi_rand.nolargegenomes.out)
+
+
+###################################################################################################
+# SA8. Influence of risk groups
+df_loocv_rg <- LOOCV(df, 'riskgroup_')[[1]]
+rglist_loocv <- LOOCV(df, 'riskgroup_')[[2]]
+dfp_loocv_rg <- lapply(df_loocv_rg, CalcProps)
+
+twostep_binorm.influence_rg <- lapply(dfp_loocv_rg, function(x) CalcTwostepBiNorm(data = x)[[2]]) %>%
+  DFInfluence(., labs = rglist_loocv) %>% {cbind.data.frame(.,'model' = 'twostep_binorm')}
+
+onestep_bi_rand.influence_rg <-  lapply(dfp_loocv_rg ,CalcOnestepBiRand) %>%
+  DFInfluence(., labs =rglist_loocv) %>% {cbind.data.frame(.,'model' = 'onestep_bi_rand')}
+
+rg_influence_df <- rbind.data.frame(twostep_binorm.influence_rg,
+                                 onestep_bi_rand.influence_rg)
+
 ###################################################################################################
 ###################################################################################################
 # Outputs
@@ -512,6 +534,7 @@ write.csv(pooled_est , file = './results/pooling_estsa2sa3sa4sa7.csv', row.names
 
 # CSV study influence
 write.csv(influence_df, file = './results/pooling_sa1.csv',row.names = F)
+write.csv(rg_influence_df, file = './results/pooling_sa8.csv',row.names = F)
 
 # CSV resampling (pseudo bootstrapping)
 write.csv(boot_participant, file = './results/pooling_boot.csv',row.names = F)
