@@ -448,7 +448,7 @@ write.csv(unipooled_models.marginals, './results/unimetareg_emm.csv')
 write.csv(unipooled_models.influence, './results/unimetareg_sa1.csv')
 
 #SA2-4,8 coefficients
-sa234_8.coef <- list(ConcatSA(unipooled_models.nosmallsample.out[[2]]),
+sa2348.coef <- list(ConcatSA(unipooled_models.nosmallsample.out[[2]]),
                    ConcatSA(unipooled_models.nozeros.out[[2]]),
                    ConcatSA(unipooled_models.sgaonly.out[[2]]),
                    ConcatSA(unipooled_models.noextremegenomes.out[[2]]),
@@ -461,11 +461,14 @@ mapply(write.csv, sa2348.coef, file = sa2348.coef.names, row.names = T)
 
 
 #SA2-4,8 EMM
-sa2_4.emm <- rbind.data.frame(unipooled_models.nosmallsample.out[[3]],
+sa2348.emm <- rbind.data.frame(unipooled_models.nosmallsample.out[[3]],
                 unipooled_models.nozeros.out[[3]],
-                unipooled_models.sgaonly.out[[3]]) 
+                unipooled_models.sgaonly.out[[3]],
+                unipooled_models.noextremegenomes.out[[3]],
+                unipooled_models.nosmallgenomes.out[[3]],
+                unipooled_models.nolargegenomes.out[[3]]) 
 
-write.csv(sa2_4.emm, './results/unimetareg_sa2-4_emm.csv', row.names = T)
+write.csv(sa2348.emm, './results/unimetareg_sa2348_emm.csv', row.names = T)
 
 #SA5 - coefficients
 sa5.coef <- lapply(unipooled_models.boot_participant, function(x) x[[1]]) %>% do.call(rbind.data.frame,.)
