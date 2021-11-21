@@ -158,7 +158,7 @@ BootMetaRegMV <- function(data, replicates){
   require(lme4)
   require(dplyr)
   
-  resampled <- lapply(1:replicates, function(x,y) {y %>% group_by(participant.id_) %>% slice_sample(n=1)},
+  resampled <- lapply(1:replicates, function(x,y) {y %>% group_by(participant.id_) %>% sample_n(.,1)},
                       y = data)
   
   resampled_props <- lapply(resampled , CalcProps)
