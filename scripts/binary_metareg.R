@@ -111,19 +111,20 @@ ModelComp <- function(modellist){
   return(out)
 }
 
-
 # Create list of dataframes for leave-one-out cross validation
-LOOCV.dat <- function(data){
-  pubs <- unique(data$publication)
+LOOCV <- function(data, col){
+  vars <- unique(data[col]) %>% unlist()
   loo <- list()
-  loo.pubs <- list()
+  loo.vars <- list()
   
-  for (i in pubs){
-    loo[[i]] <- data[data$publication != i, ]
-    loo.pubs[[i]] <- pubs[pubs != i]
+  for (var in vars){
+    loo[[var]] <- data[data[col] != var, ]
+    loo.vars[[var]] <- vars[vars != var]
   }
-  out <- list(loo, loo.pubs)
-  stopifnot(length(loo) == length(loo.pubs))
+  
+  out <- list(loo, loo.vars)
+  stopifnot(length(loo) == length(loo.vars))
+  
   return(out)
 }
 
@@ -415,8 +416,8 @@ dev.off()
 # SA7. Inclusion of unknown sampling delay with repeated studies
 
 # SA1. Influence of Individual Studies (LOOCV)
-df_loocv <- LOOCV.dat(df)[[1]]
-publist_loocv <- LOOCV.dat(df)[[2]]
+df_loocv <- LOOCV(df, 'publication_')[[1]]
+publist_loocv <- LOOCV(df, 'publication_')[[2]]
 
 
 model_selected.influence <- mclapply(df_loocv, CalcRandMetaReg,
