@@ -133,12 +133,12 @@ SetBaseline <- function(data,covar,baseline){
 CalcRandMetaReg <- function(data, formula, opt = NULL){
   
   if(is.character(opt)){
-    cntrl <- glmerControl(optCtrl = list(maxfun = 5000000),
+    cntrl <- glmerControl(optCtrl = list(maxfun = 50000000),
                           check.nobs.vs.nlev = 'ignore',
                           check.nobs.vs.nRE = 'ignore',
                           optimizer = 'bobyqa')
   }else{
-    cntrl <- glmerControl(optCtrl = list(maxfun = 5000000),
+    cntrl <- glmerControl(optCtrl = list(maxfun = 50000000),
                           check.nobs.vs.nlev = 'ignore',
                           check.nobs.vs.nRE = 'ignore')
   }
@@ -236,11 +236,11 @@ CheckModels <- function(modellist){
   require(performance)
   
   if (class(modellist) == 'list'){
-    is.sing <- lapply(modellist, check_singularity) %>% do.call(rbind.data.frame, .)
+    is.sing <- lapply(modellist, check_singularity, tolerance = 1e-05) %>% do.call(rbind.data.frame, .)
     is.con <- lapply(modellist, check_convergence) %>% do.call(rbind.data.frame, .)
     
   }else{
-    is.sing <- check_singularity(modellist) 
+    is.sing <- check_singularity(modellist, tolerance = 1e-05) 
     is.con <- check_convergence(modellist)
   }
   

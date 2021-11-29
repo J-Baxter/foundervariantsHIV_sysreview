@@ -97,10 +97,6 @@ GetInfluence <- function(data, form, col){
 # Generate resampled datasets and calculate model estimates for psuedo-bootstrap 
 # sensitivity analysis of inclusion/exclusion criteria
 BootMetaRegUV <- function(data, formulas, replicates){
-  require(parallel)
-  require(lme4)
-  require(dplyr)
-  
   resampled <- lapply(1:replicates, function(x,y) {y %>% group_by(participant.id_) %>% sample_n(.,1)},
                       y = data)
   
@@ -145,7 +141,6 @@ BootMetaRegUV <- function(data, formulas, replicates){
   
   return(out)
 }
-
 
 
 # Create list of dataframes for leave-one-out cross validation
@@ -333,7 +328,7 @@ unipooled_models.sgaonly.out <- list(CheckModels(unipooled_models.sgaonly),
                                                   label = paste0(unipooled_effectstruct.converged, '.sga_only'), SIMPLIFY = F) %>% 
                                        do.call(rbind.data.frame,.)) 
 
-
+# Requires edit
 # SA5. Resampling of participants for which we have multiple measurments (aim is to generate a distribution of possible answers)
 resampling_df <- read.csv("./data/meta_analysis_data.csv",
                           na.strings = "NA",
@@ -343,7 +338,7 @@ resampling_df <- read.csv("./data/meta_analysis_data.csv",
   SetBaseline(baseline.covar, baseline.level) %>%
   droplevels()
 
-unipooled_models.boot_participant <- BootMetaRegUV(resampling_df, unipooled_forms, 1000) 
+unipooled_models.boot_participant <- BootMetaRegUV(resampling_df, unipooled_forms, 1000) #works for 10 not for 1000?
 
 
 # SA6. Optimisation Algorithm selected by glmerCrtl - not run

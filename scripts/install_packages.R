@@ -7,7 +7,7 @@
 
 required_packages <- c("tidyr", "lme4", "dplyr", "mltools", "data.table", "metafor", "aod", "ggplot2", 
                        "influence.ME", "reshape2", "ggsci", "forcats", "RColorBrewer", "cowplot", 
-                       "stringr", "parallel", "performance",  "emmeans", "insight", "magick")
+                       "stringr", "parallel", "performance",  "emmeans", "insight", "magick", "ggeffects")
 
 
 for (package in required_packages){

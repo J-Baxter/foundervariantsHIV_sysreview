@@ -291,23 +291,23 @@ raneff_selection <- ModelComp(raneff_models) %>%
 # Random effects as previously specified
 # Baseline covariates: HSX:MTF, phylogenetic, unknown seropositivity, B, env
 
-fixeff_forms<- c(f01 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + (1 | publication_) + (1 | cohort_)",
-                 f02 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sampling.delay_ + (1 | publication_) + (1 | cohort_)",
-                 f03 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + (1 | publication_) + (1 | cohort_)",
-                 f04 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)",
-                 f05 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)",
-                 f06 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + sampling.delay_ + (1 | publication_) + (1 | cohort_)",
-                 f07 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + sampling.delay_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)")
+fixeff_forms<- c(f01 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + (1 | publication_)",
+                 f02 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sampling.delay_ + (1 | publication_)",
+                 f03 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + (1 | publication_)",
+                 f04 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + alignment.bin_ + (1 | publication_)",
+                 f05 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + alignment.bin_ + (1 | publication_)",
+                 f06 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + sampling.delay_ + (1 | publication_)",
+                 f07 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + sampling.delay_ + alignment.bin_ + (1 | publication_)")
 
 fixeff_effectstruct <- GetName(fixeff_forms, effects = 'fixed')
-fixeff_models <- RunParallel(CalcRandMetaReg, fixeff_forms, df , opt = 'bobyqa') 
+fixeff_models <- RunParallel(CalcRandMetaReg, fixeff_forms, df) 
 
 # Model diagnostics prior to selection of fixed effects structure
 # 1. Identify models that satisfy convergence threshold
 # 2. Check Singularity (all values in variance-covariance matrix >0)
 # 3. Check multicollinearity between fixed effects (Variance Inflation Factor, VIF >5 removed)
 
-fixeff_check <- CheckModels(fixeff_models) %>% 
+fixeff_check <-  CheckModels(fixeff_models) %>% 
   `row.names<-`(fixeff_effectstruct)
 
 fixeff_multico <- CheckCollinearity(fixeff_models)
@@ -325,12 +325,12 @@ fixeff_forms.viable <- fixeff_forms[which(fixeff_check$is.converged &
 # STAGE 4: Evaluating the inclusion on interactions
 # NB A*B = A + B + A:B
 
-interact_forms <- c(i1 = "multiple.founders_ ~ reported.exposure_ + grouped.method_*sequencing.gene_  + sampling.delay_ + (1 | publication_) + (1 | cohort_)",
-                    i2 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_*alignment.bin_ + (1 | publication_) + (1 | cohort_)",
-                    i3 = "multiple.founders_ ~ reported.exposure_ + grouped.method_*sequencing.gene_ + sampling.delay_ + alignment.bin_ + (1 | publication_) + (1 | cohort_)",
-                    i4 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sampling.delay_ + sequencing.gene_*alignment.bin_ + (1 | publication_) + (1 | cohort_)")
+interact_forms <- c(i1 = "multiple.founders_ ~ reported.exposure_ + grouped.method_*sequencing.gene_  + sampling.delay_ + (1 | publication_)",
+                    i2 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_*alignment.bin_ + (1 | publication_)",
+                    i3 = "multiple.founders_ ~ reported.exposure_ + grouped.method_*sequencing.gene_ + sampling.delay_ + alignment.bin_ + (1 | publication_)",
+                    i4 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sampling.delay_ + sequencing.gene_*alignment.bin_ + (1 | publication_)")
 
-interact_models <- RunParallel(CalcRandMetaReg, interact_forms, df , opt = 'bobyqa') 
+interact_models <- RunParallel(CalcRandMetaReg, interact_forms, df) 
 interact_effectstruct <- GetName(interact_forms, effects = 'fixed')
 
 interact_check <- CheckModels(interact_models)%>% 
@@ -388,6 +388,11 @@ model_selected.predictions <- GetPreds(model = model_selected,
 
 # Binned residuals (ideally >95% within SE, but >90% is satisfactory) (repeat of above)
 model_selected.resid <- binned_residuals(model_selected) %>% PlotBinned()
+
+setEPS()
+postscript("./results/binned_residuals.eps", width = 12, height = 12)
+plt_funnel 
+dev.off()
 
 # Multicollinearity between fixed effects
 model_selected.multico <- check_collinearity(model_selected) %>% plot()
