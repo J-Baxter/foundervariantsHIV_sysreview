@@ -13,13 +13,13 @@ PlotMetaReg <- function(data, var){
   mycols_founder <- c('#002366','#DC143C', '#000000')
   #c("#D6604D", "#4393C3", '#000000')
   data.subset <- data[which(data$covariate %in% var),]
-  data.subset$arrow.start <-  ifelse(exp(data.subset$ci.ub) > 5, exp(data.subset$est), 100)
-  data.subset$arrow.end <-  ifelse(exp(data.subset$ci.ub) > 5, 5, 100)
+  data.subset$arrow.start <-  ifelse(exp(data.subset$ci.ub) > 8, exp(data.subset$est), 100)
+  data.subset$arrow.end <-  ifelse(exp(data.subset$ci.ub) > 8, 8, 100)
   
   
   plt <- ggplot(data.subset) +
     geom_point(aes(x= exp(est), 
-                   y = fct_reorder(level, order ),
+                   y = fct_reorder(level, order),
                    col =  ifelse(exp(est)>1 & exp(ci.lb)>1, "A", ifelse(exp(est)<1 & exp(ci.ub)<1, "B",  'C')),
                    size = tabs),
                    shape = 18) +
@@ -43,7 +43,7 @@ PlotMetaReg <- function(data, var){
       panel.grid.minor.y = element_blank(),
       panel.grid.major.y = element_blank(),
       axis.title.y = element_blank()) +
-    coord_cartesian(xlim = c(0,5))+
+    coord_cartesian(xlim = c(0,8))+
     #facet_grid(ref~., drop = T, scales = 'free', margins = F, space = 'free')++
     geom_segment(aes(x = arrow.start  , xend = arrow.end, y = level, yend = level,
                      col =  ifelse(exp(est)>1 & exp(ci.lb)>1, "A", ifelse(exp(est)<1 & exp(ci.ub)<1, "B",  'C'))),
@@ -117,7 +117,22 @@ tabs <- list(table(df$reported.exposure_) %>% as.integer(),
              table(df$sequencing.gene_) %>% as.integer(),
              table(df$sampling.delay_) %>% as.integer()) %>% unlist() 
 
-fe <- cbind.data.frame(fe, tabs)
+
+fe <- cbind.data.frame(covariate = gsub('_', '', baseline.covar)[-c(3,6)], 
+                           level = baseline.level[-c(3,6)], est = 1000) %>%
+  rbind.fill(.,fe) %>%
+  arrange(covariate, est) %>%
+  cbind.data.frame(., tabs)
+
+index <- fe %>% 
+  count('covariate') %>%
+  pull(var = freq) %>% 
+  sapply(., seq, from = 1, by = 1) %>% 
+  unlist()
+
+fe$order <- index
+
+fe[fe == 1000] <- 0
 ###################################################################################################
 # Plot Fixed Effects and CIs from selected model (output to jpeg)
 plt.list <- lapply(c('reported.exposure','grouped.method', 'sequencing.gene', 'sampling.delay'), PlotMetaReg, data = fe) #selected.fe 
@@ -149,6 +164,7 @@ plt_grid1 <- cowplot::plot_grid(plt.list[[1]] + scale_y_discrete(labels = str_wr
                                                                           "<21" = '<21 Days'), width = 13)),
                                 align = 'hv', axis = 'b' , labels = "AUTO", ncol = 2,rel_widths = c(1,1), label_size = 12, vjust = 1.3)
 
+## Change to EPS out
 jpeg(filename = './results/metareg_ORplot2.jpeg', width = 4500, height = 1500, res = 380 ,units = "px", pointsize = 10)
 
 plt_grid1 
