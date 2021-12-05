@@ -1,0 +1,14 @@
+platform       x86_64-pc-linux-gnu         
+arch           x86_64                      
+os             linux-gnu                   
+system         x86_64, linux-gnu           
+status                                     
+major          4                           
+minor          1.2                         
+year           2021                        
+month          11                          
+day            01                          
+svn rev        81115                       
+language       R                           
+version.string R version 4.1.2 (2021-11-01)
+nickname       Bird Hippie   

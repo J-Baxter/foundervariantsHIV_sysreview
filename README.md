@@ -8,7 +8,7 @@ All the required data to run the code is available in the data.zip file. It is n
 ## Scripts
 All scripts marked binary refer to the calculation of the proportion of infections initiated by multiple variants (ie single vs multiple founders), rather than the number of variants that initiated infection. 
 
-At the start of each script 'install_packages.R.' will run. This will ensure that the required packages are installed and loaded to run the analysis. Each script will be able to run, with outputs posted to a 'results' directory and figures to a 'figures' directory. NB: if re-running the analysis, files will be overwritten unless moved to another directory/results directory is renamed eg; ./results-deprecated/.  
+At the start of each script renv:restore() will run to ensure the correct packages and dependencies are installed and loaded to run the analysis. Details of the original platform used for the analysis is available in platform.txt. Each script will be able to run, with outputs posted to a 'results' directory and figures to a 'figures' directory. NB: if re-running the analysis, files will be overwritten unless moved to another directory/results directory is renamed eg; ./results-deprecated/.  
 
 binary_pooling.R, binary_univarmetareg.R and binary_metareg.R encode the analyses for pooling, univariable meta-analysis and multivariable meta-analysis respectively. Each script contains the respective sensitivity analyses. **Some of these sensitivity analyses require hours to run as we are resampling and recalculating the models a thousand times**
 
