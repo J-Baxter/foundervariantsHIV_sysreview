@@ -22,7 +22,7 @@
 ###################################################################################################
 # RUN FROM HERE #
 # Dependencies
-source('./scripts/install_packages.R')
+renv::init()
 source('./scripts/generalpurpose_funcs.R')
 
 

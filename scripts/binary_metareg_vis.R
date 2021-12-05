@@ -5,7 +5,7 @@
 ###################################################################################################
 # RUN FROM HERE #
 # Dependencies
-source('./scripts/install_packages.R')
+renv::init()
 source('./scripts/generalpurpose_funcs.R')
 
 
@@ -174,6 +174,7 @@ dev.off()
 ggsave("./results/metareg_ORplots.pdf", width = 10, height = 10, units= 'in')
 plt_grid1 
 dev.off()
+
 ###################################################################################################
 # Estimates of frequency, stratified by route of transmission
 level_order <- c("PWID",
@@ -185,6 +186,8 @@ level_order <- c("PWID",
                  'HSX:nodirection',
                  'HSX:FTM',
                  'HSX:MTF')
+
+
 
 pred$covariate_level <- factor(pred$covariate_level, levels = level_order) 
 pred$grp <- c('HSX','HSX','HSX','MSM', 'MTC', 'MTC', 'MTC', 'MTC', 'PWID') 
@@ -200,7 +203,7 @@ plt2 <- ggplot() +
                      xmax= conf.high), data = pred)+
   scale_x_continuous(
     expand = c(0,0), 
-    name = "Probability of Multiple Founders",
+    name = "Probability of Multiple Founders"
     #labels = scales::percent,
     #sec.axis = dup_axis(breaks = 0)
   )+

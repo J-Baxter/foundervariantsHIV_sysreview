@@ -20,7 +20,7 @@
 ###################################################################################################
 # RUN FROM HERE #
 # Dependencies
-source('./scripts/install_packages.R')
+renv::init()
 source('./scripts/generalpurpose_funcs.R')
 
 
@@ -251,7 +251,9 @@ df <- read.csv("./data/meta_analysis_data.csv",
   formatDF(., filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   droplevels()
-df_props <- CalcProps(df)  
+
+df_props <- CalcProps(df)
+
 publist <- df %>%
   pull(.,var=publication_) %>%
   unique()
