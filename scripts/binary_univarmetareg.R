@@ -17,7 +17,7 @@
 ###################################################################################################
 # RUN FROM HERE #
 # Dependencies
-renv::init()
+renv::restore()
 source('./scripts/generalpurpose_funcs.R')
 
 
