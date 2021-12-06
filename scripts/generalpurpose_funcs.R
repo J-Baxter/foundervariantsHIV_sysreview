@@ -35,8 +35,6 @@ Retrieve <- function(zipfile){
 # noreps removes repeated measurements (reason for false would be to conduct sensitivity analyses)
 # filter removes factors containing less than 5 individuals from specified df
 formatDF <-  function(df, noreps = TRUE, filter = NULL){
-  require(tidyr)
-  require(reshape2)
   
   #create dummy variables in founder multiplicity col
   if (class(df$multiple.founders)=="factor"){
@@ -68,7 +66,7 @@ formatDF <-  function(df, noreps = TRUE, filter = NULL){
     
     
     df_splittrans <- colsplit(looped_df$reported.exposure, ":" , c("riskgroup" , "direction")) %>%
-      type.convert() %>%
+      type.convert(.,as.is = FALSE) %>%
       cbind.data.frame(.,looped_df)
     #df_splittrans <- df_splittrans[!(df_splittrans$reported.exposure %in% "unknown.exposure"), ]
     
