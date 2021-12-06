@@ -35,7 +35,7 @@ Retrieve <- function(zipfile){
 # noreps removes repeated measurements (reason for false would be to conduct sensitivity analyses)
 # filter removes factors containing less than 5 individuals from specified df
 formatDF <-  function(df, noreps = TRUE, filter = NULL){
-  
+  require(reshape2)
   #create dummy variables in founder multiplicity col
   if (class(df$multiple.founders)=="factor"){
     df$multiple.founders = 1 - (as.numeric(df$multiple.founders)-1)

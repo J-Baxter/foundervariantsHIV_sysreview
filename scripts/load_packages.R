@@ -8,12 +8,13 @@
 ###################################################################################################
 ###################################################################################################
 require(renv)
+require(tidyverse)
 
 status <- renv::status()
 
 if (!status$synchronized){
   cat('Dependencies not synchonised')
-  sync <- readline(prompt="Do you wish to run renv::restore() and synchronise the local project environment? [Y/n]")
+  sync <- readline(prompt="Do you wish to run renv::restore() and synchronise the local project environment? [Y/n] ")
   if(sync == 'Y'){
     renv::restore()
   }else if(sync == 'n'){
