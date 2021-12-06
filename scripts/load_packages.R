@@ -17,7 +17,7 @@ if (!status$synchronized){
   if(sync == 'Y'){
     renv::restore()
   }else if(sync == 'n'){
-    cat('Proceeding to load required packages...')
+    cat('Proceeding to load required packages as currently installed ...')
   }else{
     cat('Please enter a valid response. [Y/n]')
   }

@@ -17,7 +17,7 @@
 ###################################################################################################
 # RUN FROM HERE #
 # Dependencies
-source('./load_packages.R')
+source('./scripts/load_packages.R')
 source('./scripts/generalpurpose_funcs.R')
 
 
