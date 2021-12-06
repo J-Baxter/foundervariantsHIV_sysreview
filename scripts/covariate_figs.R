@@ -63,7 +63,7 @@ if (!dir.exists('data')){
 
 df <- read.csv("./data/meta_analysis_data.csv",
                na.strings = "NA",
-               stringsAsFactors = T) %>%
+               stringsAsFactors = TRUE) %>%
   formatDF(.,filter = c('reported.exposure','grouped.subtype','sequencing.gene','sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   droplevels()
@@ -89,6 +89,7 @@ labs <- c('Multiple','Single')
 
 ###################################################################################################
 # Fig 2A: Detailed barplot displaying route of transmission (with direction subcategories)
+require(ggplot2)
 colnames <- c('reported.exposure' , 'sub.exposure' , 'frequency')
 exposures_df <- stacked_categories(df$reported.exposure_, colnames)
 exposures_df$sub.exposure <- factor(exposures_df$sub.exposure, levels = c('MTF', 'FTM', 'nodirection',
@@ -97,7 +98,7 @@ exposures_df$sub.exposure <- factor(exposures_df$sub.exposure, levels = c('MTF',
                                                                           'PWID'))
 
 fig2_a <- ggplot(exposures_df, aes(x = reported.exposure, y = frequency))+
-  geom_bar(stat = 'identity' , aes(fill = sub.exposure, position = 'stack'))+
+  geom_bar(stat = 'identity' , aes(fill = sub.exposure), position = 'stack')+
   scale_fill_manual(values= mycols_method ,labels = c('HSX: MTF', 'HSX: FTM', 'HSX: undisclosed',
                                                       'MSM',
                                                       'MTC: Pre-Partum', 'MTC: Intrapartum', 'MTC: Post-Partum', 'MTC: undisclosed',
@@ -266,9 +267,6 @@ prow <- cowplot::plot_grid(p1.method + theme(legend.position="none"),
 cowplot::plot_grid(prow, legend, ncol = 2, rel_widths  = c(1,0.1))
 
 
-
-
-library(gridExtra)
 grid.arrange(p1.exposure + theme(legend.position= c(0.85,0.87)), 
              p1.6+theme(legend.position= c(0.85,0.7)),
              p1.method + theme(legend.position="none"),
@@ -282,34 +280,34 @@ grid.arrange(p1.exposure + theme(legend.position= c(0.85,0.87)),
 # Panel S4: Geographic and Timewise structere of transmission
 
 # Deprecated #
-region_exp <- df %>%
-  group_by(reported.exposure_, grouped.subtype_) %>%
-  summarise(subjects = n(), multiplefounders = sum(multiple.founders_)) %>%
-  filter(grouped.subtype_ != '') %>%
-  droplevels()
+#region_exp <- df %>%
+  #group_by(reported.exposure_, grouped.subtype_) %>%
+  #summarise(subjects = n(), multiplefounders = sum(multiple.founders_)) %>%
+  #filter(grouped.subtype_ != '') %>%
+  #droplevels()
 
-p2.1 <- ggplot(region_exp,aes(x = reported.exposure_,
-                              y = grouped.subtype_,
-                              size = subjects, 
-                              color = (multiplefounders/subjects))) +
-  geom_point() + 
+#p2.1 <- ggplot(region_exp,aes(x = reported.exposure_,
+                             # y = grouped.subtype_,
+                             # size = subjects, 
+                             # color = (multiplefounders/subjects))) +
+ # geom_point() + 
   
-  theme_minimal(base_size = 10) +
+ # theme_minimal(base_size = 10) +
   
-  scale_color_distiller(palette = 'RdBu') +
+ # scale_color_distiller(palette = 'RdBu') +
   
-  theme(axis.line = element_blank(),
-        legend.position = 'bottom',
-        legend.box = 'vertical') +
+ # theme(axis.line = element_blank(),
+ #       legend.position = 'bottom',
+ #       legend.box = 'vertical') +
   
-  scale_size(range = c(2,15)) + 
+ # scale_size(range = c(2,15)) + 
   
-  theme(axis.text.x=element_text(angle=45, hjust=1))+
+ # theme(axis.text.x=element_text(angle=45, hjust=1))+
   
-  labs(size = 'Number of Patients', 
-       color = 'Frequency of Founder Variant Multiplicity', 
-       x = 'Reported Exposure', 
-       y = 'Virus Subtype')
+ # labs(size = 'Number of Patients', 
+    #   color = 'Frequency of Founder Variant Multiplicity', 
+    #   x = 'Reported Exposure', 
+     #  y = 'Virus Subtype')
 ###################################################################################################
 
 # Year of Publication ~ Frequency of Individuals, stacked by risk group
@@ -328,7 +326,7 @@ figureS4_a <- ggplot(df, aes(year_))+
   labs(fill = 'Risk Group', 
        x = 'Year of Publication', 
        y = 'Proportion of Participants')+
-  guides(color = FALSE)+
+  guides(color = "none")+
   theme(legend.position = 'bottom')
 
 # Year of Publication ~ Frequency of Individuals, stacked by method of enumeration
@@ -353,7 +351,7 @@ figureS4_b <- ggplot(df, aes(year_))+
   labs(fill = 'Method', 
        x = 'Year of Publication', 
        y = 'Proportion of Participants')+
-  guides(color = FALSE)+
+  guides(color = "none")+
   theme(legend.position = 'bottom') 
 
 # Year of Publication ~ Frequency of Individuals, stacked by sequencing technology
@@ -389,7 +387,7 @@ figureS4_c <- ggplot(df, aes(year_))+
   labs(fill = 'Sequencing Technology', 
        x = 'Year of Publication', 
        y = 'Proportion of Participants')+
-  guides(color = FALSE, fill = guide_legend(nrow = 3, byrow= TRUE))+
+  guides(color = "none", fill = guide_legend(nrow = 3, byrow= TRUE))+
   theme(legend.position = 'bottom') 
 
 figureS4 <- cowplot::plot_grid(figureS4_a, 
@@ -406,65 +404,65 @@ dev.off()
 ###################################################################################################
 ###################################################################################################
 # Delay vs Method ~ deprecated
-delay_method <- df %>%
-  group_by(sampling.delay_, grouped.method_) %>%
-  summarise(subjects = n(), multiplefounders = sum(multiple.founders_)) %>%
+#delay_method <- df %>%
+  #group_by(sampling.delay_, grouped.method_) %>%
+  #summarise(subjects = n(), multiplefounders = sum(multiple.founders_)) %>%
+  #droplevels()
+
+
+#p3.1 <- ggplot(delay_method, aes(x = sampling.delay_,
+                                # y = grouped.method_,
+                                # size = subjects, 
+                                # color = (multiplefounders/subjects))) +
+ # geom_point() + 
+  
+  #theme_minimal(base_size = 10,
+  #              base_family = 'sans') +
+  
+  #scale_color_viridis_c() +
+  
+  #theme(axis.line = element_blank(),
+  #      legend.position = 'bottom',
+  #      legend.box = 'vertical') +
+  
+ # scale_size(range = c(1,15)) + 
+  
+ # theme(axis.text.x=element_text(angle=45, hjust=1))+
+  
+  #labs(size = 'Number of Patients', 
+  #     color = 'Frequency of Founder Variant Multiplicity', 
+  #     x = 'Sampling Delay', 
+   #    y = 'Method')
+
+#delay_exp <- df %>%
+ # group_by(sampling.delay_, reported.exposure_) %>%
+ # summarise(subjects = n(), multiplefounders = sum(multiple.founders_)) %>%
   droplevels()
+#
 
-
-p3.1 <- ggplot(delay_method, aes(x = sampling.delay_,
-                                 y = grouped.method_,
-                                 size = subjects, 
-                                 color = (multiplefounders/subjects))) +
-  geom_point() + 
+#p3.2 <- ggplot(delay_exp, aes(x = sampling.delay_,
+ #                             y = reported.exposure_,
+#                              size = subjects, 
+ #                             color = (multiplefounders/subjects))) +
+#  geom_point() + 
   
-  theme_minimal(base_size = 10,
-                base_family = 'sans') +
+ # theme_minimal(base_size = 10,
+#                base_family = 'sans') +
   
-  scale_color_viridis_c() +
+#  scale_color_viridis_c() +
   
-  theme(axis.line = element_blank(),
-        legend.position = 'bottom',
-        legend.box = 'vertical') +
+#  theme(axis.line = element_blank(),
+#        legend.position = 'bottom',
+#        legend.box = 'vertical') +
   
-  scale_size(range = c(1,15)) + 
+#  scale_size(range = c(1,15)) + 
   
-  theme(axis.text.x=element_text(angle=45, hjust=1))+
+#  theme(axis.text.x=element_text(angle=45, hjust=1))+
   
-  labs(size = 'Number of Patients', 
-       color = 'Frequency of Founder Variant Multiplicity', 
-       x = 'Sampling Delay', 
-       y = 'Method')
-
-delay_exp <- df %>%
-  group_by(sampling.delay_, reported.exposure_) %>%
-  summarise(subjects = n(), multiplefounders = sum(multiple.founders_)) %>%
-  droplevels()
-
-
-p3.2 <- ggplot(delay_exp, aes(x = sampling.delay_,
-                              y = reported.exposure_,
-                              size = subjects, 
-                              color = (multiplefounders/subjects))) +
-  geom_point() + 
-  
-  theme_minimal(base_size = 10,
-                base_family = 'sans') +
-  
-  scale_color_viridis_c() +
-  
-  theme(axis.line = element_blank(),
-        legend.position = 'bottom',
-        legend.box = 'vertical') +
-  
-  scale_size(range = c(1,15)) + 
-  
-  theme(axis.text.x=element_text(angle=45, hjust=1))+
-  
-  labs(size = 'Number of Patients', 
-       color = 'Frequency of Founder Variant Multiplicity', 
-       x = 'Sampling Delay', 
-       y = 'Reported Exposure')
+#  labs(size = 'Number of Patients', 
+ #      color = 'Frequency of Founder Variant Multiplicity', 
+ #      x = 'Sampling Delay', 
+ #      y = 'Reported Exposure')
 ###################################################################################################
 ###################################################################################################
 # END #
