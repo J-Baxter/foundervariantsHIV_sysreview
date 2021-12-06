@@ -5,7 +5,7 @@
 ###################################################################################################
 # RUN FROM HERE #
 # Dependencies
-renv::restore()
+source('./load_packages.R')
 source('./scripts/generalpurpose_funcs.R')
 
 
