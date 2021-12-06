@@ -12,7 +12,7 @@ require(renv)
 status <- renv::status()
 
 if (!status$synchronized){
-  warning('dependencies not synchonised')
+  cat('Dependencies not synchonised')
   sync <- readline(prompt="Do you wish to run renv::restore() and synchronise the local project environment? [Y/n]")
   if(sync == 'Y'){
     renv::restore()
