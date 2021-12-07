@@ -183,12 +183,12 @@ BootMetaRegMV <- function(data, replicates){
   
   boot_reg.coef <- lapply(boot_reg, function(mod) summary(mod)$coefficients[1:9,] %>% cbind.data.frame()) %>%
     do.call(rbind.data.frame,.)
-  boot_reg.coef <- lapply(boot_reg, GetPreds, byvar = 'reported.exposure_')%>%
+  boot_reg.pred <- lapply(boot_reg, GetPreds, byvar = 'reported.exposure_')%>%
     do.call(rbind.data.frame,.)
   
   
-  out <- list(coefs = cbind.data.frame(boot_reg.est, rep= rep(1:replicates, each=9)),
-              preds = boot_reg.coef )
+  out <- list(coefs = cbind.data.frame(boot_reg.coef, rep= rep(1:replicates, each=9)),
+              preds = boot_reg.pred )
   
   
   return(out)
@@ -391,7 +391,8 @@ model_selected.resid <- binned_residuals(model_selected) %>% PlotBinned()
 
 setEPS()
 postscript("./results/binned_residuals.eps", width = 12, height = 12)
-plt_funnel 
+Sys.sleep(0.2)
+model_selected.resid
 dev.off()
 
 # Multicollinearity between fixed effects
