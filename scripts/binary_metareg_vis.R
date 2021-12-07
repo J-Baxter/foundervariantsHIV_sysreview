@@ -92,6 +92,8 @@ re <- read.csv('./results/multimetareg_re.csv')
 emm <- read.csv('./results/multimetareg_emm.csv')
 pred <-  read.csv('./results/multimetareg_preds.csv')
 
+intercepts <- cbind.data.frame(fe[c('covariate','level', 'est', 'ci.lb', 'ci.ub', 'p.val')] )
+intercepts[c( 'est', 'ci.lb', 'ci.ub')] <-  apply(intercepts[c( 'est', 'ci.lb', 'ci.ub')], 2, exp)
 
 # Import data
 if (!dir.exists('data')){
@@ -112,21 +114,22 @@ baseline.level <- c("HSX:MTF", "haplotype", "B" , "whole.genome" , "<21", 'NFLG'
 
 df <- SetBaseline(df, baseline.covar, baseline.level)
 
-tabs <- list(table(df$reported.exposure_) %>% as.integer(),
-             table(df$grouped.method_) %>% as.integer(),
-             table(df$sequencing.gene_) %>% as.integer(),
-             table(df$sampling.delay_) %>% as.integer()) %>% unlist() 
+tabs <- list(table(df$grouped.method_)[sort(names(table(df$grouped.method_)))] %>% as.integer(),
+             table(df$reported.exposure_)[sort(names(table(df$reported.exposure_)))] %>% as.integer(),
+             table(df$sampling.delay_)[sort(names(table(df$sampling.delay_)))] %>% as.integer(),
+             table(df$sequencing.gene_)[sort(names(table(df$sequencing.gene_)))] %>% as.integer()) %>% unlist() 
 
-
+fe <- read.csv('./results/multimetareg_fe.csv')
 fe <- cbind.data.frame(covariate = gsub('_', '', baseline.covar)[-c(3,6)], 
                            level = baseline.level[-c(3,6)], est = 1000) %>%
-  rbind.fill(.,fe) %>%
-  arrange(covariate, est) %>%
-  cbind.data.frame(., tabs)
+  plyr::rbind.fill(.,fe) %>%
+  arrange(., covariate,level) %>%
+  cbind.data.frame(., tabs) %>%
+  arrange(., covariate,est)
 
 index <- fe %>% 
-  count('covariate') %>%
-  pull(var = freq) %>% 
+  count(covariate) %>%
+  pull(var = n) %>% 
   sapply(., seq, from = 1, by = 1) %>% 
   unlist()
 
@@ -138,10 +141,10 @@ fe[fe == 1000] <- 0
 plt.list <- lapply(c('reported.exposure','grouped.method', 'sequencing.gene', 'sampling.delay'), PlotMetaReg, data = fe) #selected.fe 
 plt_grid1 <- cowplot::plot_grid(plt.list[[1]] + scale_y_discrete(labels = str_wrap(c('HSX:FTM' = 'HSX: female-to-male',
                                                                             "MTC:PreP" = 'MTC: pre-partum',
-                                                                            "MTC:notiming" = 'MTC: undisclosed',
                                                                             "MTC:PostP" = 'MTC: post-partum',
+                                                                            "MTC:notiming" = 'MTC: undisclosed',
+                                                                            "MTC:IntraP" = 'MTC: intrapartum',
                                                                             'MSM' = 'MSM', 
-                                                                            "MTC:IntraP" = 'MTC: intrapartum', 
                                                                             'HSX:nodirection' = 'HSX: undisclosed',
                                                                             "PWID" = 'PWID', 
                                                                             'HSX:MTF' = 'HSX: male-to-female'
@@ -165,15 +168,11 @@ plt_grid1 <- cowplot::plot_grid(plt.list[[1]] + scale_y_discrete(labels = str_wr
                                 align = 'hv', axis = 'b' , labels = "AUTO", ncol = 2,rel_widths = c(1,1), label_size = 12, vjust = 1.3)
 
 ## Change to EPS out
-jpeg(filename = './results/metareg_ORplot2.jpeg', width = 4500, height = 1500, res = 380 ,units = "px", pointsize = 10)
-
-plt_grid1 
-
-dev.off()
-
-ggsave("./results/metareg_ORplots.pdf", width = 10, height = 10, units= 'in')
+setEPS()
+postscript("./results/metareg_ORplot2.eps", width = 10, height = 10)
 plt_grid1 
 dev.off()
+
 
 ###################################################################################################
 # Estimates of frequency, stratified by route of transmission
@@ -192,7 +191,7 @@ level_order <- c("PWID",
 pred$covariate_level <- factor(pred$covariate_level, levels = level_order) 
 pred$grp <- c('HSX','HSX','HSX','MSM', 'MTC', 'MTC', 'MTC', 'MTC', 'PWID') 
 
-plt2 <- ggplot() +
+figure_3A <- ggplot() +
   geom_point(aes(x= predicted, 
                  y = covariate_level),
              shape = 4, 
@@ -220,18 +219,18 @@ plt2 <- ggplot() +
     legend.position = 'none',
     panel.grid.minor.y = element_blank(),
     panel.grid.major.y = element_blank()) +
-  geom_rect(aes(ymin = Inf,
-                ymax =  6.5,
-                xmin = -Inf, 
-                xmax = Inf),
-            fill = 'grey',
-            alpha = 0.2) +
-  geom_rect(aes(ymin = 5.5,
-                ymax =  1.5,
-                xmin = -Inf, 
-                xmax = Inf),
-            fill = 'grey',
-            alpha = 0.2)+
+  #geom_rect(aes(ymin = Inf,
+               # ymax =  6.5,
+               # xmin = -Inf, 
+               # xmax = Inf),
+           # fill = 'grey',
+           # alpha = 0.2) +
+  #geom_rect(aes(ymin = 5.5,
+              #  ymax =  1.5,
+              #  xmin = -Inf, 
+               # xmax = Inf),
+            #fill = 'grey',
+           # alpha = 0.2)+
   scale_y_discrete(labels = c("PWID" = 'PWID', 
                               "MTC:IntraP" = 'Mother-to-child: intrapartum', 
                               "MTC:notiming" = 'Mother-to-child: undisclosed',
@@ -240,9 +239,10 @@ plt2 <- ggplot() +
                               'MSM' = 'MSM', 
                               'HSX:nodirection' = 'Heterosexual: undisclosed',
                               'HSX:MTF' = 'Heterosexual: male-to-female',
-                              'HSX:FTM' = 'Heterosexual: female-to-male'))
+                              'HSX:FTM' = 'Heterosexual: female-to-male'),
+                   name = element_blank())
   
-plt_grid2 <-  cowplot::plot_grid(
+figure_3B <-  cowplot::plot_grid(
                                  plt.list[[2]]+scale_y_discrete(labels = str_wrap(c(
                                    "model" = 'Model', 
                                    "phylogenetic:R" = 'Phylogenetic: recipient',
@@ -263,27 +263,12 @@ plt_grid2 <-  cowplot::plot_grid(
   
 
 
-plt_grid2 <- cowplot::plot_grid(plt2,  plt_grid2 ,  labels = c('A'), ncol= 2, rel_widths = c(1.25,1))
-
-jpeg(filename = './results/metareg_percentOR.jpeg', width = 4000, height = 4000, res = 380 ,units = "px", pointsize = 12)
-
-plt_grid2
-
-dev.off()
+figure_3 <- cowplot::plot_grid(figure_3A,  figure_3B ,  labels = c('A'), ncol= 2, rel_widths = c(1.25,1))
 
 #EPS
-ggsave("filename.pdf", device=cairo_ps,width = 10, height = 16, units= 'in')
-plt_grid2
-dev.off()
-
-setEPS()
 postscript("./results/figure3.eps", width = 10, height = 16)
-plt_grid2
-dev.off()
 
-jpeg(filename = './results/metareg_predict.jpeg', width = 2000, height = 2000, res = 380 ,units = "px", pointsize = 12)
-
-plt2
+figure_3
 
 dev.off()
 
