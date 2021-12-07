@@ -11,7 +11,7 @@
 # Dependencies
 source('./scripts/load_packages.R')
 source('./scripts/generalpurpose_funcs.R')
-
+require(ggplot2)
 
 #function for stacking categories and calculating summary frequencies
 stacked_categories <- function(x, catnames){
@@ -89,7 +89,7 @@ labs <- c('Multiple','Single')
 
 ###################################################################################################
 # Fig 2A: Detailed barplot displaying route of transmission (with direction subcategories)
-require(ggplot2)
+
 colnames <- c('reported.exposure' , 'sub.exposure' , 'frequency')
 exposures_df <- stacked_categories(df$reported.exposure_, colnames)
 exposures_df$sub.exposure <- factor(exposures_df$sub.exposure, levels = c('MTF', 'FTM', 'nodirection',
