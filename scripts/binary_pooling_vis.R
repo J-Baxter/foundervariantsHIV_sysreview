@@ -53,6 +53,7 @@ PltBoot <- function(data, intercept, ci.lb, ci.ub){
 ###################################################################################################
 # Import data
 influence_df <- read.csv("./results/pooling_sa1.csv") %>% arrange(., model)
+influence_rg <- read.csv("./results/pooling_sa8.csv") %>% arrange(., model)
 
 pooled_models <-  read.csv('./results/pooling_estsa2sa3sa4sa6sa7.csv')
 
@@ -154,10 +155,10 @@ figureS5_b  <- ggplot(resampled_models) +
         legend.position = c(0.82,0.9),
         legend.background = element_blank())
 
-# S5C
+# S6
 # Effect of number of genomes: Dot and whisker
 # All, no extreme, no small, no high
-figureS5_c <- ggplot(pooled_models[9:16,],
+figureS6 <- ggplot(pooled_models[c(1,2,9:16),],
                      aes(x= forcats::fct_rev(model), y = estimate, color = analysis)) +
   
   geom_point( shape = 4, 
@@ -201,8 +202,7 @@ figureS5_c <- ggplot(pooled_models[9:16,],
 
 figureS5 <- cowplot::plot_grid(figureS5_a, 
                                figureS5_b, 
-                               figureS5_c,
-                               ncol = 3,  rel_widths  = c(1,1,1) ,labels = "AUTO", align = 'h', axis = 'b', greedy = F)
+                               ncol = 2,  rel_widths  = c(1,1) ,labels = "AUTO", align = 'h', axis = 'b', greedy = F)
 
 
 
@@ -211,12 +211,17 @@ ggsave("./results/figureS5.eps", device=cairo_ps, width = 16, height = 10, units
 figureS5
 dev.off()
 
+ggsave("./results/figureS6.eps", device=cairo_ps, width = 8, height = 8, units= 'in')
+Sys.sleep(0.5)
+figureS6
+dev.off()
+
 
 ###################################################################################################
 # Panel: Sensitivity analyses (Faceted Influence Plots)
 influence_df$trial <- gsub("_" , " ", influence_df$trial)
 
-plt <- ggplot(influence_df,aes(x = trial , y = estimate) ) +
+figureS7 <- ggplot(influence_df,aes(x = trial , y = estimate) ) +
   geom_point() + 
   
   scale_y_continuous(limits=c(0,0.4),
@@ -263,16 +268,64 @@ plt <- ggplot(influence_df,aes(x = trial , y = estimate) ) +
     legend.position = 'none'
   )
 
-jpeg(filename = './results/pooling_sa1.jpeg', res = 380, width=3600, height=5000 , units = 'px', pointsize = 10)
-
-plt
-
+ggsave("./results/figureS7.eps", device=cairo_ps, width = 8, height = 10, units= 'in')
+Sys.sleep(0.2)
+figureS7
 dev.off()
 
-ggsave("./results/figure_S5.pdf", width = 10, height = 10, units= 'in')
-plt
-dev.off()
 
+figureS8 <- ggplot(influence_rg,aes(x = trial , y = estimate) ) +
+  geom_point() + 
+  
+  scale_y_continuous(limits=c(0,0.4),
+                     expand = c(0, 0),
+                     name = "Probability of Multiple Founders") +
+  
+  scale_x_discrete(labels = influence_rg$trial) +
+  
+  theme_bw() + 
+  
+  coord_flip() +
+  
+  facet_grid(cols = vars(model),
+             labeller = labeller(model = c(
+               onestep_bi_rand = "One-Step GLMM",
+               twostep_binorm = "Two-Step Binomial Normal"))) +
+  
+  geom_errorbar(data =influence_rg, 
+                aes(x = trial,
+                    ymin=ci.lb,
+                    ymax=ci.ub),
+                width = 0.2) +
+  
+  geom_hline(data = og_models, 
+             aes(yintercept = estimate, color = model),
+             linetype="dashed", 
+             
+             size=0.75) +
+  
+  geom_rect(data = og_models, 
+            inherit.aes = FALSE,
+            aes(ymin=estimate.lb, ymax=estimate.ub, 
+                xmin = -Inf, xmax = Inf,fill = model),
+            alpha = 0.1) +
+  
+  scale_fill_npg()+
+  scale_color_npg()+
+  
+  theme(axis.line.y =element_blank(),
+        axis.title.y =element_blank(),
+        axis.ticks.y=element_blank(),
+        strip.text.x = element_text(face = "bold" , colour = 'black' , size = 10.5),
+        panel.spacing.x = unit(0.6 , 'cm'),
+        strip.background = element_rect(fill = NA, colour= NA),
+        legend.position = 'none'
+  )
+
+ggsave("./results/figureS8.eps", device=cairo_ps, width = 8, height = 5, units= 'in')
+Sys.sleep(0.2)
+figureS8
+dev.off()
 ###################################################################################################
 ###################################################################################################
 # END # 
