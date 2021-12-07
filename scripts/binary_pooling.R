@@ -420,15 +420,22 @@ df_gs <-read.csv("./data/meta_analysis_data.csv",
   formatDF(., filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure', grouped.method_ == 'haplotype', sequencing.gene_ == 'whole.genome') %>%
   droplevels()
+
 df_gs_props <- CalcProps(df_gs)  
 
-sa6_onestep <- CalcOnestepBiRand(df_gs_props) 
-sa6_onestep.sum <- summary(sa6_onestep)
-sa6_onestep.sum
-
 sa6_onestep.est <- CalcEstimates(sa6_onestep)
+twostep_binorm.goldstandard <- CalcTwostepBiNorm(df_gs_props)[[2]]
+twostep_binorm.goldstandard.out <- list(CalcEstimates(twostep_binorm.goldstandard, analysis = "no_extreme"),
+                                            CalcHet(twostep_binorm.goldstandard)) %>%
+  cbind.data.frame(.)
 
+onestep_bi_rand.goldstandard <- CalcOnestepBiRand(df_gs_props)
+onestep_bi_rand.goldstandard.out <- list(CalcEstimates(onestep_bi_rand.goldstandard, analysis = "no_extreme"),
+                                             CalcHet(onestep_bi_rand.goldstandard)) %>%
+  cbind.data.frame(.)
 
+SA6_results <-  rbind.data.frame(twostep_binorm.goldstandard.out,
+                                  onestep_bi_rand.goldstandard.out)
 ###################################################################################################
 # SA7a. Exclusion of participants outwith the IQR of the number of genomes analysed 
 # Additional sensitivity analysis following reviewers comments
@@ -523,6 +530,7 @@ pooled_est <- rbind.data.frame(originals,
                                SA2_results,
                                SA3_results,
                                SA4_results,
+                               SA6_results,
                                SA7a_results,
                                SA7b_results,
                                SA7c_results) %>% .[,-c(6,11)]
