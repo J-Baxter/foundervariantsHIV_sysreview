@@ -92,9 +92,6 @@ re <- read.csv('./results/multimetareg_re.csv')
 emm <- read.csv('./results/multimetareg_emm.csv')
 pred <-  read.csv('./results/multimetareg_preds.csv')
 
-intercepts <- cbind.data.frame(fe[c('covariate','level', 'est', 'ci.lb', 'ci.ub', 'p.val')] )
-intercepts[c( 'est', 'ci.lb', 'ci.ub')] <-  apply(intercepts[c( 'est', 'ci.lb', 'ci.ub')], 2, exp)
-
 # Import data
 if (!dir.exists('data')){
   Retrieve('data.zip')
