@@ -417,25 +417,26 @@ boot_participant <- BootParticipant(resampling_df , 1000)
 df_gs <-read.csv("./data/meta_analysis_data.csv",
                  na.strings = "NA",
                  stringsAsFactors = T) %>%
-  formatDF(., filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
+  formatDF(., filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay'), noreps = F) %>%
   filter(reported.exposure_ != 'unknown.exposure', grouped.method_ == 'haplotype', sequencing.gene_ == 'whole.genome') %>%
   droplevels()
 
 df_gs_props <- CalcProps(df_gs)  
 
-sa6_onestep.est <- CalcEstimates(sa6_onestep)
 twostep_binorm.goldstandard <- CalcTwostepBiNorm(df_gs_props)[[2]]
-twostep_binorm.goldstandard.out <- list(CalcEstimates(twostep_binorm.goldstandard, analysis = "no_extreme"),
+twostep_binorm.goldstandard.out <- list(CalcEstimates(twostep_binorm.goldstandard, analysis = "gold_standard"),
                                             CalcHet(twostep_binorm.goldstandard)) %>%
   cbind.data.frame(.)
 
 onestep_bi_rand.goldstandard <- CalcOnestepBiRand(df_gs_props)
-onestep_bi_rand.goldstandard.out <- list(CalcEstimates(onestep_bi_rand.goldstandard, analysis = "no_extreme"),
+onestep_bi_rand.goldstandard.out <- list(CalcEstimates(onestep_bi_rand.goldstandard, analysis = "gold_standard"),
                                              CalcHet(onestep_bi_rand.goldstandard)) %>%
   cbind.data.frame(.)
 
 SA6_results <-  rbind.data.frame(twostep_binorm.goldstandard.out,
                                   onestep_bi_rand.goldstandard.out)
+
+
 ###################################################################################################
 # SA7a. Exclusion of participants outwith the IQR of the number of genomes analysed 
 # Additional sensitivity analysis following reviewers comments
@@ -535,7 +536,7 @@ pooled_est <- rbind.data.frame(originals,
                                SA7b_results,
                                SA7c_results) %>% .[,-c(6,11)]
 
-write.csv(pooled_est , file = './results/pooling_estsa2sa3sa4sa7.csv', row.names = F)
+write.csv(pooled_est , file = './results/pooling_estsa2sa3sa4sa6sa7.csv', row.names = F)
 
 
 # CSV study influence
@@ -569,7 +570,7 @@ plt_funnel <- ggplot(funnel_data ) +
 # Print to file
 # may not work on linux depending on config
 setEPS()
-postscript("./results/funnel_nozeros.eps", width = 12, height = 12)
+postscript("./results/figureS9.eps", width = 12, height = 12)
 plt_funnel 
 dev.off()
 
