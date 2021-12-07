@@ -208,6 +208,7 @@ figureS5 <- cowplot::plot_grid(figureS5_a,
 
 # Save to file (ggsave rather than setEPS() to preseve transparencies)
 ggsave("./results/figureS5.eps", device=cairo_ps, width = 16, height = 10, units= 'in')
+Sys.sleep(0.5)
 figureS5
 dev.off()
 
