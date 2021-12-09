@@ -537,7 +537,7 @@ pooled_est <- rbind.data.frame(originals,
                                SA7b_results,
                                SA7c_results) %>% .[,-c(6,11)]
 
-write.csv(pooled_est , file = './results/pooling_estsa2sa3sa4sa6sa7_new.csv', row.names = F)
+write.csv(pooled_est , file = './results/pooling_estsa2sa3sa4sa6sa7.csv', row.names = F)
 
 
 # CSV study influence
