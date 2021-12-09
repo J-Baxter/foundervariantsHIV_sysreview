@@ -464,45 +464,46 @@ onestep_bi_rand.noextremegenomes.out <- list(CalcEstimates(onestep_bi_rand.noext
 SA7a_results <-  rbind.data.frame(twostep_binorm.noextremegenomes.out,
                                  onestep_bi_rand.noextremegenomes.out)
 
-# SA7b. Exclusion of participants with less than the 25% quartile of the number of genomes analysed
-df.nosmallgenomes <- df.knowngenomes[which(df.knowngenomes$sequencing.number_ > quantile(df.knowngenomes$sequencing.number_,0.25)),] 
+# SA7b. Restricted to participants with less than the 25% quartile of the number of genomes analysed
+df.smallgenomes <- df.knowngenomes[which(df.knowngenomes$sequencing.number_ <= quantile(df.knowngenomes$sequencing.number_,0.25)),] 
+summary(df.smallgenomes$sequencing.number_)
 
-df_props.nosmallgenomes <- CalcProps(df.nosmallgenomes)
+df_props.smallgenomes <- CalcProps(df.smallgenomes)
 
-twostep_binorm.nosmallgenomes <- CalcTwostepBiNorm(df_props.nosmallgenomes)[[2]]
-twostep_binorm.nosmallgenomes.out <- list(CalcEstimates(twostep_binorm.nosmallgenomes, analysis = "no_smallgenomes"),
-                                            CalcHet(twostep_binorm.nosmallgenomes)) %>%
+twostep_binorm.smallgenomes <- CalcTwostepBiNorm(df_props.smallgenomes)[[2]]
+twostep_binorm.smallgenomes.out <- list(CalcEstimates(twostep_binorm.smallgenomes, analysis = "smallgenomes"),
+                                            CalcHet(twostep_binorm.smallgenomes)) %>%
   cbind.data.frame(.)
 
-onestep_bi_rand.nosmallgenomes <- CalcOnestepBiRand(df_props.nosmallgenomes)
-onestep_bi_rand.nosmallgenomes.out <- list(CalcEstimates(onestep_bi_rand.nosmallgenomes, analysis = "no_smallgenomes"),
-                                             CalcHet(onestep_bi_rand.nosmallgenomes)) %>%
-  cbind.data.frame(.)
-
-
-SA7b_results <-  rbind.data.frame(twostep_binorm.nosmallgenomes.out,
-                                 onestep_bi_rand.nosmallgenomes.out)
-
-# SA7c. Exclusion of participants outwith greater than 75% quartile of the number of genomes analysed
-df.nolargegenomes <- df.knowngenomes[which(df.knowngenomes$sequencing.number_ < quantile(df.knowngenomes$sequencing.number_,0.75)),] 
-
-summary(df.nolargegenomes$sequencing.number_)
-
-df_props.nolargegenomes <- CalcProps(df.nolargegenomes)
-
-twostep_binorm.nolargegenomes <- CalcTwostepBiNorm(df_props.nolargegenomes)[[2]]
-twostep_binorm.nolargegenomes.out <- list(CalcEstimates(twostep_binorm.nolargegenomes, analysis = "no_largegenomes"),
-                                            CalcHet(twostep_binorm.nolargegenomes)) %>%
-  cbind.data.frame(.)
-
-onestep_bi_rand.nolargegenomes <- CalcOnestepBiRand(df_props.nolargegenomes)
-onestep_bi_rand.nolargegenomes.out <- list(CalcEstimates(onestep_bi_rand.nolargegenomes, analysis = "no_largegenomes"),
-                                             CalcHet(onestep_bi_rand.nolargegenomes)) %>%
+onestep_bi_rand.smallgenomes <- CalcOnestepBiRand(df_props.smallgenomes)
+onestep_bi_rand.smallgenomes.out <- list(CalcEstimates(onestep_bi_rand.smallgenomes, analysis = "smallgenomes"),
+                                             CalcHet(onestep_bi_rand.smallgenomes)) %>%
   cbind.data.frame(.)
 
 
-SA7c_results <-  rbind.data.frame(twostep_binorm.nolargegenomes.out,
-                                 onestep_bi_rand.nolargegenomes.out)
+SA7b_results <-  rbind.data.frame(twostep_binorm.smallgenomes.out,
+                                 onestep_bi_rand.smallgenomes.out)
+
+# SA7c. Restricted to participants with greater than =75% quartile of the number of genomes analysed
+df.largegenomes <- df.knowngenomes[which(df.knowngenomes$sequencing.number_ >= quantile(df.knowngenomes$sequencing.number_,0.75)),] 
+
+summary(df.largegenomes$sequencing.number_)
+
+df_props.largegenomes <- CalcProps(df.largegenomes)
+
+twostep_binorm.largegenomes <- CalcTwostepBiNorm(df_props.largegenomes)[[2]]
+twostep_binorm.largegenomes.out <- list(CalcEstimates(twostep_binorm.largegenomes, analysis = "largegenomes"),
+                                            CalcHet(twostep_binorm.largegenomes)) %>%
+  cbind.data.frame(.)
+
+onestep_bi_rand.largegenomes <- CalcOnestepBiRand(df_props.largegenomes)
+onestep_bi_rand.largegenomes.out <- list(CalcEstimates(onestep_bi_rand.largegenomes, analysis = "largegenomes"),
+                                             CalcHet(onestep_bi_rand.largegenomes)) %>%
+  cbind.data.frame(.)
+
+
+SA7c_results <-  rbind.data.frame(twostep_binorm.largegenomes.out,
+                                 onestep_bi_rand.largegenomes.out)
 
 
 ###################################################################################################
@@ -536,7 +537,7 @@ pooled_est <- rbind.data.frame(originals,
                                SA7b_results,
                                SA7c_results) %>% .[,-c(6,11)]
 
-write.csv(pooled_est , file = './results/pooling_estsa2sa3sa4sa6sa7.csv', row.names = F)
+write.csv(pooled_est , file = './results/pooling_estsa2sa3sa4sa6sa7_new.csv', row.names = F)
 
 
 # CSV study influence
