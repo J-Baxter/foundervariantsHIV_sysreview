@@ -214,3 +214,92 @@ unipooled_effectstruct.converged <- unipooled_effectstruct[(which(unipooled_chec
 # fixed effects coefficients exponentiated to odds ratios
 unipooled_models.coef <- RunParallel(GetCoefs, unipooled_models.converged, unipooled_effectstruct.converged)
 
+
+###################################################################################################
+###################################################################################################
+# Outputs
+
+# Export csv with pooling and univariable metaregression to file
+
+# Figure S9a - Pooled Original vs Pooled Vaccine Only 
+# Figure S9b - Vaccine Subgroups comparison
+
+figureS9a <- ggplot(= ,
+                  aes(x= forcats::fct_rev(model), y = estimate, color = analysis)) +
+  
+  geom_point( shape = 4, 
+              size = 4,
+              position = position_dodge(0.5)) + 
+  
+  scale_y_continuous(name = "Probability of Multiple Founders",
+                     #limits=c(0,.5),
+                     expand = c(0.01, 0.01)) +
+  coord_cartesian(ylim = c(0,.5))+
+  
+  scale_x_discrete(name = "Model", 
+                   labels = c(
+                     onestep_bi_rand = "GLMM",
+                     twostep_binorm = "B-N"
+                   )) +
+  theme_bw() + 
+  
+  coord_flip() +
+  
+  guides(colour = guide_legend(reverse=T))+
+  
+  geom_linerange(aes(ymin=estimate.lb, 
+                     ymax= estimate.ub, 
+                     color = analysis), 
+                 position = position_dodge(0.5)) +
+  
+  scale_colour_npg(name = 'Analysis', labels = c(
+    original = "Full analysis",
+    vac_pooled = "Pooling vaccine trial participants only")) + 
+  
+  theme(legend.position = c(0.8,0.86),
+        axis.text = element_text(size = 9.5),
+        legend.text = element_text(size = 9.5),
+        axis.title = element_text(size = 11),
+        legend.background = element_blank()#,
+        #plot.margin = unit(c(2,4,2,1), "lines")
+  )
+
+figureS9b <- ggplot(= ,
+                    aes(x= , y = estimate, color = analysis)) +
+  
+  geom_point( shape = 4, 
+              size = 4,
+              position = position_dodge(0.5)) + 
+  
+  scale_y_continuous(name = "Probability of Multiple Founders",
+                     #limits=c(0,.5),
+                     expand = c(0.01, 0.01)) +
+  coord_cartesian(ylim = c(0,.5))+
+  
+  scale_x_discrete(name = "Model", 
+                   labels = c(
+                     onestep_bi_rand = "GLMM",
+                     twostep_binorm = "B-N"
+                   )) +
+  theme_bw() + 
+  
+  coord_flip() +
+  
+  guides(colour = guide_legend(reverse=T))+
+  
+  geom_linerange(aes(ymin=estimate.lb, 
+                     ymax= estimate.ub, 
+                     color = analysis), 
+                 position = position_dodge(0.5)) +
+  
+  scale_colour_npg(name = 'Analysis', labels = c(
+    original = "Full analysis",
+    vac_pooled = "Pooling vaccine trial participants only")) + 
+  
+  theme(legend.position = c(0.8,0.86),
+        axis.text = element_text(size = 9.5),
+        legend.text = element_text(size = 9.5),
+        axis.title = element_text(size = 11),
+        legend.background = element_blank()#,
+        #plot.margin = unit(c(2,4,2,1), "lines")
+  )

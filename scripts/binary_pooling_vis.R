@@ -159,10 +159,11 @@ figureS5_b  <- ggplot(resampled_models) +
 # Effect of number of genomes: Dot and whisker
 # All, no extreme, no small, no high
 analysis_order <- c('original',
-                 'gold_standard', 
                  'no_extreme', 
                  'smallgenomes', 
-                 'largegenomes')
+                 'largegenomes',
+                 'gold_standard') %>% rev()
+
 plots6_data <- pooled_models[c(1,2,9:16),]
 plots6_data$analysis <- factor(plots6_data$analysis, levels = analysis_order) 
 
@@ -187,14 +188,16 @@ figureS6 <- ggplot(plots6_data ,
   
   coord_flip() +
   
+  guides(colour = guide_legend(reverse=T))+
+  
   geom_linerange(aes(ymin=estimate.lb, 
                      ymax= estimate.ub, 
                      color = analysis), 
                  position = position_dodge(0.5)) +
   
-  scale_color_npg(name = 'Analysis', labels = c(
+  scale_colour_npg(name = 'Analysis', labels = c(
     original = "Full analysis",
-    gold_standard = "Restricted to 'gold-standard' Methodology",
+    gold_standard = "Restricted to 'gold-standard' methodology",
     no_extreme = 'Restricted to 11-37 genomes/patient',
     smallgenomes = "Restriced to <11 genomes/patient",
     largegenomes = "Restricted to >37 genomes/patient")) + 
