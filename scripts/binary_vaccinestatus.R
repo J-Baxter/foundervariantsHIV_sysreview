@@ -120,7 +120,7 @@ df <- read.csv("./data/meta_analysis_data.csv",
                stringsAsFactors = T) %>%
   formatDF(., filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
-  filter(!is.na(df$vaccine.status_ )) %>%
+  filter(!is.na(vaccine.status_)) %>%
   droplevels()
 
 df_props <- CalcProps(df)
@@ -190,7 +190,7 @@ unipooled_effectstruct <- GetName(form, effects = 'fixed')
 unipooled_model <- CalcRandMetaReg(df, form, opt = '1')
 
 # Check model convergence and singularity
-unipooled_check <- CheckModels(unipooled_models)%>% 
+unipooled_check <- CheckModels(unipooled_model)%>% 
   `row.names<-`(unipooled_effectstruct)
 
 
@@ -219,8 +219,30 @@ originals <- cbind.data.frame(estimates, heterogeneity)
 # Figure S9a - Pooled Original vs Pooled Vaccine Only 
 # Figure S9b - Vaccine Subgroups comparison
 
-#
-figureS9a <- ggplot(pooled,
+# Set colour palettes 
+mycols_founder <- RColorBrewer::brewer.pal(name = 'RdBu', n = 8)[c(2,7)] #c("#E64B35FF", "#4DBBD5FF")
+
+# Set Labels
+labs <- c('Multiple','Single')
+
+figureS9a <- ggplot(df, aes(x = vaccine.status_))+
+  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), y = (..count..)/sum(..count..)))+
+  scale_fill_manual(values = mycols_founder, labels = labs)+
+  scale_y_continuous(limits = c(0,1), expand = c(0,0)) +
+  theme_classic()+
+  xlab('Vaccine Status')+
+  theme( axis.text.x=element_text(angle=45, hjust=1))+
+  ylab('Proportion of Participants')+
+  labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity") + 
+  theme(legend.position = c(0.75,0.86),
+        axis.text = element_text(size = 9.5),
+        legend.text = element_text(size = 9.5),
+        axis.title = element_text(size = 11),
+        legend.background = element_blank()#,
+        #plot.margin = unit(c(2,4,2,1), "lines")
+  )
+
+figureS9b <- ggplot(pooled,
                   aes(x= forcats::fct_rev(model), y = estimate, color = analysis)) +
   
   geom_point( shape = 4, 
@@ -252,7 +274,7 @@ figureS9a <- ggplot(pooled,
     original = "Full analysis",
     vaccine = "Vaccine trial participants only")) + 
   
-  theme(legend.position = c(0.8,0.86),
+  theme(legend.position = c(0.75,0.86),
         axis.text = element_text(size = 9.5),
         legend.text = element_text(size = 9.5),
         axis.title = element_text(size = 11),
@@ -263,7 +285,7 @@ figureS9a <- ggplot(pooled,
 vaccine_ref <- cbind.data.frame(level = 'placebo', est = 0, ci.lb = NA, ci.ub = NA)
 vaccine_subgroup <- rbind.data.frame(unipooled_models.coef$fe[, c(2,3,5,6)], vaccine_ref)
 
-figureS9b <- ggplot(vaccine_subgroup,
+figureS9c <- ggplot(vaccine_subgroup,
                     aes(x = level , y = exp(est))) +
   
   geom_point( shape = 18, 
@@ -297,9 +319,10 @@ figureS9b <- ggplot(vaccine_subgroup,
         #plot.margin = unit(c(2,4,2,1), "lines")
   )
 
-figureS9 <- cowplot::plot_grid(figureS9a, 
+figureS9 <- cowplot::plot_grid(figureS9a,
                                figureS9b, 
-                               ncol = 2,  rel_widths  = c(1,1) ,labels = "AUTO", align = 'h', axis = 'b', greedy = F)
+                               figureS9c, 
+                               ncol = 3,  rel_widths  = c(1,1,1) ,labels = "AUTO", align = 'h', axis = 'b', greedy = F)
 
 
 
