@@ -106,7 +106,6 @@ CalcHet <- function(model , analysis = "original"){
   return(results)
 }
 
-
 ###################################################################################################
 ###################################################################################################
 # Import data
@@ -220,6 +219,7 @@ unipooled_models.coef <- RunParallel(GetCoefs, unipooled_models.converged, unipo
 # Outputs
 
 # Export csv with pooling and univariable metaregression to file
+originals <- cbind.data.frame(estimates, heterogeneity)
 
 # Figure S9a - Pooled Original vs Pooled Vaccine Only 
 # Figure S9b - Vaccine Subgroups comparison
