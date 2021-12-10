@@ -66,7 +66,7 @@ formatDF <-  function(df, noreps = TRUE, filter = NULL){
     
     
     df_splittrans <- colsplit(looped_df$reported.exposure, ":" , c("riskgroup" , "direction")) %>%
-      type.convert(.,as.is = FALSE) %>%
+      type.convert(., as.is = FALSE) %>%
       cbind.data.frame(.,looped_df)
     #df_splittrans <- df_splittrans[!(df_splittrans$reported.exposure %in% "unknown.exposure"), ]
     

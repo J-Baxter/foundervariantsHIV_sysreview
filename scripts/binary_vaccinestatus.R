@@ -121,6 +121,7 @@ df <- read.csv("./data/meta_analysis_data.csv",
                stringsAsFactors = T) %>%
   formatDF(., filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
+  filter(!is.na(df$vaccine.status_ )) %>%
   droplevels()
 
 df_props <- CalcProps(df)
@@ -180,51 +181,46 @@ heterogeneity <- rbind.data.frame(twostep_binorm.het,
 ###################################################################################################
 # STAGE 2: Univariate meta-regression of individual covariates against founder variant multiplicity
 # Set reference levels for meta regression
-# HSX:MTF, haplotype (highlighter), unknown seropositivity, B, whole genome
-baseline.covar <- c("reported.exposure_", "grouped.method_", "grouped.subtype_","sequencing.gene_", "sampling.delay_",'alignment.bin_')
-baseline.level <- c("HSX:MTF", "haplotype", "B" , "whole.genome" , "<21", 'NFLG')
-
-df <- SetBaseline(df, baseline.covar, baseline.level)
-
-
-df_props <- CalcProps(df)
-
-##################################################################################################
 ###################################################################################################
 # Equivalent to a subgroup analysis with random effects for subgroup and cohort
-form < "multiple.founders_ ~ vaccine.status_  + (1 | publication_)"
+form <- "multiple.founders_ ~ vaccine.status_  + (1 | publication_)"
 
-unipooled_effectstruct <- GetName(unipooled_forms, effects = 'fixed')
+unipooled_effectstruct <- GetName(form, effects = 'fixed')
 
 # Run models
-unipooled_models <- CalcRandMetaReg(unipooled_forms, df)
+unipooled_model <- CalcRandMetaReg(df, form, opt = '1')
 
 # Check model convergence and singularity
 unipooled_check <- CheckModels(unipooled_models)%>% 
   `row.names<-`(unipooled_effectstruct)
 
-# Check model convergence and singularity
-unipooled_models.converged <- unipooled_models[which(unipooled_check$is.converged & !unipooled_check$is.singular)]
-unipooled_forms.converged <- unipooled_forms[(which(unipooled_check$is.converged & !unipooled_check$is.singular))]
-unipooled_effectstruct.converged <- unipooled_effectstruct[(which(unipooled_check$is.converged & !unipooled_check$is.singular))]
-
 
 ###################################################################################################
 # Extract fixed and random effect coefficients and calculate bootstrapped 95% CIs
 # fixed effects coefficients exponentiated to odds ratios
-unipooled_models.coef <- RunParallel(GetCoefs, unipooled_models.converged, unipooled_effectstruct.converged)
+unipooled_models.coef <- GetCoefs(unipooled_model, unipooled_effectstruct)
 
 
 ###################################################################################################
 ###################################################################################################
 # Outputs
+pooled_models <-  read.csv('./results/pooling_estsa2sa3sa4sa6sa7.csv')
+
+models <- c('Two-Step Binomial-Normal',
+            'One-Step Binomial GLMM')
+
+estimates$analysis <- 'vaccine'
+
+pooled <- rbind("model" = pooled_models[1:2,1:5], estimates) %>% arrange(., model)
+
 
 # Export csv with pooling and univariable metaregression to file
 
 # Figure S9a - Pooled Original vs Pooled Vaccine Only 
 # Figure S9b - Vaccine Subgroups comparison
 
-figureS9a <- ggplot(= ,
+#
+figureS9a <- ggplot(pooled,
                   aes(x= forcats::fct_rev(model), y = estimate, color = analysis)) +
   
   geom_point( shape = 4, 
@@ -254,7 +250,7 @@ figureS9a <- ggplot(= ,
   
   scale_colour_npg(name = 'Analysis', labels = c(
     original = "Full analysis",
-    vac_pooled = "Pooling vaccine trial participants only")) + 
+    vaccine = "Vaccine trial participants only")) + 
   
   theme(legend.position = c(0.8,0.86),
         axis.text = element_text(size = 9.5),
@@ -264,22 +260,24 @@ figureS9a <- ggplot(= ,
         #plot.margin = unit(c(2,4,2,1), "lines")
   )
 
-figureS9b <- ggplot(= ,
-                    aes(x= , y = estimate, color = analysis)) +
+vaccine_ref <- cbind.data.frame(level = 'placebo', est = 0, ci.lb = NA, ci.ub = NA)
+vaccine_subgroup <- rbind.data.frame(unipooled_models.coef$fe[, c(2,3,5,6)], vaccine_ref)
+
+figureS9b <- ggplot(vaccine_subgroup,
+                    aes(x = level , y = exp(est))) +
   
-  geom_point( shape = 4, 
-              size = 4,
-              position = position_dodge(0.5)) + 
+  geom_point( shape = 18, 
+              size = 4) + 
   
-  scale_y_continuous(name = "Probability of Multiple Founders",
+  scale_y_continuous(name = "Odds Ratio",
                      #limits=c(0,.5),
-                     expand = c(0.01, 0.01)) +
-  coord_cartesian(ylim = c(0,.5))+
+                     expand = c(0.01, 0.01),
+                     limits = c(0, 4)) +
   
-  scale_x_discrete(name = "Model", 
+  scale_x_discrete(name = "Participant Subgroup", 
                    labels = c(
-                     onestep_bi_rand = "GLMM",
-                     twostep_binorm = "B-N"
+                     vaccine = "Vaccine",
+                     placebo = "Placebo"
                    )) +
   theme_bw() + 
   
@@ -287,14 +285,9 @@ figureS9b <- ggplot(= ,
   
   guides(colour = guide_legend(reverse=T))+
   
-  geom_linerange(aes(ymin=estimate.lb, 
-                     ymax= estimate.ub, 
-                     color = analysis), 
-                 position = position_dodge(0.5)) +
-  
-  scale_colour_npg(name = 'Analysis', labels = c(
-    original = "Full analysis",
-    vac_pooled = "Pooling vaccine trial participants only")) + 
+  geom_linerange(aes(ymin=exp(ci.lb), 
+                     ymax=exp(ci.ub))) +
+  geom_hline(yintercept = 1, linetype = 'dashed') +
   
   theme(legend.position = c(0.8,0.86),
         axis.text = element_text(size = 9.5),
@@ -303,3 +296,15 @@ figureS9b <- ggplot(= ,
         legend.background = element_blank()#,
         #plot.margin = unit(c(2,4,2,1), "lines")
   )
+
+figureS9 <- cowplot::plot_grid(figureS9a, 
+                               figureS9b, 
+                               ncol = 2,  rel_widths  = c(1,1) ,labels = "AUTO", align = 'h', axis = 'b', greedy = F)
+
+
+
+# Save to file (ggsave rather than setEPS() to preseve transparencies)
+ggsave("./results/figureS9.eps", device=cairo_ps, width = 16, height = 10, units= 'in')
+Sys.sleep(0.5)
+figureS9
+dev.off()
