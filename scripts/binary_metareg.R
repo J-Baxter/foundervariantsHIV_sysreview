@@ -586,7 +586,7 @@ sa.preds <- list(model_selected.nosmallsample.out[[3]],
 sapred.names <- c('multimetareg_s2_pred.csv', 'multimetareg_s3_pred.csv', 'multimetareg_s4_pred.csv')  %>% paste0('./results/', .)
 write.csv(sa.preds, './results/multimetareg_sa_pred.csv')  
 
-s5 <- model_selected.boot_participant 
+s5 <- model_selected.boot_participant$coefs
 write.csv(s5, './results/multimetareg_s5.csv')
 
 s7 <- Effects2File(sa7_effects)
