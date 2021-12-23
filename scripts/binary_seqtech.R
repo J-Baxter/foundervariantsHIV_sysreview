@@ -120,6 +120,7 @@ df <- read.csv("./data/meta_analysis_data.csv",
   formatDF(., filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   filter(!is.na(sequencing.method_)) %>%
+  filter(sequencing.method_ != 'unknown') %>%
   mutate(sequencing.method_ = gsub('_', '', sequencing.method_) %>% as.factor())%>%
   droplevels()
 
@@ -249,6 +250,14 @@ figureS9a <- ggplot(df, aes(x = sequencing.method_))+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
   ylab('Proportion of Participants')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity") + 
+  scale_x_discrete(labels = c("Sanger (with SGA)",
+                                         "Illumina MiSeq",
+                                         "Roche 454",
+                                         "PacBio HiFi",
+                                         "Sanger (no SGA)",
+                                         "Sanger (with SGA precursor)"
+                                          )%>%
+                     str_wrap(width = 10))+
   theme(legend.position = c(0.75,0.86),
         axis.text = element_text(size = 9.5),
         legend.text = element_text(size = 9.5),
@@ -265,9 +274,9 @@ figureS9b <- ggplot(pooled,
               position = position_dodge(0.5)) + 
   
   scale_y_continuous(name = "Probability of Multiple Founders",
-                     #limits=c(0,.5),
+                     limits=c(0,.5),
                      expand = c(0.01, 0.01)) +
-  coord_cartesian(ylim = c(0,.5))+
+  #coord_cartesian(ylim = c(0,.5))+
   
   scale_x_discrete(name = "Model", 
                    labels = c(
@@ -287,7 +296,7 @@ figureS9b <- ggplot(pooled,
   
   scale_colour_npg(name = 'Analysis', labels = c(
     original = "Full analysis",
-    vaccine = "Sequence methods only")) + 
+    seq_tech = "Sequence methods only")) + 
   
   theme(legend.position = c(0.75,0.86),
         axis.text = element_text(size = 9.5),
@@ -300,6 +309,9 @@ figureS9b <- ggplot(pooled,
 seqtech_ref <- cbind.data.frame(level = 'sangersga', est = 0, ci.lb = NA, ci.ub = NA)
 seqtech_subgroup <- rbind.data.frame(unipooled_models.coef$fe[, c(2,3,5,6)], seqtech_ref)
 
+levs <- c('sangerprecSGA', "2G:roche454", "3G:PacBiohifi", "sanger", "2G:illuminamiseq", "sangersga")
+seqtech_subgroup$level <- factor(x = seqtech_subgroup$level, levels = levs)
+
 figureS9c <- ggplot(seqtech_subgroup,
                     aes(x = level , y = exp(est))) +
   
@@ -308,14 +320,16 @@ figureS9c <- ggplot(seqtech_subgroup,
   
   scale_y_continuous(name = "Odds Ratio",
                      #limits=c(0,.5),
-                     expand = c(0.01, 0.01),
-                     limits = c(0, 4)) +
+                     expand = c(0.01, 0.01)) +
+  coord_cartesian(ylim = c(0,6))+
   
-  scale_x_discrete(name = "Sequencing Technology"#, 
-                  # labels = c(
-                    # vaccine = "Vaccine",
-                     #placebo = "Placebo"
-                   #)
+  scale_x_discrete(name = "Sequencing Technology", 
+                  labels = c("Sanger (with SGA precursor)",
+                             "Roche 454",
+                             "PacBio HiFi",
+                             "Sanger (no SGA)",
+                             "Illumina MiSeq",
+                             "Sanger (with SGA)" ) 
                    ) +
   theme_bw() + 
   
@@ -343,7 +357,7 @@ figureS9 <- cowplot::plot_grid(figureS9a,
 
 
 # Save to file (ggsave rather than setEPS() to preseve transparencies)
-ggsave("./results/figureS9.eps", device=cairo_ps, width = 16, height = 10, units= 'in')
+ggsave("./results/figure_test2.eps", device=cairo_ps, width = 16, height = 10, units= 'in')
 Sys.sleep(0.5)
-figureS9
+figureS7
 dev.off()

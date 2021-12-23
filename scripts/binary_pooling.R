@@ -248,8 +248,9 @@ if (!dir.exists('data')){
 df <- read.csv("./data/meta_analysis_data.csv",
                na.strings = "NA",
                stringsAsFactors = T) %>%
-  formatDF(., filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
+  formatDF(., filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay'), noreps = F) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
+  filter(include.main_ != 'exclude') %>%
   droplevels()
 
 df_props <- CalcProps(df)
@@ -571,7 +572,7 @@ plt_funnel <- ggplot(funnel_data ) +
 # Print to file
 # may not work on linux depending on config
 setEPS()
-postscript("./results/figureS9.eps", width = 12, height = 12)
+postscript("./results/figureS8.eps", width = 12, height = 12)
 plt_funnel 
 dev.off()
 

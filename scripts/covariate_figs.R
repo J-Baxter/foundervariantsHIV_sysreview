@@ -357,7 +357,6 @@ figureS4_b <- ggplot(df, aes(year_))+
 # Year of Publication ~ Frequency of Individuals, stacked by sequencing technology
 df$sequencing.method_<- factor(df$sequencing.method_, levels = c('sanger_SGA', 
                                                                  '2G:illumina_miseq', 
-                                                                 '2G:iontorrent',
                                                                  '2G:roche_454',
                                                                  '3G:PacBio_hifi',
                                                                  'sanger', 
@@ -373,7 +372,6 @@ figureS4_c <- ggplot(df, aes(year_))+
   scale_fill_manual(values = mycols_method[c(2,4,6,8,10,12,1,11)],
                     labels = c('Sanger with SGA', 
                                'Illumina MiSeq', 
-                               'ONT IonTorrent',
                                'Roche 454',
                                'PacBio HiFi',
                                'Sanger Only', 

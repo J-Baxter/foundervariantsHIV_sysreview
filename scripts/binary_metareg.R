@@ -390,7 +390,7 @@ model_selected.predictions <- GetPreds(model = model_selected,
 model_selected.resid <- binned_residuals(model_selected) %>% PlotBinned()
 
 setEPS()
-postscript("./results/binned_residuals.eps", width = 12, height = 12)
+postscript("./results/figure_S10.eps", width = 12, height = 12)
 Sys.sleep(0.2)
 model_selected.resid
 dev.off()
@@ -442,7 +442,7 @@ df.nosmallsample <- df[df$publication_ %in% publist.nosmallsample,]
 
 model_selected.nosmallsample <- CalcRandMetaReg(df.nosmallsample, model_selected.form, opt = 'bobyqa')
 model_selected.nosmallsample.out <- list(CheckModels(model_selected.nosmallsample), 
-                                         #GetCoefs(model_selected.nosmallsample, label = 'no_small'),
+                                         GetCoefs(model_selected.nosmallsample, label = 'no_small'),
                                          GetEMM( model = model_selected.nosmallsample, 
                                                  byvar = 'reported.exposure_', 
                                                  label = 'no_small'),
@@ -460,7 +460,7 @@ df.nozeros <- df[df$publication_ %in% publist.nozeros,]
 
 model_selected.nozeros <- CalcRandMetaReg(df.nozeros, model_selected.form, opt = 'bobyqa')
 model_selected.nozeros.out <- list(CheckModels(model_selected.nozeros), 
-                                   #GetCoefs(model_selected.nozeros, label = 'no_zero'),
+                                   GetCoefs(model_selected.nozeros, label = 'no_zero'),
                                    GetEMM( model = model_selected.nozeros, 
                                            byvar = 'reported.exposure_', 
                                            label = 'no_zero'),
@@ -478,7 +478,7 @@ df.sgaonly <- df[df$publication_ %in% publist.sgaonly,]
 
 model_selected.sgaonly <- CalcRandMetaReg(df.sgaonly, model_selected.form, opt = 'bobyqa')
 model_selected.sgaonly.out <- list(CheckModels(model_selected.sgaonly), 
-                                   # GetCoefs(model_selected.sgaonly, label = 'sga_only'),
+                                   GetCoefs(model_selected.sgaonly, label = 'sga_only'),
                                    GetEMM(model = model_selected.sgaonly, 
                                           byvar = 'reported.exposure_', 
                                           label = 'sga_only'),
@@ -586,7 +586,7 @@ sa.preds <- list(model_selected.nosmallsample.out[[3]],
 sapred.names <- c('multimetareg_s2_pred.csv', 'multimetareg_s3_pred.csv', 'multimetareg_s4_pred.csv')  %>% paste0('./results/', .)
 write.csv(sa.preds, './results/multimetareg_sa_pred.csv')  
 
-s5 <- model_selected.boot_participant$coefs
+s5 <- model_selected.boot_participant 
 write.csv(s5, './results/multimetareg_s5.csv')
 
 s7 <- Effects2File(sa7_effects)
