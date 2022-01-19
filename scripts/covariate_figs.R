@@ -34,10 +34,16 @@ stacked_categories <- function(x, catnames){
 # Extracting and formatting sequence numbers from main dataframe
 GetNumSeqs <- function(data){
   # drop NA and NGS first 
-  numseqs <- data[!data$sequencing.number_ %in% c('NGS', NA),]
-  numseqs$sequencing.number_ <- as.numeric(numseqs$sequencing.number_)
+  out <- data  %>% 
+    filter(!grepl('unknown', sequencing.number_)) %>% 
+    mutate(sequencing.number_ = unlist(sequencing.number_) %>% 
+             unname() %>% 
+             as.character() %>% 
+             as.numeric()) %>% 
+    filter(!is.na(sequencing.number_))
+
   
-  return(numseqs)
+  return(out)
 }
 
 
@@ -181,7 +187,7 @@ fig2_f <- ggplot(numseqs_df , aes(sequencing.number_))+
   geom_histogram(aes(fill = forcats::fct_rev(factor(multiple.founders_)), y = (..count..)/sum(..count..)), binwidth = 3)+
   scale_fill_manual(values = mycols_founder, labels = labs)+
   scale_y_continuous(limits = c(0,1), expand = c(0,0)) +
-  scale_x_continuous(limits = c(0,90), expand = c(0,0))+
+  scale_x_continuous(limits = c(0,160), expand = c(0,0))+
   theme_classic()+
   xlab('Number of Consensus Sequences')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
