@@ -152,6 +152,22 @@ LOOCV <- function(data, col){
 }
 
 
+# Extracting and formatting sequence numbers from main dataframe
+GetNumSeqs <- function(data){
+  # drop NA and NGS first 
+  out <- data  %>% 
+    filter(!grepl('unknown', sequencing.number_)) %>% 
+    mutate(sequencing.number_ = unlist(sequencing.number_) %>% 
+             unname() %>% 
+             as.character() %>% 
+             as.numeric()) %>% 
+    filter(!is.na(sequencing.number_))
+  
+  
+  return(out)
+}
+
+
 # Extract estimates from LOOCV to create dataframe (input for influence plot)
 DFInfluence <- function(model,labs){
   
@@ -441,8 +457,7 @@ SA6_results <-  rbind.data.frame(twostep_binorm.goldstandard.out,
 ###################################################################################################
 # SA7a. Exclusion of participants outwith the IQR of the number of genomes analysed 
 # Additional sensitivity analysis following reviewers comments
-df.knowngenomes <- df[which(df$sequencing.number_ != 'unknown' | !is.na(df$sequencing.number_)),] 
-df.knowngenomes$sequencing.number_ <- as.integer(df.knowngenomes$sequencing.number_)
+df.knowngenomes <- GetNumSeqs(df)
 
 df.noextremegenomes <- df.knowngenomes[which(df.knowngenomes$sequencing.number_ >= quantile(df.knowngenomes$sequencing.number_,0.25) &
                                          df.knowngenomes$sequencing.number_ <= quantile(df.knowngenomes$sequencing.number_,0.75)),] 

@@ -198,9 +198,9 @@ figureS6 <- ggplot(plots6_data ,
   scale_colour_npg(name = 'Analysis', labels = c(
     original = "Full analysis",
     gold_standard = "Restricted to 'gold-standard' methodology",
-    no_extreme = 'Restricted to 11-37 genomes/patient',
+    no_extreme = 'Restricted to 11-28 genomes/patient',
     smallgenomes = "Restriced to <11 genomes/patient",
-    largegenomes = "Restricted to >37 genomes/patient")) + 
+    largegenomes = "Restricted to >28 genomes/patient")) + 
   
   theme(legend.position = c(0.8,0.86),
         axis.text = element_text(size = 9.5),
