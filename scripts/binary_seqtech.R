@@ -117,7 +117,7 @@ if (!dir.exists('data')){
 df <- read.csv("./data/meta_analysis_data.csv",
                na.strings = "NA",
                stringsAsFactors = T) %>%
-  formatDF(., filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
+  formatDF(., filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay'), noreps = F) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   filter(!is.na(sequencing.method_)) %>%
   filter(sequencing.method_ != 'unknown') %>%
@@ -241,7 +241,7 @@ mycols_founder <- RColorBrewer::brewer.pal(name = 'RdBu', n = 8)[c(2,7)] #c("#E6
 # Set Labels
 labs <- c('Multiple','Single')
 
-figureS9a <- ggplot(df, aes(x = sequencing.method_))+
+figureS7a <- ggplot(df, aes(x = sequencing.method_))+
   geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), y = (..count..)/sum(..count..)))+
   scale_fill_manual(values = mycols_founder, labels = labs)+
   scale_y_continuous(limits = c(0,1), expand = c(0,0)) +
@@ -266,7 +266,7 @@ figureS9a <- ggplot(df, aes(x = sequencing.method_))+
         #plot.margin = unit(c(2,4,2,1), "lines")
   )
 
-figureS9b <- ggplot(pooled,
+figureS7b <- ggplot(pooled,
                     aes(x= forcats::fct_rev(model), y = estimate, color = analysis)) +
   
   geom_point( shape = 4, 
@@ -312,7 +312,7 @@ seqtech_subgroup <- rbind.data.frame(unipooled_models.coef$fe[, c(2,3,5,6)], seq
 levs <- c('sangerprecSGA', "2G:roche454", "3G:PacBiohifi", "sanger", "2G:illuminamiseq", "sangersga")
 seqtech_subgroup$level <- factor(x = seqtech_subgroup$level, levels = levs)
 
-figureS9c <- ggplot(seqtech_subgroup,
+figureS7c <- ggplot(seqtech_subgroup,
                     aes(x = level , y = exp(est))) +
   
   geom_point( shape = 18, 
@@ -349,9 +349,9 @@ figureS9c <- ggplot(seqtech_subgroup,
         #plot.margin = unit(c(2,4,2,1), "lines")
   )
 
-figureS9 <- cowplot::plot_grid(figureS9a,
-                               figureS9b, 
-                               figureS9c, 
+figureS7 <- cowplot::plot_grid(figureS7a,
+                               figureS7b, 
+                               figureS7c, 
                                ncol = 3,  rel_widths  = c(1,1,1) ,labels = "AUTO", align = 'h', axis = 'b', greedy = F)
 
 

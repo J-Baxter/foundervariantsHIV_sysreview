@@ -216,8 +216,8 @@ pooled <- rbind("model" = pooled_models[1:2,1:5], estimates) %>% arrange(., mode
 # Export csv with pooling and univariable metaregression to file
 originals <- cbind.data.frame(estimates, heterogeneity)
 
-# Figure S9a - Pooled Original vs Pooled Vaccine Only 
-# Figure S9b - Vaccine Subgroups comparison
+# Figure S6a - Pooled Original vs Pooled Vaccine Only 
+# Figure S6b - Vaccine Subgroups comparison
 
 # Set colour palettes 
 mycols_founder <- RColorBrewer::brewer.pal(name = 'RdBu', n = 8)[c(2,7)] #c("#E64B35FF", "#4DBBD5FF")
@@ -225,7 +225,7 @@ mycols_founder <- RColorBrewer::brewer.pal(name = 'RdBu', n = 8)[c(2,7)] #c("#E6
 # Set Labels
 labs <- c('Multiple','Single')
 
-figureS9a <- ggplot(df, aes(x = vaccine.status_))+
+figureS6a <- ggplot(df, aes(x = vaccine.status_))+
   geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), y = (..count..)/sum(..count..)))+
   scale_fill_manual(values = mycols_founder, labels = labs)+
   scale_y_continuous(limits = c(0,1), expand = c(0,0)) +
@@ -242,7 +242,7 @@ figureS9a <- ggplot(df, aes(x = vaccine.status_))+
         #plot.margin = unit(c(2,4,2,1), "lines")
   )
 
-figureS9b <- ggplot(pooled,
+figureS6b <- ggplot(pooled,
                   aes(x= forcats::fct_rev(model), y = estimate, color = analysis)) +
   
   geom_point( shape = 4, 
@@ -285,7 +285,7 @@ figureS9b <- ggplot(pooled,
 vaccine_ref <- cbind.data.frame(level = 'placebo', est = 0, ci.lb = NA, ci.ub = NA)
 vaccine_subgroup <- rbind.data.frame(unipooled_models.coef$fe[, c(2,3,5,6)], vaccine_ref)
 
-figureS9c <- ggplot(vaccine_subgroup,
+figureS6c <- ggplot(vaccine_subgroup,
                     aes(x = level , y = exp(est))) +
   
   geom_point( shape = 18, 
@@ -319,9 +319,9 @@ figureS9c <- ggplot(vaccine_subgroup,
         #plot.margin = unit(c(2,4,2,1), "lines")
   )
 
-figureS9 <- cowplot::plot_grid(figureS9a,
-                               figureS9b, 
-                               figureS9c, 
+figureS6 <- cowplot::plot_grid(figureS6a,
+                               figureS6b, 
+                               figureS6c, 
                                ncol = 3,  rel_widths  = c(1,1,1) ,labels = "AUTO", align = 'h', axis = 'b', greedy = F)
 
 
@@ -329,5 +329,5 @@ figureS9 <- cowplot::plot_grid(figureS9a,
 # Save to file (ggsave rather than setEPS() to preseve transparencies)
 ggsave("./results/figureS9.eps", device=cairo_ps, width = 16, height = 10, units= 'in')
 Sys.sleep(0.5)
-figureS9
+figureS6
 dev.off()

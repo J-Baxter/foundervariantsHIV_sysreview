@@ -69,11 +69,11 @@ og_models <- cbind("model" = pooled_models[1:2,1], pooled_models[1:2,3:8] %>% ro
 ###################################################################################################
 # Panel: Sensitivity analyses (exclusion criteria and resampling)
 
-# S5A
+# S2A
 # Studies with (n<10) omitted, Studies with (p=0) omitted", Full analysis",'Only SGA sequences', 
 # 'Gold Standard Only'
 
-figureS5_a <- ggplot(pooled_models[1:8,],
+figureS2_a <- ggplot(pooled_models[1:8,],
                     aes(x= forcats::fct_rev(model), y = estimate, color = analysis)) +
   
   geom_point( shape = 4, 
@@ -112,9 +112,9 @@ figureS5_a <- ggplot(pooled_models[1:8,],
         #plot.margin = unit(c(2,4,2,1), "lines")
   )
 
-# S5B
+# S2B
 # Resampled Models
-figureS5_b  <- ggplot(resampled_models) + 
+figureS2_b  <- ggplot(resampled_models) + 
   geom_histogram(aes(x = estimate,
                  color=analysis, 
                  fill=analysis),
@@ -155,7 +155,7 @@ figureS5_b  <- ggplot(resampled_models) +
         legend.position = c(0.82,0.9),
         legend.background = element_blank())
 
-# S6
+# S3
 # Effect of number of genomes: Dot and whisker
 # All, no extreme, no small, no high
 analysis_order <- c('original',
@@ -164,10 +164,10 @@ analysis_order <- c('original',
                  'largegenomes',
                  'gold_standard') %>% rev()
 
-plots6_data <- pooled_models[c(1,2,9:16),]
-plots6_data$analysis <- factor(plots6_data$analysis, levels = analysis_order) 
+plots3_data <- pooled_models[c(1,2,9:16),]
+plots3_data$analysis <- factor(plots6_data$analysis, levels = analysis_order) 
 
-figureS6 <- ggplot(plots6_data ,
+figureS3 <- ggplot(plots6_data ,
                      aes(x= forcats::fct_rev(model), y = estimate, color = analysis)) +
   
   geom_point( shape = 4, 
@@ -211,8 +211,8 @@ figureS6 <- ggplot(plots6_data ,
   )
 
 
-figureS5 <- cowplot::plot_grid(figureS5_a, 
-                               figureS5_b, 
+figureS2 <- cowplot::plot_grid(figureS2_a, 
+                               figureS2_b, 
                                ncol = 2,  rel_widths  = c(1,1) ,labels = "AUTO", align = 'h', axis = 'b', greedy = F)
 
 
@@ -220,12 +220,12 @@ figureS5 <- cowplot::plot_grid(figureS5_a,
 # Save to file (ggsave rather than setEPS() to preseve transparencies)
 ggsave("./results/figureS5.eps", device=cairo_ps, width = 16, height = 10, units= 'in')
 Sys.sleep(0.5)
-figureS5
+figureS2
 dev.off()
 
 ggsave("./results/figureS6.eps", device=cairo_ps, width = 8, height = 8, units= 'in')
 Sys.sleep(0.5)
-figureS6
+figureS3
 dev.off()
 
 
@@ -233,7 +233,7 @@ dev.off()
 # Panel: Sensitivity analyses (Faceted Influence Plots)
 influence_df$trial <- gsub("_" , " ", influence_df$trial)
 
-figureS7 <- ggplot(influence_df,aes(x = trial , y = estimate) ) +
+figureS4 <- ggplot(influence_df,aes(x = trial , y = estimate) ) +
   geom_point() + 
   
   scale_y_continuous(limits=c(0,0.4),
@@ -282,11 +282,11 @@ figureS7 <- ggplot(influence_df,aes(x = trial , y = estimate) ) +
 
 ggsave("./results/figureS7.eps", device=cairo_ps, width = 8, height = 10, units= 'in')
 Sys.sleep(0.2)
-figureS7
+figureS4
 dev.off()
 
 
-figureS8 <- ggplot(influence_rg,aes(x = trial , y = estimate) ) +
+figureS5 <- ggplot(influence_rg,aes(x = trial , y = estimate) ) +
   geom_point() + 
   
   scale_y_continuous(limits=c(0,0.4),
@@ -336,7 +336,7 @@ figureS8 <- ggplot(influence_rg,aes(x = trial , y = estimate) ) +
 
 ggsave("./results/figureS8.eps", device=cairo_ps, width = 8, height = 5, units= 'in')
 Sys.sleep(0.2)
-figureS8
+figureS5
 dev.off()
 ###################################################################################################
 ###################################################################################################

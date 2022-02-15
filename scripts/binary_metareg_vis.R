@@ -286,7 +286,7 @@ level_order <- c("PWID",
                  'HSX:MTF')
 fe.subset$level <- factor(fe.subset$level, levels = level_order) 
 
-Figure_S9A <- ggplot() +
+Figure_S10A <- ggplot() +
   geom_point(aes(x= exp(est), 
                  y = level,
                  col =  ifelse(exp(est)>1 & exp(ci.lb)>1, "A", ifelse(exp(est)<1 & exp(ci.ub)<1, "B",  'C'))),
@@ -348,7 +348,7 @@ level_order <- c("reported.exposure_PWID",
 sa1$level <- factor(gsub('[[:digit:]]' , '' , sa1$X), levels = level_order) 
 colnames(sa1) <- c('X', 'trial', 'est', 'se', 'z.val', 'p.val', 'level')
 
-Figure_S9B <-  ggplot() +
+Figure_S10B <-  ggplot() +
   geom_point(aes(x = exp(est), y =  level ), position = position_jitter(), data = sa1)+
   geom_point(aes(x = 1, y = 9))+
   theme_bw() + 
@@ -395,7 +395,7 @@ level_order <- c("reported.exposure_PWID",
 sa5_plotdata$level <- factor(gsub('[[:digit:]]' , '' , sa5_plotdata$X), levels = level_order) 
 colnames(sa5_plotdata) <- c('X',  'est', 'se', 'z.val', 'p.val', 'rep','level')
 
-Figure_S9C <- ggplot() +
+Figure_S10C <- ggplot() +
   geom_point(aes(x = exp(est), y =  level ), position = position_jitter(), data = sa5_plotdata)+
   geom_point(aes(x = 1, y = 9))+
   theme_bw() + 
@@ -438,7 +438,7 @@ level_order <- c("PWID",
                  'HSX:MTF')
 sa234_fe$level <- factor(sa234_fe$level, levels = level_order) 
 
-Figure_S9D <- ggplot(sa234_fe) +
+Figure_S10D <- ggplot(sa234_fe) +
   geom_point(aes(x= exp(est), 
                  y = level,
                  col =  ifelse(exp(est)>1 & exp(ci.lb)>1, "A", ifelse(exp(est)<1 & exp(ci.ub)<1, "B",  'C')),
@@ -496,13 +496,13 @@ Figure_S9D <- ggplot(sa234_fe) +
  
 
 # Out to file
-Figure_S9_L <- cowplot::plot_grid(Figure_S9A,
-                                   Figure_S9B,
-                                   Figure_S9C,
+Figure_S10_L <- cowplot::plot_grid(Figure_S10A,
+                                   Figure_S10B,
+                                   Figure_S10C,
                                    labels = 'AUTO', nrow = 3, align = 'v', axis = 'l', rel_heights = c(1,1) ,vjust = 1)
 
-Figure_S9 <- cowplot::plot_grid(Figure_S9_L, 
-                                 Figure_S9D,
+Figure_S10 <- cowplot::plot_grid(Figure_S10_L, 
+                                 Figure_S10D,
                                  ncol = 2, align = 'h', axis = 't',labels = c('','D'))
 
 setEPS()

@@ -317,7 +317,7 @@ grid.arrange(p1.exposure + theme(legend.position= c(0.85,0.87)),
 ###################################################################################################
 
 # Year of Publication ~ Frequency of Individuals, stacked by risk group
-figureS4_a <- ggplot(df, aes(year_))+
+figureS1_a <- ggplot(df, aes(year_))+
   geom_histogram(aes(fill = riskgroup_, 
                      colour = riskgroup_), 
                  bins = 8) +
@@ -336,7 +336,7 @@ figureS4_a <- ggplot(df, aes(year_))+
   theme(legend.position = 'bottom')
 
 # Year of Publication ~ Frequency of Individuals, stacked by method of enumeration
-figureS4_b <- ggplot(df, aes(year_))+
+figureS1_b <- ggplot(df, aes(year_))+
   geom_histogram(aes(fill = grouped.method_, 
                      colour = grouped.method_), 
                  bins = 8) +
@@ -370,7 +370,7 @@ df$sequencing.method_<- factor(df$sequencing.method_, levels = c('sanger_SGA',
                                                                  'unknown'))
 
 
-figureS4_c <- ggplot(df, aes(year_))+
+figureS1_c <- ggplot(df, aes(year_))+
   geom_histogram(aes(fill = sequencing.method_, 
                      colour = sequencing.method_), 
                  bins = 8) +
@@ -394,15 +394,15 @@ figureS4_c <- ggplot(df, aes(year_))+
   guides(color = "none", fill = guide_legend(nrow = 3, byrow= TRUE))+
   theme(legend.position = 'bottom') 
 
-figureS4 <- cowplot::plot_grid(figureS4_a, 
-                               figureS4_b + theme(axis.title.y = element_blank()), 
-                               figureS4_c + theme(axis.title.y = element_blank()), 
+figureS1 <- cowplot::plot_grid(figureS1_a, 
+                               figureS1_b + theme(axis.title.y = element_blank()), 
+                               figureS1_c + theme(axis.title.y = element_blank()), 
                                ncol = 3, labels = 'AUTO', align = 'hv')
 
 # Print to file
 setEPS()
 postscript("./results/figureS4.eps", width = 18, height = 8)
-figureS4
+figureS1
 dev.off()
 
 ###################################################################################################
