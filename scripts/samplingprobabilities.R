@@ -4,6 +4,7 @@
 library(actuar)
 library(ggplot2)
 library(cowplot)
+library(tidyverse)
 
 
 # Dual founder infection with variable ratio between major/minor variant
