@@ -31,11 +31,11 @@ sample_size <- 1:30
 
 
 # Binomial 
-maj_props <-  seq(5,50, by = 5)
+major_props <-  seq(50,95, by = 5)
 binom_probs <- sapply(sample_size, function(x) sapply(maj_props, Binom, sample = x)) %>% 
   as.data.frame() %>% 
   gather(key = 'sample_size', value = 'prob_both') %>% 
-  cbind.data.frame(maj_proportion = seq(5,50, by = 5)) %>% 
+  cbind.data.frame(maj_proportion = seq(95,50, by = -5)) %>% 
   mutate(sample_size = replace(sample_size, values = rep(1:30, each = 10)))
 
 binom_probs$sample_size <- as.numeric(binom_probs$sample_size)
@@ -45,7 +45,7 @@ plt_a <- ggplot(data = binom_probs,
   geom_line() +
   scale_x_continuous(name = 'Sample Size', expand = c(0,0))+
   scale_y_continuous(name = 'P[Both Lineages Sampled]', expand = c(0,0)) +
-  scale_color_viridis_c(name = 'Proportion of Major Variant (%)') +
+  scale_color_viridis_c(name = 'Proportion of Major Variant (%)', direction = -1) +
   theme_classic() +
   theme(legend.position = 'none')
 
@@ -56,7 +56,7 @@ p <- seq(0.05,0.8,by = 0.05)
 zt_probs <- sapply(sample_size, function(x) sapply(p, ZT_Binom, sample = x)) %>% 
   as.data.frame() %>% 
   gather(key = 'sample_size', value = 'prob_more') %>% 
-  cbind.data.frame(p = seq(0.05,0.8,by = 0.05)) %>% 
+  cbind.data.frame(p = seq(0.8,0.05,by = -0.05)) %>% 
   mutate(sample_size = replace(sample_size, values = rep(1:30, each = 16)))
 
 zt_probs$sample_size <- as.numeric(zt_probs$sample_size)
@@ -66,7 +66,7 @@ plt_b <- ggplot(data =zt_probs,
   geom_line() +
   scale_x_continuous(name = 'Sample Size', expand = c(0,0))+
   scale_y_continuous(name = 'P[Finding >1 Lineages]', expand = c(0,0)) +
-  scale_color_viridis_c(name = 'P[X=x]') +
+  scale_color_viridis_c(name = 'P[X=x]', direction = -1) +
   theme_classic()+
   theme(legend.position = 'none')
 
