@@ -21,7 +21,7 @@ stacked_categories <- function(x, catnames){
   
   freq <- split_df %>%
     group_by(split_df[,1] , split_df[,2]) %>%
-    summarise(frequency = n()) 
+    dplyr::summarise(frequency = n()) 
   
   
   
@@ -77,7 +77,7 @@ df <- read.csv("./data/meta_analysis_data.csv",
 # Set reference levels for meta regression
 # HSX:MTF, haplotype (highlighter), unknown seropositivity, B, whole genome
 baseline.covar <- c("reported.exposure_", "grouped.method_", "grouped.subtype_","sequencing.gene_", "sampling.delay_",'alignment.bin_', 'sequencing.method_')
-baseline.level <- c("HSX:MTF", "haplotype", "B" , "whole.genome" , "<21", 'NFLG', 'sanger_SGA')
+baseline.level <- c("HSX:MTF", "haplotype", "B" , "env" , "<21", 'NFLG', 'sanger_SGA')
 
 df <- SetBaseline(df, baseline.covar, baseline.level)
 
@@ -105,9 +105,9 @@ exposures_df$sub.exposure <- factor(exposures_df$sub.exposure, levels = c('MTF',
 
 fig2_a <- ggplot(exposures_df, aes(x = reported.exposure, y = frequency))+
   geom_bar(stat = 'identity' , aes(fill = sub.exposure), position = 'stack')+
-  scale_fill_manual(values= mycols_method ,labels = c('HSX: MTF', 'HSX: FTM', 'HSX: undisclosed',
+  scale_fill_manual(values= mycols_method ,labels = c('HSX: MTF', 'HSX: FTM', 'HSX: Unknown',
                                                       'MSM',
-                                                      'MTC: Pre-Partum', 'MTC: Intrapartum', 'MTC: Post-Partum', 'MTC: undisclosed',
+                                                      'MTC: Pre-Partum', 'MTC: Intrapartum', 'MTC: Post-Partum', 'MTC: Unknown',
                                                       'PWID'))+
   scale_y_continuous(limits = c(0,1000), expand = c(0,0)) +
   theme_classic() +
@@ -142,8 +142,8 @@ fig2_c <- ggplot(df, aes(x = grouped.method_))+
                               'haplotype' = 'Haplotype',
                               'model' = 'Model', 
                               'molecular' = 'Molecular',
-                              'phylogenetic:r' = 'Phylogenetic: recipient only',
-                              'phylogenetic:s&R '= 'Phylogenetic: paired') %>%
+                              'phylogenetic:r' = 'Phylogenetic: Recipient Only',
+                              'phylogenetic:s&R '= 'Phylogenetic: Paired') %>%
                      str_wrap(width = 17)) +
   theme_classic()+
   xlab('Method of Quantification')+
@@ -154,10 +154,24 @@ fig2_c <- ggplot(df, aes(x = grouped.method_))+
 
 ###################################################################################################
 # Fig 2D: Subtype
+
+subtype_order <- c('A','B', 'C', 'D' , 'CRF01_AE' , 'CRF02_AG' , 'recombinant', 'unknown')
+df$grouped.subtype_ <- factor(df$grouped.subtype_, levels = subtype_order)
+table(df$grouped.subtype_)
+
 fig2_d <- ggplot(df, aes(x = grouped.subtype_))+
   geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), y = (..count..)/sum(..count..)))+
   scale_fill_manual(values = mycols_founder, labels = labs)+
   scale_y_continuous(limits = c(0,1), expand = c(0,0)) +
+  scale_x_discrete(labels = c('A' = 'A',
+                             'B' = 'B',
+                             'C' = 'C', 
+                             'D' = 'D',
+                             'CRFO1_AE' = 'CRFO1_AE',
+                             'CRFO2_AG' = 'CRFO2_AG',
+                             'recombinant'= 'Recombinant',
+                             'unknown' = 'Unknown') %>%
+                     str_wrap(width = 17))+
   theme_classic()+
   xlab('Subtype')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+

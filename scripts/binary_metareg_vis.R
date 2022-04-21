@@ -86,11 +86,11 @@ OR2Percent <- function(log_odds_ratio){
 
 ###################################################################################################
 # Set directory and import results
-fe <- read.csv('./results/multimetareg_fe.csv')
-int <- read.csv('./results/multimetareg_int.csv')
-re <- read.csv('./results/multimetareg_re.csv')
+fe <- read.csv('./results/multimetareg_fe_env.csv')
+int <- read.csv('./results/multimetareg_int_env.csv')
+re <- read.csv('./results/multimetareg_re_env.csv')
 emm <- read.csv('./results/multimetareg_emm.csv')
-pred <-  read.csv('./results/multimetareg_preds.csv')
+pred <-  read.csv('./results/multimetareg_preds_env.csv')
 
 # Import data
 if (!dir.exists('data')){
@@ -107,7 +107,7 @@ df <- read.csv("./data/meta_analysis_data.csv",
   droplevels()
 
 baseline.covar <- c("reported.exposure_", "grouped.method_", "grouped.subtype_","sequencing.gene_", "sampling.delay_",'alignment.bin_')
-baseline.level <- c("HSX:MTF", "haplotype", "B" , "whole.genome" , "<21", 'NFLG')
+baseline.level <- c("HSX:MTF", "haplotype", "B" , "env" , "<21", 'NFLG')
 
 df <- SetBaseline(df, baseline.covar, baseline.level)
 
@@ -155,9 +155,9 @@ plt_grid1 <- cowplot::plot_grid(plt.list[[1]] + scale_y_discrete(labels = str_wr
                                                                           'haplotype' = 'Haplotype'), width = 13)),
                                 plt.list[[3]]+scale_y_discrete(labels = str_wrap(c(
                                                                           "pol" = 'Pol',
-                                                                          "env" = 'Env',
                                                                           "gag" = ' Gag', 
-                                                                          "whole.genome" = 'NFLG'), width = 13)),
+                                                                          "whole.genome" = 'NFLG',
+                                                                          "env" = 'Env'), width = 13)),
                                 plt.list[[4]]+scale_y_discrete(labels = str_wrap(c(
                                                                           ">21" = '>21 Days',
                                                                           "unknown" = 'Unknown',
@@ -261,11 +261,16 @@ figure_3B <-  cowplot::plot_grid(
 
 
 figure_3 <- cowplot::plot_grid(figure_3A,  figure_3B ,  labels = c('A'), ncol= 2, rel_widths = c(1.25,1))
-
+postscript("./results/test_grid.eps", width = 10, height = 16)
+test_grid <- plot_grid(figure_3A, plt.list[[3]]+scale_y_discrete(labels = str_wrap(c(
+  "pol" = 'Pol',
+  "whole.genome" = 'NFLG',
+  "gag" = ' Gag', 
+  "env" = 'Env'), width = 13)))
 #EPS
-postscript("./results/figure3.eps", width = 10, height = 16)
-
-figure_3
+postscript("./results/test_grid.eps", width = 10, height = 16)
+test_grid
+#figure_3
 
 dev.off()
 
