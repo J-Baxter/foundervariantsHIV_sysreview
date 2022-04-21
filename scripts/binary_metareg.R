@@ -253,7 +253,7 @@ df <- read.csv("./data/meta_analysis_data.csv",
 # Set reference levels for meta regression
 # HSX:MTF, haplotype (highlighter), unknown seropositivity, B, whole genome
 baseline.covar <- c("reported.exposure_", "grouped.method_", "grouped.subtype_","sequencing.gene_", "sampling.delay_",'alignment.bin_')
-baseline.level <- c("HSX:MTF", "haplotype", "B" , "whole.genome" , "<21", 'NFLG')
+baseline.level <- c("HSX:MTF", "haplotype", "B" , "env" , "<21", 'NFLG')
 
 df <- SetBaseline(df, baseline.covar, baseline.level)
 df$alignment.length_ <- scale(df$alignment.length_)
