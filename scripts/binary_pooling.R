@@ -435,7 +435,7 @@ df_gs <-read.csv("./data/meta_analysis_data.csv",
                  na.strings = "NA",
                  stringsAsFactors = T) %>%
   formatDF(., filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay'), noreps = F) %>%
-  filter(reported.exposure_ != 'unknown.exposure', grouped.method_ == 'haplotype', sequencing.gene_ == 'whole.genome') %>%
+  filter(reported.exposure_ != 'unknown.exposure', grouped.method_ == 'haplotype', sequencing.gene_ == 'env') %>%
   droplevels()
 
 df_gs_props <- CalcProps(df_gs)  
