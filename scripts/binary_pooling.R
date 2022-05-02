@@ -201,21 +201,28 @@ BootParticipant <- function(data, replicates){
   
   resampled <- lapply(1:replicates, function(x,y) {y %>% group_by(participant.id_) %>% sample_n(.,1)},
                       y = data)
+  message('resampling complete.')
   
   resampled_props <- lapply(resampled , CalcProps)
+  message('proportions calculated.')
   
   cl <- detectCores() %>%
     `-` (2) %>%
     makeCluster() 
+  message('cluster created.')
   
   clusterEvalQ(cl, c(library(lme4), library(metafor), library(aod), library(dplyr),
                      set.seed(4472),'CalcOnestepBiRand', 'CalcTwostepBiNorm'))
+  message('functions ported to cluster.')
   
   start <- Sys.time()
   print(start)
   
-  twostep_boot <- parLapply(cl = cl, resampled_props, CalcTwostepBiNorm)
-  rand_boot <- parLapply(cl = cl, resampled_props, CalcOnestepBiRand)
+  twostep_boot <- parallel::parLapply(cl = cl, resampled_props, CalcTwostepBiNorm)
+  message('twostep complete.')
+  
+  rand_boot <- parallel::parLapply(cl = cl, resampled_props, CalcOnestepBiRand)
+  message('glmm complete.')
   
   end <- Sys.time()
   elapsed <- end-start
@@ -248,6 +255,34 @@ BootParticipant <- function(data, replicates){
 
   
   return(out)
+}
+
+
+# Create a funnel plot using ggplot2
+ggfunnel <- function(x){
+  require(ggplot2)
+  
+  if(all(class(x) %in% c("rma",'rma.glmm'))){
+    funnel_data <- cbind.data.frame('se' = sqrt(x$vi), 'b' =  x$yi)
+    lb <- x$ci.lb 
+    ub <- x$ci.ub 
+    u <- mean(funnel_data$b)
+    se <- x$se
+    
+    poldgpn <- data.frame(x=c(-3.8,u,1.9), y = c(1.5,0,1.5))
+    
+    plt <- ggplot(funnel_data) +
+      geom_polygon(aes(x=x, y = y), data =  poldgpn ,fill = 'white', linetype = 'dashed' , color = 'black')  +
+      geom_point(aes(y = se, x = b), shape = 4, size = 3)+
+      theme_classic() +
+      scale_x_continuous(limits = c(-5 , 3), expand = c(0,0), name = 'Log Odds of Multiple Founders')+
+      scale_y_reverse(limit=c(1.5,0),  expand = c(0,0), name = 'Standard Error') +
+      
+      geom_segment(aes(x=u, y =1.5, xend = u, yend=0)) +
+      theme(panel.background = element_rect(fill = 'gray94' )) 
+  }
+  
+  return(plt)
 }
 
 
@@ -561,28 +596,12 @@ write.csv(influence_df, file = './results/pooling_sa1.csv',row.names = F)
 write.csv(rg_influence_df, file = './results/pooling_sa8.csv',row.names = F)
 
 # CSV resampling (pseudo bootstrapping)
-write.csv(boot_participant, file = './results/pooling_boot.csv',row.names = F)
+write.csv(boot_participant, file = './results/pooling_sa5.csv',row.names = F)
 
 
 # Funnel Plot
-funnel_data <- cbind.data.frame('se' = sqrt(onestep_bi_rand.nozeros$vi), 'b' =  onestep_bi_rand.nozeros$yi)
-lb <- onestep_bi_rand.nozeros$ci.lb 
-ub <- onestep_bi_rand.nozeros$ci.ub 
-u <- mean(funnel_data$b)
-se <- onestep_bi_rand.nozeros$se
+plt_funnel <- ggfunnel(onestep_bi_rand.nozeros)
 
-
-poldgpn <- data.frame(x=c(-3.8,u,1.9), y = c(1.5,0,1.5))
-plt_funnel <- ggplot(funnel_data ) +
-  geom_polygon(aes(x=x, y = y), data =  poldgpn ,fill = 'white', linetype = 'dashed' , color = 'black')  +
-  geom_point( aes(y = se, x = b, colour = ), shape = 4, size = 3)+
-  theme_classic() +
-  scale_x_continuous(limits = c(-5 , 3), expand = c(0,0), name = 'Log Odds of Multiple Founders')+
-  scale_y_reverse(limit=c(1.5,0),  expand = c(0,0), name = 'Standard Error') +
-  
-  geom_segment(aes(x=u, y =1.5, xend = u, yend=0)) +
-  theme(panel.background = element_rect(fill = 'gray94' )) +
-  scale_color_npg()
 
 # Print to file
 # may not work on linux depending on config
