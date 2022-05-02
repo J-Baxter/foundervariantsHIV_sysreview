@@ -247,6 +247,19 @@ unipooled_effectstruct.converged <- unipooled_effectstruct[(which(unipooled_chec
 # fixed effects coefficients exponentiated to odds ratios
 unipooled_models.coef <- RunParallel(GetCoefs, unipooled_models.converged, unipooled_effectstruct.converged)
 
+GetCoefs(unipooled_models.converged[[1]], unipooled_effectstruct.converged[[1]])
+m <- unipooled_models.converged[[1]] 
+
+confint.merMod(m, level = 0.95,
+               method = 'boot',
+               FUN = NULL,
+               #.progress="txt", 
+               #PBargs=list(style=3), 
+               nsim = 100,
+               parallel = "multicore",
+               ncpus = 4
+)
+
 # Extract marginal effects of fixed effects and calculate bootstrapped 95% CIs
 unipooled_models.marginals <- mapply(GetEMM, model = unipooled_models, 
                                      byvar = as.list(unipooled_forms), 

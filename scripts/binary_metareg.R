@@ -300,7 +300,7 @@ fixeff_forms<- c(f01 = "multiple.founders_ ~ reported.exposure_ + grouped.method
                  f07 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sequencing.gene_ + sampling.delay_ + alignment.bin_ + (1 | publication_)")
 
 fixeff_effectstruct <- GetName(fixeff_forms, effects = 'fixed')
-fixeff_models <- RunParallel(CalcRandMetaReg, fixeff_forms, df) 
+fixeff_models <- RunParallel(CalcRandMetaReg, fixeff_forms, df, opt = 'bobyqa') #opt for mac architecture?
 
 # Model diagnostics prior to selection of fixed effects structure
 # 1. Identify models that satisfy convergence threshold
@@ -330,7 +330,7 @@ interact_forms <- c(i1 = "multiple.founders_ ~ reported.exposure_ + grouped.meth
                     i3 = "multiple.founders_ ~ reported.exposure_ + grouped.method_*sequencing.gene_ + sampling.delay_ + alignment.bin_ + (1 | publication_)",
                     i4 = "multiple.founders_ ~ reported.exposure_ + grouped.method_ + sampling.delay_ + sequencing.gene_*alignment.bin_ + (1 | publication_)")
 
-interact_models <- RunParallel(CalcRandMetaReg, interact_forms, df) 
+interact_models <- RunParallel(CalcRandMetaReg, interact_forms, df, opt = 'bobyqa') 
 interact_effectstruct <- GetName(interact_forms, effects = 'fixed')
 
 interact_check <- CheckModels(interact_models)%>% 

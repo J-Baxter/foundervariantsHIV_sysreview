@@ -65,7 +65,7 @@ formatDF <-  function(df, noreps = TRUE, filter = NULL){
     }
     
     
-    df_splittrans <- colsplit(looped_df$reported.exposure, ":" , c("riskgroup" , "direction")) %>%
+    df_splittrans <- reshape2::colsplit(looped_df$reported.exposure, ":" , c("riskgroup" , "direction")) %>%
       type.convert(., as.is = FALSE) %>%
       cbind.data.frame(.,looped_df)
     #df_splittrans <- df_splittrans[!(df_splittrans$reported.exposure %in% "unknown.exposure"), ]
@@ -160,7 +160,8 @@ RunParallel <- function(func, v1, v2, ...){9
   options(warn = 1)
   
   # Set up cluster (fork)
-  cl <- detectCores() %>% `-` (2) 
+  cl <- detectCores() %>%
+    `-` (2) 
   
   if (class(v2) == 'data.frame'){
     
@@ -177,6 +178,9 @@ RunParallel <- function(func, v1, v2, ...){9
     end <- Sys.time()
     elapsed <- end-start
     print(elapsed)
+
+    remove(cl)
+    
   }else if(class(v2) != 'data.frame'){
     
     start <- Sys.time()
@@ -260,7 +264,7 @@ GetCoefs <- function(model, label = "original"){
   # Calculate CIs
   options(warn = 1)
   
-  ci <- confint.merMod(model, 
+  ci <- lme4::confint.merMod(model, 
                        method = 'boot',
                        .progress="txt", 
                        PBargs=list(style=3), 
