@@ -264,11 +264,17 @@ GetCoefs <- function(model, label = "original"){
   # Calculate CIs
   options(warn = 1)
   
-  ci <- lme4::confint.merMod(model, 
+  n_cores <- detectCores() %>%
+    `-` (2) 
+  
+  ci <- confint.merMod(m, level = 0.95,
                        method = 'boot',
-                       .progress="txt", 
+                       FUN = NULL,
+                       #.progress="txt", 
                        PBargs=list(style=3), 
-                       nsim = 250
+                       nsim = 500,
+                       parallel = "multicore",
+                       ncpus = n_cores
   )
   
   re.num <- ranef(model) %>% length()
