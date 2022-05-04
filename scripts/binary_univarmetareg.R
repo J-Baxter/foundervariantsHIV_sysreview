@@ -279,13 +279,12 @@ df.nosmallsample <- df[df$publication_ %in% publist.nosmallsample,]
 unipooled_models.nosmallsample <- RunParallel(CalcRandMetaReg, unipooled_forms, df.nosmallsample, opt = 'bobyqa')
 
 unipooled_models.nosmallsample.out <- list(CheckModels(unipooled_models.nosmallsample), 
-                                           RunParallel(GetCoefs, 
-                                                       unipooled_models.nosmallsample, 
-                                                       paste0(unipooled_effectstruct.converged, '.no_small')),
+                                           mapply(GetCoefs, unipooled_models.nosmallsample, 
+                                                  paste0(unipooled_effectstruct.converged, '.no_smallsample'), SIMPLIFY = FALSE),
                                            mapply(GetEMM,
                                                   model = unipooled_models.nosmallsample, 
                                                   byvar = as.list(unipooled_forms),
-                                                  paste0(unipooled_effectstruct.converged, '.no_small'), SIMPLIFY = F) %>%
+                                                  paste0(unipooled_effectstruct.converged, '.no_smallsample'), SIMPLIFY = F) %>%
                                              do.call(rbind.data.frame,.)) 
 
 
@@ -299,9 +298,8 @@ df.nozeros <- df[df$publication_ %in% publist.nozeros,]
 unipooled_models.nozeros <- RunParallel(CalcRandMetaReg, unipooled_forms, df.nozeros, opt = 'bobyqa')
 
 unipooled_models.nozeros.out <- list(CheckModels(unipooled_models.nozeros), 
-                                           RunParallel(GetCoefs, 
-                                                       unipooled_models.nozeros, 
-                                                       paste0(unipooled_effectstruct.converged, '.no_zero')),
+                                     mapply(GetCoefs, unipooled_models.nozeros, 
+                                            paste0(unipooled_effectstruct.converged, '.no_zero'), SIMPLIFY = FALSE),
                                            mapply(GetEMM,
                                                   model = unipooled_models.nozeros, 
                                                   byvar = as.list(unipooled_forms),
@@ -319,9 +317,8 @@ df.sgaonly <- df[df$publication_ %in% publist.sgaonly,]
 unipooled_models.sgaonly <- RunParallel(CalcRandMetaReg, unipooled_forms, df.sgaonly, opt = 'bobyqa')
 
 unipooled_models.sgaonly.out <- list(CheckModels(unipooled_models.sgaonly), 
-                                           RunParallel(GetCoefs, 
-                                                       unipooled_models.sgaonly, 
-                                                       paste0(unipooled_effectstruct.converged, '.sga_only')),
+                                     mapply(GetCoefs, unipooled_models.sgaonly, 
+                                            paste0(unipooled_effectstruct.converged, '.sga_only'), SIMPLIFY = FALSE),
                                            mapply(GetEMM,
                                                   model = unipooled_models.sgaonly, 
                                                   byvar = as.list(unipooled_forms),
@@ -357,7 +354,7 @@ sa7_dflist$rep <- read.csv("./data/meta_analysis_data.csv",
 
 sa7_modgrid <- expand.grid(data = sa7_dflist, formula = unipooled_forms, stringsAsFactors = F)
 sa7_mods <- mapply(CalcRandMetaReg, data = sa7_modgrid[[1]] , formula = sa7_modgrid[[2]],SIMPLIFY = F)
-sa7_coef<- RunParallel(GetCoefs, sa7_mods, names(sa7_dflist))
+sa7_coef<-  mapply(GetCoefs, sa7_mods, names(sa7_dflist), SIMPLIFY = FALSE)
 
 sa7_emm <- mapply(GetEMM,
                   model = sa7_mods, 
@@ -379,9 +376,8 @@ df.noextremegenomes <- df.knowngenomes[which(df.knowngenomes$sequencing.number_ 
 unipooled_models.noextremegenomes<- RunParallel(CalcRandMetaReg, unipooled_forms, df.noextremegenomes, opt = 'bobyqa')
 
 unipooled_models.noextremegenomes.out <- list(CheckModels(unipooled_models.noextremegenomes), 
-                                     RunParallel(GetCoefs, 
-                                                 unipooled_models.noextremegenomes, 
-                                                 paste0(unipooled_effectstruct.converged, '.noextremegenomes')),
+                                              mapply(GetCoefs, unipooled_models.noextremegenomes, 
+                                                     paste0(unipooled_effectstruct.converged, '.noextremegenomes'), SIMPLIFY = FALSE),
                                      mapply(GetEMM,
                                             model = unipooled_models.noextremegenomes, 
                                             byvar = as.list(unipooled_forms),
@@ -394,13 +390,12 @@ df.nosmallgenomes <- df.knowngenomes[which(df.knowngenomes$sequencing.number_ > 
 unipooled_models.nosmallgenomes <- RunParallel(CalcRandMetaReg, unipooled_forms, df.nosmallgenomes, opt = 'bobyqa')
 
 unipooled_models.nosmallgenomes.out <- list(CheckModels(unipooled_models.nosmallgenomes), 
-                                              RunParallel(GetCoefs, 
-                                                          unipooled_models.nosmallgenomes, 
-                                                          paste0(unipooled_effectstruct.converged, '.nosmallgenomes')),
+                                            mapply(GetCoefs, unipooled_models.nosmallgenomes, 
+                                                   paste0(unipooled_effectstruct.converged, '.nosmallgenomes'), SIMPLIFY = FALSE),
                                               mapply(GetEMM,
                                                      model = unipooled_models.nosmallgenomes, 
                                                      byvar = as.list(unipooled_forms),
-                                                     label = paste0(unipooled_effectstruct.converged, '.nogenomes'), SIMPLIFY = F) %>% 
+                                                     label = paste0(unipooled_effectstruct.converged, '.nosmallgenomes'), SIMPLIFY = F) %>% 
                                                 do.call(rbind.data.frame,.)) 
 
 # SA8c. Exclusion of participants outwith greater than 75% quartile of the number of genomes analysed
@@ -411,9 +406,8 @@ summary(df.nolargegenomes$sequencing.number_)
 unipooled_models.nolargegenomes<- RunParallel(CalcRandMetaReg, unipooled_forms, df.nolargegenomes, opt = 'bobyqa')
 
 unipooled_models.nolargegenomes.out <- list(CheckModels(unipooled_models.nolargegenomes), 
-                                              RunParallel(GetCoefs, 
-                                                          unipooled_models.nolargegenomes, 
-                                                          paste0(unipooled_effectstruct.converged, '.nolargegenomes')),
+                                            mapply(GetCoefs, unipooled_models.nolargegenomes, 
+                                                   paste0(unipooled_effectstruct.converged, '.nolargegenomes'), SIMPLIFY = FALSE),
                                               mapply(GetEMM,
                                                      model = unipooled_models.nolargegenomes, 
                                                      byvar = as.list(unipooled_forms),
