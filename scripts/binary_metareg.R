@@ -24,7 +24,7 @@
 # Dependencies
 source('./scripts/load_packages.R')
 source('./scripts/generalpurpose_funcs.R')
-
+library(emmeans)
 
 # Wrapper to performance::check_collinearity
 # filters according to a tolerance VIF value (default = 5)
@@ -172,7 +172,7 @@ BootMetaRegMV <- function(data, replicates){
   boot_reg <- mclapply(resampled, CalcRandMetaReg, 
                        formula = model_selected.form,
                        opt = 'bobyqa',
-                       mc.cores = 4,
+                       mc.cores = cl,
                        mc.set.seed = FALSE)
   
   end <- Sys.time()
@@ -362,15 +362,18 @@ models_viable.comp <- ModelComp(models_viable) %>%
 # Model selected = Reported Exposure + Grouped Method + Sequencing Gene + Participant Seropositivity
 # Model effects sent to file as part of fixeff_modelbuild.nomultico.effects
 model_selected <- models_viable$f06
-model_selected.form <- forms_viable[[2]]
+model_selected.form <- forms_viable[[4]]
 model_selected.effectstruct <- GetName(model_selected.form, effects = 'fixed')
 
 
 ###################################################################################################
 ###################################################################################################
 # Extract fixed and random effect coefficients and calculate bootstrapped 95% CIs
+start <- Sys.time()
+print(start)
 model_selected.coef <- GetCoefs(model_selected, model_selected.effectstruct)
-
+end <- Sys.time()
+paste('Bootstrapped coefficient estimation was', end-start , 'hours in duration.') %>% print()
 
 # Extract estimated marginal means of fixed effects and calculate 95% CIs
 # estimated marginal means average the coefficients of selected vars over all factors
@@ -499,9 +502,9 @@ resampling_df <- read.csv("./data/meta_analysis_data.csv",
 model_selected.boot_participant <- BootMetaRegMV(resampling_df, 1000) #To re run
 
 # SA6. Optimisation Algorithm selected by glmerCrtl
-opt.algo <- c('bobyqa', 'Nelder_Mead')
-algo <- lapply(opt.algo, function(x) CalcRandMetaReg(df , model_selected.form, opt = x))
-lapply(algo, check_convergence)
+#opt.algo <- c('bobyqa', 'Nelder_Mead')
+#algo <- lapply(opt.algo, function(x) CalcRandMetaReg(df , model_selected.form, opt = x))
+#lapply(algo, check_convergence)
 
 
 # SA7. Delay/Repeat permutation tests
