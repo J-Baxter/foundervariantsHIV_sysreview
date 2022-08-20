@@ -131,25 +131,31 @@ SetBaseline <- function(data,covar,baseline){
 # One-step GLMM accounting for clustering of studies using a random intercept
 CalcRandMetaReg <- function(data, formula, opt = NULL){
   
-  if(is.character(opt)){
-    cntrl <- glmerControl(optCtrl = list(maxfun = 50000000),
-                          check.nobs.vs.nlev = 'ignore',
-                          check.nobs.vs.nRE = 'ignore',
-                          optimizer = 'bobyqa')
-  }else{
-    cntrl <- glmerControl(optCtrl = list(maxfun = 50000000),
-                          check.nobs.vs.nlev = 'ignore',
-                          check.nobs.vs.nRE = 'ignore')
-  }
-  
   options(warn = 1)
   f <- as.formula(formula)
   environment(f) <- environment()
-  model <- lme4::glmer(f,
-                       data = data,
-                       family = binomial(link = "logit"),
-                       nAGQ = 1,
-                       control = cntrl)
+  
+  if(is.character(opt)){
+    model <- lme4::glmer(f,
+                         data = data,
+                         family = binomial(link = "logit"),
+                         nAGQ = 1,
+                         control = glmerControl(optCtrl = list(maxfun = 50000000),
+                                                check.nobs.vs.nlev = 'ignore',
+                                                check.nobs.vs.nRE = 'ignore',
+                                                optimizer = 'bobyqa'))
+
+  }else{
+    model <- lme4::glmer(f,
+                         data = data,
+                         family = binomial(link = "logit"),
+                         nAGQ = 1,
+                         control = glmerControl(optCtrl = list(maxfun = 50000000),
+                                                check.nobs.vs.nlev = 'ignore',
+                                                check.nobs.vs.nRE = 'ignore'))
+  }
+  
+ 
   return(model)
 }
 
@@ -264,17 +270,16 @@ GetCoefs <- function(model, label = "original"){
   # Calculate CIs
   options(warn = 1)
   
-  n_cores <- detectCores() %>%
-    `-` (2) 
+  n_cores <- detectCores() %>% `-` (2)
   
-  ci <- confint.merMod(m, level = 0.95,
-                       method = 'boot',
-                       FUN = NULL,
-                       #.progress="txt", 
-                       PBargs=list(style=3), 
-                       nsim = 500,
-                       parallel = "multicore",
-                       ncpus = n_cores
+  ci <- lme4::confint.merMod(model, 
+                             method = 'boot',
+                             FUN = NULL,
+                             #.progress="txt", 
+                             PBargs=list(style=3), 
+                             nsim = 500,
+                             parallel= "multicore",
+                             ncpus = n_cores
   )
   
   re.num <- ranef(model) %>% length()
