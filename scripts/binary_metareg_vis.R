@@ -116,7 +116,7 @@ tabs <- list(table(df$grouped.method_)[sort(names(table(df$grouped.method_)))] %
              table(df$sampling.delay_)[sort(names(table(df$sampling.delay_)))] %>% as.integer(),
              table(df$sequencing.gene_)[sort(names(table(df$sequencing.gene_)))] %>% as.integer()) %>% unlist() 
 
-fe <- read.csv('./results/multimetareg_fe.csv')
+#fe <- read.csv('./results/multimetareg_fe.csv')
 fe <- cbind.data.frame(covariate = gsub('_', '', baseline.covar)[-c(3,6)], level = baseline.level[-c(3,6)], est = 1000) %>%
   plyr::rbind.fill(.,fe) %>%
   arrange(., covariate,level) %>%
@@ -155,8 +155,8 @@ plt_grid1 <- cowplot::plot_grid(plt.list[[1]] + scale_y_discrete(labels = str_wr
                                                                           'haplotype' = 'Haplotype'), width = 13)),
                                 plt.list[[3]]+scale_y_discrete(labels = str_wrap(c(
                                                                           "pol" = 'Pol',
-                                                                          "gag" = ' Gag', 
                                                                           "whole.genome" = 'NFLG',
+                                                                          "gag" = ' Gag', 
                                                                           "env" = 'Env'), width = 13)),
                                 plt.list[[4]]+scale_y_discrete(labels = str_wrap(c(
                                                                           ">21" = '>21 Days',
@@ -190,9 +190,10 @@ pred$grp <- c('HSX','HSX','HSX','MSM', 'MTC', 'MTC', 'MTC', 'MTC', 'PWID')
 
 figure_3A <- ggplot() +
   geom_point(aes(x= predicted, 
-                 y = covariate_level),
-             shape = 4, 
-             size = 5, data = pred) +
+                 y = covariate_level,
+                 size = tabs),
+             shape = 18, data = pred) +
+  scale_size(range = c(2.5,7.5)) +
   theme_bw() + 
   geom_linerange(aes(y = covariate_level, 
                      xmin= conf.low, 
@@ -249,9 +250,9 @@ figure_3B <-  cowplot::plot_grid(
                                    'haplotype' = 'Haplotype'), width = 13)),
                                  plt.list[[3]]+scale_y_discrete(labels = str_wrap(c(
                                    "pol" = 'Pol',
-                                   "env" = 'Env',
+                                   "whole.genome" = 'NFLG',
                                    "gag" = ' Gag', 
-                                   "whole.genome" = 'NFLG'), width = 13)),
+                                   "env" = 'Env'), width = 13)),
                                  plt.list[[4]]+scale_y_discrete(labels = str_wrap(c(
                                    ">21" = '>21 Days',
                                    "unknown" = 'Unknown',
@@ -268,9 +269,10 @@ test_grid <- plot_grid(figure_3A, plt.list[[3]]+scale_y_discrete(labels = str_wr
   "gag" = ' Gag', 
   "env" = 'Env'), width = 13)))
 #EPS
-postscript("./results/test_grid.eps", width = 10, height = 16)
-test_grid
-#figure_3
+setEPS()
+postscript("./results/figure_3.eps", width = 10, height = 16)
+#test_grid
+figure_3
 
 dev.off()
 
