@@ -7,38 +7,45 @@
 # versions from renv.lock
 ###################################################################################################
 ###################################################################################################
-require(renv)
 require(tidyverse)
 
-status <- renv::status()
+pkgs <- c("renv", "cowplot", "tidyverse", "emmeans", "lme4", "parallel", "performance", "scales",
+          "ggsci", "grDevices", "aod", "metafor", "RColorBrewer", "ggeffects", "reshape2", 
+          "data.table", "glmmTMB", "influence.ME", "meta", "mltools", "actuar")
 
-if (!status$synchronized){
-  cat('Dependencies not synchonised')
-  sync <- readline(prompt="Do you wish to run renv::restore() and synchronise the local project environment? [Y/n] ")
-  if(sync == 'Y'){
-    renv::restore()
-  }else if(sync == 'n'){
-    cat('Proceeding to load required packages as currently installed ...')
-  }else{
-    cat('Please enter a valid response. [Y/n]')
+for (pkg in pkgs){
+  
+  if (!(pkg %in% installed.packages())){
+    
+    install.packages(pkg)
+    
+    library(pkg, character.only = T)
+    
+  }else if (pkg %in% installed.packages()){
+    
+    library(pkg, character.only = T)
   }
 }
 
-required_packages <- dependencies()$Package
 
-for (package in required_packages){
-  require(package, character.only = T)
+###################################################################################################
+# Create directories for results and figures
+
+ddmonthyy <- format(Sys.Date(), '%d%b%y')
+check_dirs <- paste(c('./results', './figures'), ddmonthyy, sep = '/')
+dirs <- list.dirs()
+
+for (check_dir in check_dirs){
+  
+  if (!(check_dir %in% dirs)){
+    dir.create(check_dir)
+  }
+
 }
 
-installed_packages <- (.packages())
+results_dir <- check_dirs[[1]]
+figs_dir <- check_dirs[[2]]
 
-if(all(required_packages %in% installed_packages)){
-  cat('All packages installed.')
-}else{
-  missing_packages <- required_packages[!(required_packages %in% installed_packages)]
-  error_message <- sapply(missing_packages, function(x) paste0(x,'\n'))
-  stop('The following packages are not installed: \n', error_message)
-}
 
 ###################################################################################################
 # END #

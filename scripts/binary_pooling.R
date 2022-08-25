@@ -576,7 +576,10 @@ rg_influence_df <- rbind.data.frame(twostep_binorm.influence_rg,
 ###################################################################################################
 # Outputs
 # CSV of pooling model results (estimates only) with SAs 2 + 3
-ifelse(!dir.exists('./results'), dir.create(file.path('./results')), FALSE)
+results_dir <- check_dirs[[1]]
+figs_dir <- check_dirs[[2]]
+
+
 
 originals <- cbind.data.frame(estimates, heterogeneity)
 pooled_est <- rbind.data.frame(originals,
@@ -588,15 +591,15 @@ pooled_est <- rbind.data.frame(originals,
                                SA7b_results,
                                SA7c_results) %>% .[,-c(6,11)]
 
-write.csv(pooled_est , file = './results/pooling_estsa2sa3sa4sa6sa7.csv', row.names = F)
+write.csv(pooled_est , file = paste(results_dir, 'pooling_estsa2sa3sa4sa6sa7.csv', sep = '/'), row.names = F)
 
 
 # CSV study influence
-write.csv(influence_df, file = './results/pooling_sa1.csv',row.names = F)
-write.csv(rg_influence_df, file = './results/pooling_sa8.csv',row.names = F)
+write.csv(influence_df, file = paste(results_dir, sep = '/', 'pooling_sa1.csv'),row.names = F)
+write.csv(rg_influence_df, file = paste(results_dir, sep = '/', 'pooling_sa8.csv'),row.names = F)
 
 # CSV resampling (pseudo bootstrapping)
-write.csv(boot_participant, file = './results/pooling_sa5.csv',row.names = F)
+write.csv(boot_participant, file = paste(results_dir, sep = '/', 'pooling_sa5.csv'),row.names = F)
 
 
 # Funnel Plot
@@ -606,7 +609,7 @@ plt_funnel <- ggfunnel(onestep_bi_rand.nozeros)
 # Print to file
 # may not work on linux depending on config
 setEPS()
-postscript("./results/figureS8.eps", width = 12, height = 12)
+postscript(paste(figs_dir, "./results/figureS8.eps", sep = '/'), width = 12, height = 12)
 plt_funnel 
 dev.off()
 

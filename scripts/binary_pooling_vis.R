@@ -52,12 +52,12 @@ PltBoot <- function(data, intercept, ci.lb, ci.ub){
 ###################################################################################################
 ###################################################################################################
 # Import data
-influence_df <- read.csv("./results/pooling_sa1.csv") %>% arrange(., model)
-influence_rg <- read.csv("./results/pooling_sa8.csv") %>% arrange(., model)
+influence_df <- read.csv(paste(results_dir,sep = '/', "pooling_sa1.csv")) %>% arrange(., model)
+influence_rg <- read.csv(paste(results_dir,sep = '/', "pooling_sa8.csv")) %>% arrange(., model)
 
-pooled_models <-  read.csv('./results/pooling_estsa2sa3sa4sa6sa7.csv')
+pooled_models <-  read.csv(paste(results_dir,sep = '/', 'pooling_estsa2sa3sa4sa6sa7.csv'))
 
-resampled_models <- read.csv('./results/pooling_boot.csv')
+resampled_models <- read.csv(paste(results_dir,sep = '/', 'pooling_sa5.csv'))
 
 models <- c('Two-Step Binomial-Normal',
             'One-Step Binomial GLMM')
@@ -218,12 +218,12 @@ figureS2 <- cowplot::plot_grid(figureS2_a,
 
 
 # Save to file (ggsave rather than setEPS() to preseve transparencies)
-ggsave("./results/figureS5.eps", device=cairo_ps, width = 16, height = 10, units= 'in')
+ggsave(paste(figs_dir,sep = '/', "figureS5.eps"), device=cairo_ps, width = 16, height = 10, units= 'in')
 Sys.sleep(0.5)
 figureS2
 dev.off()
 
-ggsave("./results/figureS6.eps", device=cairo_ps, width = 8, height = 8, units= 'in')
+ggsave(paste(figs_dir,sep = '/', "figureS6.eps"), device=cairo_ps, width = 8, height = 8, units= 'in')
 Sys.sleep(0.5)
 figureS3
 dev.off()
@@ -280,7 +280,7 @@ figureS4 <- ggplot(influence_df,aes(x = trial , y = estimate) ) +
     legend.position = 'none'
   )
 
-ggsave("./results/figureS7.eps", device=cairo_ps, width = 8, height = 10, units= 'in')
+ggsave(paste(figs_dir,sep = '/', "figureS7.eps"), device=cairo_ps, width = 8, height = 10, units= 'in')
 Sys.sleep(0.2)
 figureS4
 dev.off()
@@ -334,7 +334,7 @@ figureS5 <- ggplot(influence_rg,aes(x = trial , y = estimate) ) +
         legend.position = 'none'
   )
 
-ggsave("./results/figureS8.eps", device=cairo_ps, width = 8, height = 5, units= 'in')
+ggsave(paste(figs_dir,sep = '/', "figureS8.eps"), device=cairo_ps, width = 8, height = 5, units= 'in')
 Sys.sleep(0.2)
 figureS5
 dev.off()
