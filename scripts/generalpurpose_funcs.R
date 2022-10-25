@@ -431,4 +431,14 @@ Effects2File <- function(effectslist){
 
 
 ###################################################################################################
+StratQuantiles <- function(data, var, strat){
+
+  VAR <- enquo(var)
+  STRAT <- enquo(strat)
+  out <- data %>% group_by(!!STRAT) %>% mutate(new = as.numeric(!!VAR)) %>% filter(!is.na(new)) %>% summarise(quantile = scales::percent(c(0.25, 0.5, 0.75)), number = quantile(new, c(0.25, 0.5, 0.75))) %>% pivot_wider(names_from = quantile, values_from = number)
+  return(out)
+
+}
+
+###################################################################################################
 ###################################################################################################
