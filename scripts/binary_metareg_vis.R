@@ -20,8 +20,8 @@ PlotMetaReg <- function(data, var){
   plt <- ggplot(data.subset) +
     geom_point(aes(x= exp(est), 
                    y = fct_reorder(level, order),
-                   size = tabs,
-                   col =  ifelse(exp(est)>1 & exp(ci.lb)>1, "A", ifelse(exp(est)<1 & exp(ci.ub)<1, "B",  'C'))),
+                   col =  ifelse(exp(est)>1 & exp(ci.lb)>1, "A", ifelse(exp(est)<1 & exp(ci.ub)<1, "B",  'C')),
+                   size = tabs),
                    shape = 18) +
     theme_bw() + 
     geom_linerange(aes(y = level, 
@@ -86,11 +86,11 @@ OR2Percent <- function(log_odds_ratio){
 
 ###################################################################################################
 # Set directory and import results
-fe <- read.csv('./results/multimetareg_fe_env.csv')
+fe <- read.csv('./results/multimetareg_fe.csv')
 int <- read.csv('./results/multimetareg_int_env.csv')
 re <- read.csv('./results/multimetareg_re_env.csv')
 emm <- read.csv('./results/multimetareg_emm.csv')
-pred <-  read.csv('./results/multimetareg_preds_env.csv')
+pred <-  read.csv('./results/multimetareg_preds.csv')
 
 # Import data
 if (!dir.exists('data')){
@@ -166,17 +166,16 @@ plt_grid1 <- cowplot::plot_grid(plt.list[[1]] + scale_y_discrete(labels = str_wr
 
 ## Change to EPS out
 setEPS()
-postscript("./results/21Oct22metareg_ORplot2.eps", width = 10, height = 10)
+postscript("./results/metareg_ORplot2.eps", width = 10, height = 10)
 plt_grid1 
 dev.off()
 
 
 ###################################################################################################
 # Estimates of frequency, stratified by route of transmission
-level_order <- c("PWID",
-                 "MTC:IntraP",
-                 "MTC:notiming",
+level_order <- c("PWID","MTC:notiming",
                  "MTC:PostP",
+                 "MTC:IntraP",
                  "MTC:PreP",
                  'MSM',
                  'HSX:nodirection',
@@ -191,7 +190,7 @@ pred$grp <- c('HSX','HSX','HSX','MSM', 'MTC', 'MTC', 'MTC', 'MTC', 'PWID')
 figure_3A <- ggplot() +
   geom_point(aes(x= predicted, 
                  y = covariate_level,
-                 size = tabs),
+                 size = tabs[[2]]),
              shape = 18, data = pred) +
   scale_size(range = c(2.5,7.5)) +
   theme_bw() + 
@@ -268,11 +267,12 @@ test_grid <- plot_grid(figure_3A, plt.list[[3]]+scale_y_discrete(labels = str_wr
   "whole.genome" = 'NFLG',
   "gag" = ' Gag', 
   "env" = 'Env'), width = 13)))
+
 #EPS
 setEPS()
-postscript("./results/figure_3.eps", width = 10, height = 16)
+postscript(paste(figs_dir,sep = '/', "figure3.eps"), width = 10, height = 16)
 #test_grid
-figure_3
+figure_3A
 
 dev.off()
 
@@ -386,39 +386,40 @@ Figure_S10B <-  ggplot() +
 
 ###################################################################################################
 # S11C - boot resample
-level_order <- c("PWID",
-                 "MTC:IntraP",
-                 "MTC:notiming",
-                 "MTC:PostP",
-                 "MTC:PreP",
-                 'MSM',
-                 'HSX:nodirection',
-                 'HSX:FTM',
-                 'HSX:MTF')
+sa5_plotdata <- read.csv('./results/multimetareg_s5.csv', stringsAsFactors = F)%>%
+  filter(grepl('reported.exposure',X))
 
-sa5_plotdata <- read.csv('./results/multimetareg_s5.csv', stringsAsFactors = F) %>%
-  filter(grepl('reported.exposure',X)) %>%
-  mutate(preds.covariate_level = factor(preds.covariate_level, levels = level_order)) %>%
-  `colnames<-`  (c('X',  'est', 'se', 'z.val', 'p.val', 'rep','level'))
-               
+level_order <- c("reported.exposure_PWID",
+                 "reported.exposure_MTC:IntraP",
+                 "reported.exposure_MTC:notiming",
+                 "reported.exposure_MTC:PostP",
+                 "reported.exposure_MTC:PreP",
+                 'reported.exposure_MSM',
+                 'reported.exposure_HSX:nodirection',
+                 'reported.exposure_HSX:FTM',
+                 'reported.exposure_HSX:MTF')
+
+sa5_plotdata$level <- factor(gsub('[[:digit:]]' , '' , sa5_plotdata$X), levels = level_order) 
+colnames(sa5_plotdata) <- c('X',  'est', 'se', 'z.val', 'p.val', 'rep','level')
+
 Figure_S10C <- ggplot() +
   geom_point(aes(x = exp(est), y =  level ), position = position_jitter(), data = sa5_plotdata)+
-  geom_point(aes(x = 1, y ='HSX:MTF' ))+
+  geom_point(aes(x = 1, y = 9))+
   theme_bw() + 
   scale_x_continuous(
     expand = c(0,0), 
     name = "Odds Ratio"
     #trans = 'log10'
   )+
-  scale_y_discrete(labels = c('HSX:MTF' = 'Heterosexual: male-to-female',
-                              'HSX:FTM' = 'Heterosexual: female-to-male',
-                              'HSX:nodirection' = 'HSX: undisclosed',
-                              'MSM' = 'MSM', 
-                              "MTC:PreP" = 'Mother-to-child: pre-partum',
-                              "MTC:PostP" = 'Mother-to-child: post-partum',
-                              "MTC:notiming" = 'Mother-to-child: undisclosed',
-                              "MTC:IntraP" = 'Mother-to-child: intrapartum', 
-                              "PWID" = 'PWID'), drop = FALSE)+
+  scale_y_discrete(labels = c('reported.exposure_HSX:MTF' = 'Heterosexual: male-to-female',
+                              'reported.exposure_HSX:FTM' = 'Heterosexual: female-to-male',
+                              'reported.exposure_HSX:nodirection' = 'HSX: undisclosed',
+                              'reported.exposure_MSM' = 'MSM', 
+                              "reported.exposure_MTC:PreP" = 'Mother-to-child: pre-partum',
+                              "reported.exposure_MTC:PostP" = 'Mother-to-child: post-partum',
+                              "reported.exposure_MTC:notiming" = 'Mother-to-child: undisclosed',
+                              "reported.exposure_MTC:IntraP" = 'Mother-to-child: intrapartum', 
+                              "reported.exposure_PWID" = 'PWID'), drop = FALSE)+
   geom_vline(xintercept = 1, linetype = 'dashed')+
   theme(
     axis.line.y = element_blank(),
@@ -502,19 +503,19 @@ Figure_S10D <- ggplot(sa234_fe) +
  
 
 # Out to file
-Figure_S10_L <- cowplot::plot_grid(
+Figure_S10_L <- cowplot::plot_grid(Figure_S10A,
                                    Figure_S10B,
                                    Figure_S10C,
-                                   labels = 'AUTO', nrow = 2, align = 'v', axis = 'l', rel_heights = c(1,1) ,vjust = 1)
+                                   labels = 'AUTO', nrow = 3, align = 'v', axis = 'l', rel_heights = c(1,1) ,vjust = 1)
 
 Figure_S10 <- cowplot::plot_grid(Figure_S10_L, 
                                  Figure_S10D,
-                                 ncol = 2, align = 'h', axis = 't',labels = c('', 'C'))
+                                 ncol = 2, align = 'h', axis = 't',labels = c('','D'))
 
 setEPS()
-postscript("./results/figureS10.eps", width = 12, height = 12)
+postscript("./results/figureS11.eps", width = 12, height = 12)
 Sys.sleep(0.2)
-Figure_S10 
+Figure_S9
 dev.off()
 
 

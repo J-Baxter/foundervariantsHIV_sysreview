@@ -65,7 +65,7 @@ if (!dir.exists('data')){
   Retrieve('data.zip')
 }else{
   Sys.sleep(0.2)
-}
+}na
 
 df <- read.csv("./data/meta_analysis_data.csv",
                na.strings = "NA",
@@ -119,14 +119,17 @@ fig2_a <- ggplot(exposures_df, aes(x = reported.exposure, y = frequency))+
 
 ###################################################################################################
 # Fig 2B: Route of transmission (riskgroup)
-fig2_b <- ggplot(df, aes(x = riskgroup_))+
+fig2_b <- ggplot(df, aes(x = reported.exposure_))+
   geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), y = (..count..)/sum(..count..), colour = forcats::fct_rev(factor(multiple.founders_))))+
   scale_color_manual(values = mycols_founder, labels = labs)+
   scale_fill_manual(values = mycols_founder, labels = labs)+
   scale_y_continuous(limits = c(0,1), expand = c(0,0)) +
-  scale_x_discrete(labels = LabelX(df$riskgroup_)) +
+  scale_x_discrete(labels = c('HSX: MTF', 'HSX: FTM', 'HSX: Undisclosed',
+                                       'MSM',
+                                       'MTC: Intrapartum', 'MTC: Undisclosed', 'MTC: Post-Partum', 'MTC: Pre-Partum', 
+                                       'PWID')) +
   theme_classic()+
-  xlab('Risk Group')+
+  xlab('Reported Exposure')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
   ylab('Proportion of Participants')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity") 
@@ -244,31 +247,48 @@ fig2_h <- ggplot(df, aes(alignment.length_))+
 
 
 ###################################################################################################
-# Combine basic covariate plots into figure (with labels and axis)
-fig2_top <- cowplot::plot_grid(fig2_a + theme(legend.position= c(0.85,0.835)),
-                               fig2_b + theme(legend.position= c(0.85,0.95)),
-                               nrow = 1,
-                               align = "hv",
-                               axis = "bt" ,
-                               labels = "AUTO")
+# Fig 2I =  SGA
 
-fig2_bottom <- cowplot::plot_grid(fig2_c + theme(legend.position="none"),
-                                  fig2_d + theme(legend.position="none", axis.title.x = element_text(margin = margin(t = 13))), 
-                                  fig2_e + theme(legend.position="none", axis.title.x = element_text(margin = margin(t = 20))),
-                                  fig2_f + theme(legend.position="none", axis.title.x = element_text(margin = margin(t = 12))),
+df_sga <- df %>% mutate(sga = ifelse(sample.amplification_ == 'SGA', 'SGA', 'Not SGA'))
+  
+fig2_i <- ggplot(df_sga, aes(x = sga))+
+  geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), y = (..count..)/sum(..count..)))+
+  scale_fill_manual(values = mycols_founder, labels = labs)+
+  scale_y_continuous(limits = c(0,1), expand = c(0,0)) +
+  scale_x_discrete() +
+  theme_classic()+
+  xlab('Amplification')+
+  theme( axis.text.x=element_text(angle=45, hjust=1))+
+  ylab('Proportion of Participants') +
+  labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity") 
+
+###################################################################################################
+# Combine basic covariate plots into figure (with labels and axis)
+#fig2_top <- cowplot::plot_grid(fig2_b + theme(legend.position= c(0.85,0.95)),
+                             #  nrow = 1,
+                             #  align = "hv",
+                            #   axis = "bt" ,
+                            #   labels = "AUTO")
+
+fig_2 <- cowplot::plot_grid(fig2_b + theme(legend.position= c(0.85,0.8), axis.title.x = element_text(margin = margin(t = 5))),
+                                  fig2_c + theme(legend.position="none", axis.title.x = element_text(margin = margin(t = 12))),
+                                  fig2_d + theme(legend.position="none", axis.title.x = element_text(margin = margin(t = 12))), 
+                                  fig2_e + theme(legend.position="none", axis.title.x = element_text(margin = margin(t = 21))),
+                                  fig2_f + theme(legend.position="none", axis.title.x = element_text(margin = margin(t = 9))),
                                   fig2_g + theme(legend.position="none"),
-                                  fig2_h + theme(legend.position="none", axis.title.x = element_text(margin = margin(t = 6))),
-                                  ncol = 3, 
-                                  nrow = 2,
+                                  fig2_h + theme(legend.position="none", axis.title.x = element_text(margin = margin(t = 8))),
+                                  fig2_i + theme(legend.position="none", axis.title.x = element_text(margin = margin(t = 0))),
+                                  ncol = 2, 
+                                  nrow = 4,
                                   align = "hv", 
                                   axis = "bt",
-                                  labels = c('C', 'D', 'E', 'F', 'G', 'H')) 
+                                  labels = 'AUTO') 
 
-fig_2 <- cowplot::plot_grid(fig2_top, fig2_bottom, nrow = 2)
+#fig_2 <- cowplot::plot_grid(fig2_top, fig2_bottom, nrow = 2)
 
 # Print to file
 setEPS()
-postscript("./results/figure2.eps", width = 10, height = 16)
+postscript(paste(figs_dir,sep = '/', "figure2.eps"), width = 10, height = 16)
 fig_2
 dev.off()
 
