@@ -216,18 +216,6 @@ figure_3A <- ggplot() +
     legend.position = 'none',
     panel.grid.minor.y = element_blank(),
     panel.grid.major.y = element_blank()) +
-  #geom_rect(aes(ymin = Inf,
-               # ymax =  6.5,
-               # xmin = -Inf, 
-               # xmax = Inf),
-           # fill = 'grey',
-           # alpha = 0.2) +
-  #geom_rect(aes(ymin = 5.5,
-              #  ymax =  1.5,
-              #  xmin = -Inf, 
-               # xmax = Inf),
-            #fill = 'grey',
-           # alpha = 0.2)+
   scale_y_discrete(labels = c("PWID" = 'PWID', 
                               "MTC:IntraP" = 'Mother-to-child: intrapartum', 
                               "MTC:notiming" = 'Mother-to-child: undisclosed',
