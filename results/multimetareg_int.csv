@@ -1,0 +1,2 @@
+"","covariate","level","est","sd","ci.lb","ci.ub","z.val","p.val","analysis"
+"1","(Intercept)",NA,-1.29946370684577,0.245135314710318,-1.75271160271258,-0.745022992508948,-5.30100572568002,1.15166476537974e-07,"Reported Exposure + Grouped Method + Sequencing Gene + Sampling Delay"

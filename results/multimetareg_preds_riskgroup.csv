@@ -1,0 +1,5 @@
+"","covariate_level","predicted","std.error","conf.low","conf.high","group","label"
+"1","HSX",0.186413292370114,0.223824460397205,0.128736791607901,0.262154889478229,"1","Riskgroup + Grouped Method + Alignment Bin"
+"2","MSM",0.295965880493693,0.216202983371539,0.215796502902588,0.391066229418386,"1","Riskgroup + Grouped Method + Alignment Bin"
+"3","MTC",0.189037092401062,0.30831557318499,0.112989043183512,0.29901523144787,"1","Riskgroup + Grouped Method + Alignment Bin"
+"4","PWID",0.367200473456547,0.333181456953127,0.23196133545403,0.527167700431466,"1","Riskgroup + Grouped Method + Alignment Bin"
