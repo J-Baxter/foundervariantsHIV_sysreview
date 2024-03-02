@@ -227,17 +227,14 @@ labs <- c('Multiple','Single')
 
 figureS6a <- ggplot(df, aes(x = vaccine.status_))+
   geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), y = (..count..)/sum(..count..)))+
-  scale_fill_manual(values = mycols_founder, labels = labs)+
+  scale_fill_brewer(palette = 'YlGn', labels = labs)+
   scale_y_continuous(limits = c(0,1), expand = c(0,0)) +
-  theme_classic()+
   xlab('Vaccine Status')+
   theme( axis.text.x=element_text(angle=45, hjust=1))+
   ylab('Proportion of Participants')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity") + 
+  my_theme +
   theme(legend.position = c(0.75,0.86),
-        axis.text = element_text(size = 9.5),
-        legend.text = element_text(size = 9.5),
-        axis.title = element_text(size = 11),
         legend.background = element_blank()#,
         #plot.margin = unit(c(2,4,2,1), "lines")
   )
@@ -259,7 +256,6 @@ figureS6b <- ggplot(pooled,
                      onestep_bi_rand = "GLMM",
                      twostep_binorm = "B-N"
                    )) +
-  theme_bw() + 
   
   coord_flip() +
   
@@ -270,17 +266,26 @@ figureS6b <- ggplot(pooled,
                      color = analysis), 
                  position = position_dodge(0.5)) +
   
-  scale_colour_npg(name = 'Analysis', labels = c(
+  scale_colour_brewer(
+    palette = 'YlGn',
+    name = 'Analysis', labels = c(
     original = "Full analysis",
-    vaccine = "Vaccine trial participants only")) + 
+    vaccine = "Vaccine trial participants only"))+
+  theme_bw(base_family = "LM Sans 10") + 
   
-  theme(legend.position = c(0.75,0.86),
-        axis.text = element_text(size = 9.5),
-        legend.text = element_text(size = 9.5),
-        axis.title = element_text(size = 11),
-        legend.background = element_blank()#,
-        #plot.margin = unit(c(2,4,2,1), "lines")
-  )
+  theme(legend.position = c(0.8,0.8),
+        legend.background = element_blank(),
+        axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), size = 8),
+        axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0), size = 8),
+        axis.text = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), size = 7),
+        strip.text  = element_text(size = 8),
+        legend.text = element_text(size = 7),
+        legend.title = element_text(size = 8),
+        panel.spacing = unit(2, "lines"), 
+        strip.background = element_blank(),
+        axis.line.y = element_blank(),
+        axis.ticks.y = element_blank()) 
+
 
 vaccine_ref <- cbind.data.frame(level = 'placebo', est = 0, ci.lb = NA, ci.ub = NA)
 vaccine_subgroup <- rbind.data.frame(unipooled_models.coef$fe[, c(2,3,5,6)], vaccine_ref)
@@ -300,9 +305,7 @@ figureS6c <- ggplot(vaccine_subgroup,
                    labels = c(
                      vaccine = "Vaccine",
                      placebo = "Placebo"
-                   )) +
-  theme_bw() + 
-  
+                   ))+
   coord_flip() +
   
   guides(colour = guide_legend(reverse=T))+
@@ -310,24 +313,31 @@ figureS6c <- ggplot(vaccine_subgroup,
   geom_linerange(aes(ymin=exp(ci.lb), 
                      ymax=exp(ci.ub))) +
   geom_hline(yintercept = 1, linetype = 'dashed') +
+  theme_bw(base_family = "LM Sans 10") + 
   
   theme(legend.position = c(0.8,0.86),
-        axis.text = element_text(size = 9.5),
-        legend.text = element_text(size = 9.5),
-        axis.title = element_text(size = 11),
-        legend.background = element_blank()#,
-        #plot.margin = unit(c(2,4,2,1), "lines")
-  )
+        legend.background = element_blank(),
+        axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), size = 8),
+        axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0), size = 8),
+        axis.text = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), size = 7),
+        strip.text  = element_text(size = 8),
+        legend.text = element_text(size = 7),
+        legend.title = element_text(size = 8),
+        panel.spacing = unit(2, "lines"), 
+        strip.background = element_blank(),
+        axis.line.y = element_blank(),
+        axis.ticks.y = element_blank()) 
+
 
 figureS6 <- cowplot::plot_grid(figureS6a,
                                figureS6b, 
                                figureS6c, 
-                               ncol = 3,  rel_widths  = c(1,1,1) ,labels = "AUTO", align = 'h', axis = 'b', greedy = F)
+                               nrow = 3,  rel_heights  = c(1,1,1) ,labels = "AUTO", align = 'hv', axis = 'b', greedy = F)
 
 
 
 # Save to file (ggsave rather than setEPS() to preseve transparencies)
-ggsave("./results/figureS9.eps", device=cairo_ps, width = 16, height = 10, units= 'in')
+ggsave("figureS7.eps", device=cairo_ps,  height = 240, width = 150, units = 'mm')
 Sys.sleep(0.5)
 figureS6
 dev.off()

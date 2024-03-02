@@ -274,11 +274,11 @@ ggfunnel <- function(x){
     plt <- ggplot(funnel_data) +
       geom_polygon(aes(x=x, y = y), data =  poldgpn ,fill = 'white', linetype = 'dashed' , color = 'black')  +
       geom_point(aes(y = se, x = b), shape = 4, size = 3)+
-      theme_classic() +
       scale_x_continuous(limits = c(-5 , 3), expand = c(0,0), name = 'Log Odds of Multiple Founders')+
       scale_y_reverse(limit=c(1.5,0),  expand = c(0,0), name = 'Standard Error') +
       
       geom_segment(aes(x=u, y =1.5, xend = u, yend=0)) +
+      my_theme+
       theme(panel.background = element_rect(fill = 'gray94' )) 
   }
   
@@ -608,10 +608,11 @@ plt_funnel <- ggfunnel(onestep_bi_rand.nozeros)
 
 # Print to file
 # may not work on linux depending on config
-setEPS()
-postscript(paste(figs_dir, "./results/figureS8.eps", sep = '/'), width = 12, height = 12)
+ggsave('figureS8.eps', device=cairo_ps,  height = 110, width = 140, units = 'mm')
+Sys.sleep(0.5)
 plt_funnel 
 dev.off()
+
 
 ###################################################################################################
 ###################################################################################################

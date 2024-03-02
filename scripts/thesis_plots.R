@@ -10,11 +10,23 @@ source('./scripts/generalpurpose_funcs.R')
 font_import(pattern = "lmsans10*") 
 loadfonts()
 
+library(scales)
+library(extrafont)
+
+
+#https://www.fontsquirrel.com/fonts/latin-modern-sans
+font_import(pattern = "lmsans10*") 
+loadfonts()
+
 my_theme <- theme_classic(base_family = "LM Sans 10")+
   theme(
-    text = element_text(size=16),
-    axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)),
-    axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
+    #text = element_text(size=10),
+    axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), size = 8),
+    axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0), size = 8),
+    axis.text = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), size = 7),
+    strip.text  = element_text(size = 8),
+    legend.text = element_text(size = 7),
+    legend.title = element_text(size = 8),
     legend.position = 'none', 
     panel.spacing = unit(2, "lines"), 
     strip.background = element_blank()
@@ -314,7 +326,8 @@ panel_2 <- cowplot::plot_grid(plt_2b + theme(legend.position= c(0.85,0.8), axis.
                             nrow = 4,
                             align = "hv", 
                             axis = "bt",
-                            labels = 'AUTO') 
+                            labels = 'AUTO', 
+                            label_size = 8) 
 
 
 ####################################### Figure 3 - compare pooling models #######################################
@@ -329,7 +342,8 @@ og_models <- cbind("model" = pooled_models[1:2,1], pooled_models[1:2,3:8] %>% ro
   arrange(., model)
 library(ggridges)
 
-plt_3 <- ggplot(resampled_models) + 
+plt_3 <- resampled_models %>% as.tibble() %>% mutate(estimate = case_when(analysis == 'onestep_bi_rand' ~ estimate + 0.006, .default = estimate)) %>%
+  ggplot() + 
   geom_density_ridges(aes(x = estimate,
                           y = analysis,
                       
@@ -397,4 +411,22 @@ plt_4 <- ggplot() +
                    name = element_blank()) + 
   coord_cartesian(xlim = c(0,0.6)) +
   my_theme
+
+
+# print to file
+
+ggsave('figure2.eps', device=cairo_ps,  height = 260, width = 180, units = 'mm')
+Sys.sleep(0.5)
+panel_2
+dev.off()
+
+ggsave('figure3.eps', device=cairo_ps,  height = 110, width = 140, units = 'mm')
+Sys.sleep(0.5)
+plt_3
+dev.off()
+
+ggsave('figure4.eps', device=cairo_ps,  height = 110, width = 140, units = 'mm')
+Sys.sleep(0.5)
+plt_4
+dev.off()
   

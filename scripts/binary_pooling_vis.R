@@ -52,6 +52,7 @@ PltBoot <- function(data, intercept, ci.lb, ci.ub){
 ###################################################################################################
 ###################################################################################################
 # Import data
+results_dir = './results'
 influence_df <- read.csv(paste(results_dir,sep = '/', "pooling_sa1.csv")) %>% arrange(., model)
 influence_rg <- read.csv(paste(results_dir,sep = '/', "pooling_sa8.csv")) %>% arrange(., model)
 

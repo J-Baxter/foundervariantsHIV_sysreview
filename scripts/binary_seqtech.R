@@ -117,7 +117,7 @@ if (!dir.exists('data')){
 df <- read.csv("./data/meta_analysis_data.csv",
                na.strings = "NA",
                stringsAsFactors = T) %>%
-  formatDF(., filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay'), noreps = F) %>%
+  formatDF(., filter = c('reported.exposure','grouped.subtype','sequencing.gene', 'sampling.delay')) %>%
   filter(reported.exposure_ != 'unknown.exposure') %>%
   filter(!is.na(sequencing.method_)) %>%
   filter(sequencing.method_ != 'unknown') %>%
@@ -243,28 +243,22 @@ labs <- c('Multiple','Single')
 
 figureS7a <- ggplot(df, aes(x = sequencing.method_))+
   geom_bar(aes(fill = forcats::fct_rev(factor(multiple.founders_)), y = (..count..)/sum(..count..)))+
-  scale_fill_manual(values = mycols_founder, labels = labs)+
+  scale_fill_brewer( palette = 'YlGn', labels = labs)+
   scale_y_continuous(limits = c(0,1), expand = c(0,0)) +
-  theme_classic()+
   xlab('Sequencing Technology')+
-  theme( axis.text.x=element_text(angle=45, hjust=1))+
   ylab('Proportion of Participants')+
   labs(fill = "Founder Multiplicity", colour = "Founder Multiplicity") + 
   scale_x_discrete(labels = c("Sanger (with SGA)",
-                                         "Illumina MiSeq",
-                                         "Roche 454",
-                                         "PacBio HiFi",
-                                         "Sanger (no SGA)",
-                                         "Sanger (with SGA precursor)"
-                                          )%>%
+                              "Illumina MiSeq",
+                              "Roche 454",
+                              "PacBio HiFi",
+                              "Sanger (no SGA)",
+                              "Sanger (with SGA precursor)")%>%
                      str_wrap(width = 10))+
-  theme(legend.position = c(0.75,0.86),
-        axis.text = element_text(size = 9.5),
-        legend.text = element_text(size = 9.5),
-        axis.title = element_text(size = 11),
-        legend.background = element_blank()#,
-        #plot.margin = unit(c(2,4,2,1), "lines")
-  )
+  my_theme +
+  theme(axis.text.x=element_text(angle=45, hjust=1),
+         legend.position = c(0.75,0.86))
+
 
 figureS7b <- ggplot(pooled,
                     aes(x= forcats::fct_rev(model), y = estimate, color = analysis)) +
@@ -283,7 +277,6 @@ figureS7b <- ggplot(pooled,
                      onestep_bi_rand = "GLMM",
                      twostep_binorm = "B-N"
                    )) +
-  theme_bw() + 
   
   coord_flip() +
   
@@ -294,22 +287,29 @@ figureS7b <- ggplot(pooled,
                      color = analysis), 
                  position = position_dodge(0.5)) +
   
-  scale_colour_npg(name = 'Analysis', labels = c(
+  scale_colour_brewer(palette = 'YlGn', name = 'Analysis', labels = c(
     original = "Full analysis",
     seq_tech = "Sequence methods only")) + 
+  theme_bw(base_family = "LM Sans 10") + 
   
-  theme(legend.position = c(0.75,0.86),
-        axis.text = element_text(size = 9.5),
-        legend.text = element_text(size = 9.5),
-        axis.title = element_text(size = 11),
-        legend.background = element_blank()#,
-        #plot.margin = unit(c(2,4,2,1), "lines")
-  )
+  theme(legend.position = c(0.8,0.8),
+        legend.background = element_blank(),
+        axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), size = 8),
+        axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0), size = 8),
+        axis.text = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), size = 7),
+        strip.text  = element_text(size = 8),
+        legend.text = element_text(size = 7),
+        legend.title = element_text(size = 8),
+        panel.spacing = unit(2, "lines"), 
+        strip.background = element_blank(),
+        axis.line.y = element_blank(),
+        axis.ticks.y = element_blank()) 
+    
 
 seqtech_ref <- cbind.data.frame(level = 'sangersga', est = 0, ci.lb = NA, ci.ub = NA)
 seqtech_subgroup <- rbind.data.frame(unipooled_models.coef$fe[, c(2,3,5,6)], seqtech_ref)
 
-levs <- c('sangerprecSGA', "2G:roche454", "3G:PacBiohifi", "sanger", "2G:illuminamiseq", "sangersga")
+levs <- c("sangersga", "2G:illuminamiseq", "2G:iontorrent","2G:roche454", "3G:PacBiohifi","sanger" ,   "sangerprecSGA")
 seqtech_subgroup$level <- factor(x = seqtech_subgroup$level, levels = levs)
 
 figureS7c <- ggplot(seqtech_subgroup,
@@ -324,14 +324,13 @@ figureS7c <- ggplot(seqtech_subgroup,
   coord_cartesian(ylim = c(0,6))+
   
   scale_x_discrete(name = "Sequencing Technology", 
-                  labels = c("Sanger (with SGA precursor)",
-                             "Roche 454",
-                             "PacBio HiFi",
-                             "Sanger (no SGA)",
-                             "Illumina MiSeq",
-                             "Sanger (with SGA)" ) 
+                  labels = c( "sangerprecSGA" = "Sanger (with SGA precursor)" ,
+                             '2G:roche454'= "Roche 454",
+                             '3G:PacBiohifi'= "PacBio HiFi" ,
+                             'sanger'= "Sanger (no SGA)",
+                             '2G:illuminamiseq'= "Illumina MiSeq",
+                             'sangersga' = "Sanger (with SGA)" ) 
                    ) +
-  theme_bw() + 
   
   coord_flip() +
   
@@ -339,25 +338,32 @@ figureS7c <- ggplot(seqtech_subgroup,
   
   geom_linerange(aes(ymin=exp(ci.lb), 
                      ymax=exp(ci.ub))) +
-  geom_hline(yintercept = 1, linetype = 'dashed') +
+  geom_hline(yintercept = 1, linetype = 'dashed')  + 
+  theme_bw(base_family = "LM Sans 10") + 
   
   theme(legend.position = c(0.8,0.86),
-        axis.text = element_text(size = 9.5),
-        legend.text = element_text(size = 9.5),
-        axis.title = element_text(size = 11),
-        legend.background = element_blank()#,
-        #plot.margin = unit(c(2,4,2,1), "lines")
-  )
+        legend.background = element_blank(),
+        axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), size = 8),
+        axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0), size = 8),
+        axis.text = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), size = 7),
+        strip.text  = element_text(size = 8),
+        legend.text = element_text(size = 7),
+        legend.title = element_text(size = 8),
+        panel.spacing = unit(2, "lines"), 
+        strip.background = element_blank(),
+        axis.line.y = element_blank(),
+        axis.ticks.y = element_blank()) 
+
 
 figureS7 <- cowplot::plot_grid(figureS7a,
                                figureS7b, 
                                figureS7c, 
-                               ncol = 3,  rel_widths  = c(1,1,1) ,labels = "AUTO", align = 'h', axis = 'b', greedy = F)
+                               ncol = 1,  rel_heights = c(1,1,1) ,labels = "AUTO", align = 'hv', axis = 'b', greedy = F)
 
 
 
 # Save to file (ggsave rather than setEPS() to preseve transparencies)
-ggsave("./results/figure_test2.eps", device=cairo_ps, width = 16, height = 10, units= 'in')
+ggsave("figureS6.eps", device=cairo_ps,  height = 240, width = 150, units = 'mm')
 Sys.sleep(0.5)
 figureS7
 dev.off()

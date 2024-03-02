@@ -362,13 +362,25 @@ Figure_S10B <-  ggplot() +
                               "reported.exposure_MTC:IntraP" = 'Mother-to-child: intrapartum', 
                               "reported.exposure_PWID" = 'PWID'), drop = FALSE)+
   geom_vline(xintercept = 1, linetype = 'dashed')+
+  theme_bw(base_family = "LM Sans 10")+
   theme(
+    #text = element_text(size=10),
+    axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), size = 8),
+    axis.text = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), size = 7),
     axis.line.y = element_blank(),
     axis.ticks.y = element_blank(),
+    strip.text  = element_text(size = 8),
+    legend.text = element_text(size = 7),
+    legend.title = element_text(size = 8),
     legend.position = 'bottom',
+    legend.background = element_blank(),
     panel.grid.minor.y = element_blank(),
     panel.grid.major.y = element_blank(),
-    axis.title.y = element_blank()) +
+    panel.spacing = unit(2, "lines"), 
+    strip.background = element_blank(),
+    strip.placement = 'outside',
+    axis.title.y = element_blank(),
+    strip.text.y = element_blank() ) +
   coord_cartesian(xlim = c(0,5))
 
 
@@ -393,7 +405,6 @@ colnames(sa5_plotdata) <- c('X',  'est', 'se', 'z.val', 'p.val', 'rep','level')
 Figure_S10C <- ggplot() +
   geom_point(aes(x = exp(est), y =  level ), position = position_jitter(), data = sa5_plotdata)+
   geom_point(aes(x = 1, y = 9))+
-  theme_bw() + 
   scale_x_continuous(
     expand = c(0,0), 
     name = "Odds Ratio"
@@ -409,14 +420,27 @@ Figure_S10C <- ggplot() +
                               "reported.exposure_MTC:IntraP" = 'Mother-to-child: intrapartum', 
                               "reported.exposure_PWID" = 'PWID'), drop = FALSE)+
   geom_vline(xintercept = 1, linetype = 'dashed')+
+  theme_bw(base_family = "LM Sans 10")+
   theme(
+    #text = element_text(size=10),
+    axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), size = 8),
+    axis.text = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), size = 7),
     axis.line.y = element_blank(),
     axis.ticks.y = element_blank(),
+    strip.text  = element_text(size = 8),
+    legend.text = element_text(size = 7),
+    legend.title = element_text(size = 8),
     legend.position = 'bottom',
+    legend.background = element_blank(),
     panel.grid.minor.y = element_blank(),
     panel.grid.major.y = element_blank(),
-    axis.title.y = element_blank()) +
+    panel.spacing = unit(2, "lines"), 
+    strip.background = element_blank(),
+    strip.placement = 'outside',
+    axis.title.y = element_blank(),
+    strip.text.y = element_blank() ) +
   coord_cartesian(xlim = c(0,5))
+
 
 
 ###################################################################################################
@@ -440,7 +464,6 @@ Figure_S10D <- ggplot(sa234_fe) +
                  shape = analysis),
              size = 3, 
              position = position_dodge2(width = 0.7)) +
-  theme_bw() + 
   scale_shape(name = 'Analysis', labels = c('No Small', 'No Zero', 'SGA Only'))+
   geom_linerange(aes(y = level, 
                      xmin= exp(ci.lb), 
@@ -475,35 +498,47 @@ Figure_S10D <- ggplot(sa234_fe) +
                               "<21" = '<21 Days'))+
   scale_colour_manual(values = setNames(c("#E64B35FF", "#4DBBD5FF", '#000000'), c('A',"B","C")),guide = NULL) +
   geom_vline(xintercept = 1, linetype = 'dashed')+
+  theme_bw(base_family = "LM Sans 10")+
   theme(
+    #text = element_text(size=10),
+    axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), size = 8),
+    axis.text = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), size = 7),
     axis.line.y = element_blank(),
     axis.ticks.y = element_blank(),
+    strip.text  = element_text(size = 8),
+    legend.text = element_text(size = 7),
+    legend.title = element_text(size = 8),
     legend.position = c(0.8,0.93),
     legend.background = element_blank(),
     panel.grid.minor.y = element_blank(),
     panel.grid.major.y = element_blank(),
+    panel.spacing = unit(2, "lines"), 
+    strip.background = element_blank(),
     strip.placement = 'outside',
     axis.title.y = element_blank(),
-    strip.text.y = element_blank(),
-    strip.background.x = element_blank()) +
-  coord_cartesian(xlim = c(0,6.5))+
+    strip.text.y = element_blank() ) + 
+  coord_cartesian(xlim = c(0,6.5)) +
   facet_grid(covariate ~ .,  scales = 'free_y', space = 'free_y', drop = T, switch = 'y' ) 
  
 
 # Out to file
-Figure_S10_L <- cowplot::plot_grid(Figure_S10A,
+Figure_S10_L <- cowplot::plot_grid(
                                    Figure_S10B,
                                    Figure_S10C,
-                                   labels = 'AUTO', nrow = 3, align = 'v', axis = 'l', rel_heights = c(1,1) ,vjust = 1)
+                                   labels = 'AUTO', nrow = 2, align = 'v', axis = 'l', rel_heights = c(1,1) ,vjust = 1)
 
 Figure_S10 <- cowplot::plot_grid(Figure_S10_L, 
                                  Figure_S10D,
                                  ncol = 2, align = 'h', axis = 't',labels = c('','D'))
 
-setEPS()
-postscript("./results/figureS11.eps", width = 12, height = 12)
-Sys.sleep(0.2)
-Figure_S9
+ggsave("figureS7.eps", device=cairo_ps,  height = 240, width = 150, units = 'mm')
+Sys.sleep(0.5)
+Figure_S10_L 
+dev.off()
+
+ggsave("figureS7.eps", device=cairo_ps,  height = 240, width = 150, units = 'mm')
+Sys.sleep(0.5)
+figureS6
 dev.off()
 
 

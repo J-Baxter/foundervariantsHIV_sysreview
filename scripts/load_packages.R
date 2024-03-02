@@ -9,7 +9,7 @@
 ###################################################################################################
 require(tidyverse)
 
-pkgs <- c("renv", "cowplot", "tidyverse", "emmeans", "lme4", "parallel", "performance", "scales",
+pkgs <- c( "cowplot", "tidyverse", "emmeans", "lme4", "parallel", "performance", "scales",
           "ggsci", "grDevices", "aod", "metafor", "RColorBrewer", "ggeffects", "reshape2", 
           "data.table", "glmmTMB", "influence.ME", "meta", "mltools", "actuar")
 
